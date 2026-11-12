@@ -240,3 +240,77 @@ export function subscribeRoom(
     closer?.close();
   };
 }
+
+function idKey(id: string) {
+  return id.trim().toLowerCase();
+}
+
+function idTag(id: string) {
+  return `dwid-${idKey(id)}`;
+}
+
+export type ClaimedId = { digitalId: string; name: string; avatarId: string; pubkey: string };
+
+function parseId(content: string): { digitalId: string; name: string; avatarId: string } | null {
+  try {
+    const data = JSON.parse(content) as Record<string, unknown>;
+    if (data.t !== "id") return null;
+    const digitalId = clean(data.id, 16);
+    if (!/^[a-z0-9_]{2,16}$/i.test(digitalId)) return null;
+    const name = clean(data.name, 16) || digitalId;
+    return { digitalId, name, avatarId: knownAvatar(clean(data.avatarId, 24)) };
+  } catch {
+    return null;
+  }
+}
+
+async function idEvents(id: string) {
+  const pool = await getPool();
+  return pool.querySync(RELAYS, { kinds: [1], "#t": [idTag(id)], limit: 20 }, { maxWait: 4000 });
+}
+
+function earliestId(events: { pubkey: string; created_at: number; content: string }[], key: string) {
+  return [...events]
+    .filter((event) => {
+      const parsed = parseId(event.content);
+      return parsed && idKey(parsed.digitalId) === key;
+    })
+    .sort((a, b) => a.created_at - b.created_at)[0];
+}
+
+export async function claimDigitalId(
+  digitalId: string,
+  name: string,
+  avatarId: string,
+): Promise<{ ok: true } | { ok: false; offline?: boolean; reason: string }> {
+  const key = idKey(digitalId);
+  if (!/^[a-z0-9_]{2,16}$/.test(key)) return { ok: false, reason: "Use 2 to 16 letters, numbers, or underscores." };
+  if (typeof window === "undefined") return { ok: false, offline: true, reason: "Couldn't check that ID. Try again." };
+  try {
+    const me = await ensureIdentity();
+    if (!me) return { ok: false, offline: true, reason: "Couldn't check that ID. Try again." };
+    const events = await idEvents(digitalId);
+    const taken = earliestId(events, key);
+    if (taken && taken.pubkey !== me) return { ok: false, reason: "That DigitalWorld ID is taken." };
+    const posted = await publish(
+      [idTag(digitalId)],
+      JSON.stringify({ v: 1, t: "id", id: digitalId.trim(), name: name.trim(), avatarId }),
+    );
+    if (!posted) return { ok: false, offline: true, reason: "Couldn't check that ID. Try again." };
+    const owner = earliestId(await idEvents(digitalId), key);
+    if (owner && owner.pubkey !== me) return { ok: false, reason: "That DigitalWorld ID is taken." };
+    return { ok: true };
+  } catch {
+    return { ok: false, offline: true, reason: "Couldn't check that ID. Try again." };
+  }
+}
+
+export async function findClaimedId(digitalId: string): Promise<ClaimedId | null> {
+  const key = idKey(digitalId);
+  if (!/^[a-z0-9_]{2,16}$/.test(key) || typeof window === "undefined") return null;
+  const owner = earliestId(await idEvents(digitalId), key);
+  if (!owner) return null;
+  const parsed = parseId(owner.content);
+  if (!parsed) return null;
+  return { digitalId: parsed.digitalId, name: parsed.name, avatarId: parsed.avatarId, pubkey: owner.pubkey };
+}

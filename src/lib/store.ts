@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { AVATARS, EMPTY_LOADOUT, skinById, wornList, type Loadout, type ModeId, type ThemeId } from "@/data/catalog";
 
-export type Profile = { username: string; avatarId: string };
+export type Profile = { username: string; digitalId: string; avatarId: string };
 
 export type Friend = {
   id: string;
@@ -54,7 +54,7 @@ type World = {
   party: PartyMember[];
   mode: ModeId;
   rosterSize: number;
-  setProfile: (profile: Profile) => void;
+  setProfile: (profile: Profile | null) => void;
   setTheme: (roomId: string, theme: ThemeId) => void;
   joinRoom: (roomId: string) => void;
   createRoom: (title: string) => string;
@@ -66,7 +66,7 @@ type World = {
   pushMessage: (message: ChatMessage) => void;
   inviteRegular: (avatarId: string) => void;
   respondFriend: (id: string, accept: boolean) => void;
-  addByCode: (code: string) => string;
+  addByCode: (code: string, person?: { name: string; avatarId: string; pubkey: string }) => string;
   toggleParty: (member: PartyMember) => void;
   buySkin: (id: string, cost: number) => boolean;
   buyWeapon: (id: string, cost: number) => boolean;
@@ -238,22 +238,25 @@ export const useWorld = create<World>()(
               )
             : get().friends.filter((friend) => friend.id !== id),
         }),
-      addByCode: (code) => {
-        const trimmed = code.trim().toUpperCase();
-        const id = uid("pal");
+      addByCode: (code, person) => {
+        const trimmed = code.trim();
+        const key = trimmed.toLowerCase();
+        if (!/^[a-z0-9_]{2,16}$/.test(key)) return "Type their DigitalWorld ID.";
+        if (get().profile?.digitalId.toLowerCase() === key) return "That is you.";
+        if (get().friends.some((friend) => friend.code.toLowerCase() === key)) return "Already added.";
         set({
           friends: [
             ...get().friends,
             {
-              id,
-              name: `Guest ${trimmed.slice(0, 4) || "PAL"}`,
-              avatarId: "robot",
-              code: trimmed || "GUEST",
-              status: "outgoing",
+              id: person?.pubkey || uid("pal"),
+              name: person?.name || trimmed,
+              avatarId: person?.avatarId || "robot",
+              code: trimmed,
+              status: "accepted",
             },
           ],
         });
-        return "Invite saved on this device.";
+        return "Added.";
       },
       toggleParty: (member) => {
         const has = get().party.some((item) => item.id === member.id);
@@ -336,10 +339,3 @@ export const useWorld = create<World>()(
     },
   ),
 );
-
-export function userCode(name: string) {
-  let hash = 0;
-  for (const char of name.toUpperCase()) hash = (hash * 33 + char.charCodeAt(0)) >>> 0;
-  const stem = name.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 4) || "YOU";
-  return `${stem}-${(hash % 9000) + 1000}`;
-}

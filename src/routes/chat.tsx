@@ -4,8 +4,8 @@ import { Avatar } from "@/components/avatar";
 import { Shell, useHydrated } from "@/components/shell";
 import { AVATARS, GIFS, THEMES, type ThemeId } from "@/data/catalog";
 import { asset } from "@/lib/asset";
-import { ensureIdentity, findSharedRoom, publishDrop, publishMessage, publishRoom, subscribeRoom } from "@/lib/live-chat";
-import { useWorld, userCode, type ChatMessage, type Room } from "@/lib/store";
+import { claimDigitalId, ensureIdentity, findClaimedId, findSharedRoom, publishDrop, publishMessage, publishRoom, subscribeRoom } from "@/lib/live-chat";
+import { useWorld, type ChatMessage, type Room } from "@/lib/store";
 
 export const Route = createFileRoute("/chat")({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -24,16 +24,21 @@ function ChatPage() {
       </Shell>
     );
   }
-  if (!profile) return <ProfileGate />;
+  if (!profile?.digitalId) return <ProfileGate />;
   return <ChatApp />;
 }
 
 function ProfileGate() {
+  const profile = useWorld((state) => state.profile);
   const setProfile = useWorld((state) => state.setProfile);
-  const [name, setName] = useState("");
-  const [avatarId, setAvatarId] = useState(AVATARS[0]!.id);
+  const [name, setName] = useState(profile?.username ?? "");
+  const [digitalId, setDigitalId] = useState("");
+  const [avatarId, setAvatarId] = useState(profile?.avatarId ?? AVATARS[0]!.id);
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
   const clean = name.trim();
-  const ok = clean.length >= 2 && clean.length <= 16;
+  const id = digitalId.trim();
+  const ok = clean.length >= 2 && clean.length <= 16 && /^[A-Za-z0-9_]{2,16}$/.test(id) && !busy;
   return (
     <Shell>
       <div className="mx-auto max-w-3xl">
@@ -45,6 +50,16 @@ function ProfileGate() {
             onChange={(event) => setName(event.target.value)}
             maxLength={16}
             placeholder="Your callsign"
+            className="mt-2 w-full rounded-2xl border border-line bg-panel px-4 py-3 text-cream outline-none focus:border-cyan"
+          />
+        </label>
+        <label className="mt-4 block text-sm text-mute">
+          DigitalWorld ID
+          <input
+            value={digitalId}
+            onChange={(event) => setDigitalId(event.target.value.replace(/[^A-Za-z0-9_]/g, ""))}
+            maxLength={16}
+            placeholder="Unique ID"
             className="mt-2 w-full rounded-2xl border border-line bg-panel px-4 py-3 text-cream outline-none focus:border-cyan"
           />
         </label>
@@ -61,10 +76,22 @@ function ProfileGate() {
             </button>
           ))}
         </div>
+        {note ? <p className="mt-4 text-sm text-mute">{note}</p> : null}
         <button
           type="button"
           disabled={!ok}
-          onClick={() => setProfile({ username: clean, avatarId })}
+          onClick={() => {
+            setBusy(true);
+            setNote("Checking that ID…");
+            void claimDigitalId(id, clean, avatarId).then((result) => {
+              setBusy(false);
+              if (!result.ok) {
+                setNote(result.reason);
+                return;
+              }
+              setProfile({ username: clean, digitalId: id, avatarId });
+            });
+          }}
           className="mt-6 rounded-full bg-cyan px-5 py-3 font-display text-ink disabled:opacity-40"
         >
           Enter chat
@@ -78,6 +105,7 @@ function ChatApp() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
   const profile = useWorld((state) => state.profile)!;
+  const setProfile = useWorld((state) => state.setProfile);
   const rooms = useWorld((state) => state.rooms);
   const joined = useWorld((state) => state.joinedRoomIds);
   const messages = useWorld((state) => state.messages);
@@ -116,6 +144,17 @@ function ChatApp() {
   const canTalk = Boolean(active && joined.includes(active.id));
 
   const activeId = active?.id ?? "";
+
+  useEffect(() => {
+    let stop = false;
+    void claimDigitalId(profile.digitalId, profile.username, profile.avatarId).then((result) => {
+      if (stop || result.ok || result.offline) return;
+      setProfile({ ...profile, digitalId: "" });
+    });
+    return () => {
+      stop = true;
+    };
+  }, [profile.avatarId, profile.digitalId, profile.username, setProfile]);
 
   useEffect(() => {
     void ensureIdentity().then(setSelfId);
@@ -269,10 +308,22 @@ function ChatApp() {
               party={party}
               friendCode={friendCode}
               setFriendCode={setFriendCode}
-              onAdd={() => setNote(addByCode(friendCode))}
+              onAdd={() => {
+                setNote("Looking up that ID…");
+                void findClaimedId(friendCode)
+                  .then((found) => {
+                    if (!found) {
+                      setNote("No one has that DigitalWorld ID.");
+                      return;
+                    }
+                    setNote(addByCode(found.digitalId, found));
+                    setFriendCode("");
+                  })
+                  .catch(() => setNote("Couldn't look that up. Try again."));
+              }}
               onRespond={respondFriend}
               onParty={toggleParty}
-              myCode={userCode(profile.username)}
+              myCode={profile.digitalId}
             />
           )}
         </aside>
@@ -502,12 +553,12 @@ function PeoplePanel({
 }) {
   return (
     <div className="space-y-3 px-3 pb-4">
-      <p className="text-xs text-mute">Your code {myCode}</p>
+      <p className="text-xs text-mute">Your DigitalWorld ID {myCode}</p>
       <div className="flex gap-2">
         <input
           value={friendCode}
           onChange={(event) => setFriendCode(event.target.value)}
-          placeholder="Friend code"
+          placeholder="DigitalWorld ID"
           className="min-w-0 flex-1 rounded-xl border border-line bg-ink px-3 py-2"
         />
         <button type="button" onClick={onAdd} className="rounded-xl bg-panel-2 px-3">
