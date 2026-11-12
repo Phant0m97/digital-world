@@ -2,8 +2,9 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Avatar } from "@/components/avatar";
 import { Shell, useHydrated } from "@/components/shell";
-import { AVATARS, GIFS, THEMES, avatarById, type ThemeId } from "@/data/catalog";
+import { AVATARS, GIFS, THEMES, type ThemeId } from "@/data/catalog";
 import { asset } from "@/lib/asset";
+import { ensureIdentity, findSharedRoom, publishDrop, publishMessage, publishRoom, subscribeRoom } from "@/lib/live-chat";
 import { useWorld, userCode, type ChatMessage, type Room } from "@/lib/store";
 
 export const Route = createFileRoute("/chat")({
@@ -87,6 +88,9 @@ function ChatApp() {
   const joinByCode = useWorld((state) => state.joinByCode);
   const sendMessage = useWorld((state) => state.sendMessage);
   const deleteMessage = useWorld((state) => state.deleteMessage);
+  const removeMessage = useWorld((state) => state.removeMessage);
+  const pushMessage = useWorld((state) => state.pushMessage);
+  const addRoom = useWorld((state) => state.addRoom);
   const setTheme = useWorld((state) => state.setTheme);
   const respondFriend = useWorld((state) => state.respondFriend);
   const addByCode = useWorld((state) => state.addByCode);
@@ -99,35 +103,55 @@ function ChatApp() {
   const [note, setNote] = useState("");
   const [roomTitle, setRoomTitle] = useState("");
   const [panel, setPanel] = useState<"rooms" | "people">("rooms");
+  const [selfId, setSelfId] = useState("");
   const scroller = useRef<HTMLDivElement>(null);
 
   const openRooms = rooms.filter((room) => room.visibility === "public" || joined.includes(room.id));
   const active = rooms.find((room) => room.id === search.room) ?? null;
-  const thread = messages.filter((message) => message.roomId === active?.id);
+  const thread = messages
+    .filter((message) => message.roomId === active?.id)
+    .slice()
+    .sort((a, b) => a.at - b.at);
   const canTalk = Boolean(active && joined.includes(active.id));
+
+  const activeId = active?.id ?? "";
+
+  useEffect(() => {
+    void ensureIdentity().then(setSelfId);
+  }, []);
+
+  useEffect(() => {
+    if (!activeId || !canTalk) return;
+    return subscribeRoom(activeId, pushMessage, removeMessage);
+  }, [activeId, canTalk, pushMessage, removeMessage]);
 
   useEffect(() => {
     scroller.current?.scrollTo({ top: scroller.current.scrollHeight });
   }, [thread.length, active?.id]);
 
-  const members = useMemo(() => {
-    if (!active) return [];
-    return active.memberIds.map((id) => avatarById(id));
-  }, [active]);
+  const speakers = useMemo(() => {
+    const seen = new Map<string, { id: string; name: string; avatarId: string }>();
+    for (const message of thread) {
+      if (message.fromId === selfId || message.fromId === "me") continue;
+      seen.set(message.fromId, { id: message.fromId, name: message.fromName, avatarId: message.avatarId });
+    }
+    return [...seen.values()];
+  }, [thread, selfId]);
 
   function openRoom(room: Room) {
     if (!joined.includes(room.id)) return;
     void navigate({ search: { room: room.id } });
   }
 
-  function onSend() {
+  async function onSend() {
     if (!active || !canTalk) return;
-    const body = draft;
-    const chosen = gif;
-    sendMessage(active.id, body, chosen ?? undefined);
+    const authorId = selfId || (await ensureIdentity());
+    if (!selfId) setSelfId(authorId);
+    const message = sendMessage(active.id, draft, gif ?? undefined, authorId);
     setDraft("");
     setGif(null);
     setShowGifs(false);
+    if (message) void publishMessage(message);
   }
 
   const theme = active?.theme ?? "black";
@@ -175,11 +199,23 @@ function ChatApp() {
               })}
               <form
                 className="rounded-2xl border border-line p-3"
-                onSubmit={(event) => {
+                onSubmit={async (event) => {
                   event.preventDefault();
                   const id = joinByCode(code);
-                  setNote(id ? "Code accepted." : "No room uses that code.");
-                  if (id) void navigate({ search: { room: id } });
+                  if (id) {
+                    setNote("Code accepted.");
+                    void navigate({ search: { room: id } });
+                    return;
+                  }
+                  setNote("Looking up that code…");
+                  const remote = await findSharedRoom(code);
+                  if (!remote) {
+                    setNote("No room uses that code.");
+                    return;
+                  }
+                  addRoom(remote);
+                  setNote("Code accepted.");
+                  void navigate({ search: { room: remote.id } });
                 }}
               >
                 <input
@@ -194,13 +230,15 @@ function ChatApp() {
               </form>
               <form
                 className="rounded-2xl border border-line p-3"
-                onSubmit={(event) => {
+                onSubmit={async (event) => {
                   event.preventDefault();
                   const id = createRoom(roomTitle);
                   const created = useWorld.getState().rooms.find((room) => room.id === id);
-                  setNote(created ? `Room code ${created.inviteCode}` : "");
                   setRoomTitle("");
                   void navigate({ search: { room: id } });
+                  if (!created) return;
+                  const shared = await publishRoom(created);
+                  setNote(shared ? `Room code ${created.inviteCode}` : "Room saved on this device only.");
                 }}
               >
                 <input
@@ -257,9 +295,13 @@ function ChatApp() {
                   <MessageRow
                     key={message.id}
                     message={message}
-                    mine={message.fromId === "me"}
+                    mine={message.fromId === selfId || message.fromId === "me"}
                     theme={theme}
-                    onDelete={() => deleteMessage(message.id)}
+                    onDelete={() => {
+                      if (message.fromId !== selfId && message.fromId !== "me") return;
+                      deleteMessage(message.id, selfId);
+                      void publishDrop(message);
+                    }}
                   />
                 ))}
               </div>
@@ -323,13 +365,10 @@ function ChatApp() {
               <Avatar id={profile.avatarId} className="size-10" />
               <span>{profile.username}</span>
             </li>
-            {members.map((member) => (
+            {speakers.map((member) => (
               <li key={member.id} className="flex items-center gap-2">
-                <Avatar id={member.id} className="size-10" />
-                <div className="min-w-0">
-                  <p className="truncate">{member.name}</p>
-                  <p className="text-xs text-mute">{member.code}</p>
-                </div>
+                <Avatar id={member.avatarId} className="size-10" />
+                <p className="truncate">{member.name}</p>
               </li>
             ))}
           </ul>

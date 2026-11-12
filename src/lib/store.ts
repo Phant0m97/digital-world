@@ -57,9 +57,11 @@ type World = {
   setTheme: (roomId: string, theme: ThemeId) => void;
   joinRoom: (roomId: string) => void;
   createRoom: (title: string) => string;
+  addRoom: (room: Room) => void;
   joinByCode: (code: string) => string | null;
-  sendMessage: (roomId: string, body: string, gif?: string) => void;
-  deleteMessage: (id: string) => void;
+  sendMessage: (roomId: string, body: string, gif: string | undefined, authorId: string) => ChatMessage | null;
+  deleteMessage: (id: string, authorId: string) => void;
+  removeMessage: (id: string, authorId: string) => void;
   pushMessage: (message: ChatMessage) => void;
   inviteRegular: (avatarId: string) => void;
   respondFriend: (id: string, accept: boolean) => void;
@@ -144,21 +146,32 @@ export const useWorld = create<World>()(
         });
         return id;
       },
+      addRoom: (room) => {
+        const existing = get().rooms.find((item) => item.id === room.id);
+        if (existing) {
+          get().joinRoom(existing.id);
+          return;
+        }
+        set({
+          rooms: [...get().rooms, room],
+          joinedRoomIds: [...new Set([...get().joinedRoomIds, room.id])],
+        });
+      },
       joinByCode: (code) => {
         const hit = get().rooms.find((room) => room.inviteCode.toLowerCase() === code.trim().toLowerCase());
         if (!hit) return null;
         get().joinRoom(hit.id);
         return hit.id;
       },
-      sendMessage: (roomId, body, gif) => {
+      sendMessage: (roomId, body, gif, authorId) => {
         const profile = get().profile;
-        if (!profile) return;
+        if (!profile || !authorId) return null;
         const text = body.trim();
-        if (!text && !gif) return;
+        if (!text && !gif) return null;
         const message: ChatMessage = {
           id: uid("msg"),
           roomId,
-          fromId: "me",
+          fromId: authorId,
           fromName: profile.username,
           avatarId: profile.avatarId,
           body: text,
@@ -166,13 +179,26 @@ export const useWorld = create<World>()(
           at: Date.now(),
         };
         set({ messages: [...get().messages, message] });
+        return message;
       },
-      deleteMessage: (id) => {
+      deleteMessage: (id, authorId) => {
         set({
-          messages: get().messages.filter((message) => !(message.id === id && message.fromId === "me")),
+          messages: get().messages.filter((message) => {
+            if (message.id !== id) return true;
+            return message.fromId !== "me" && message.fromId !== authorId;
+          }),
         });
       },
-      pushMessage: (message) => set({ messages: [...get().messages, message] }),
+      removeMessage: (id, authorId) => {
+        const hit = get().messages.find((message) => message.id === id);
+        if (hit && hit.fromId !== authorId) return;
+        set({ messages: get().messages.filter((message) => message.id !== id) });
+      },
+      pushMessage: (message) => {
+        if (get().messages.some((item) => item.id === message.id)) return;
+        const next = [...get().messages, message].sort((a, b) => a.at - b.at).slice(-300);
+        set({ messages: next });
+      },
       inviteRegular: (avatarId) => {
         const avatar = AVATARS.find((item) => item.id === avatarId);
         if (!avatar) return;
