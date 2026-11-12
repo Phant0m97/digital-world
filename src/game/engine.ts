@@ -846,7 +846,7 @@ export function createMatch(
     canvas.width = Math.max(1, Math.floor(rect.width * dpr));
     canvas.height = Math.max(1, Math.floor(rect.height * dpr));
     const width = rect.width;
-    viewW = width < 700 ? 740 : 980;
+    viewW = width < 700 ? 500 : 640;
     viewH = viewW * (rect.height / Math.max(1, width));
   }
 
