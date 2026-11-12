@@ -1,5 +1,6 @@
 import type { AvatarKind } from "@/data/catalog";
 import { avatarById } from "@/data/catalog";
+import { GamePortrait } from "@/components/extra-faces";
 
 type Props = {
   id: string;
@@ -17,8 +18,14 @@ export function Avatar({ id, className, title }: Props) {
       role={title ? "img" : undefined}
       aria-label={title}
     >
-      <rect width="80" height="80" rx="18" fill={spec.bg} />
-      <Face kind={spec.kind} accent={spec.accent} dark={spec.dark} light={spec.light} />
+      {spec.group === "base" ? (
+        <>
+          <rect width="80" height="80" rx="18" fill={spec.bg} />
+          <Face kind={spec.kind} accent={spec.accent} dark={spec.dark} light={spec.light} />
+        </>
+      ) : (
+        <GamePortrait id={spec.id} accent={spec.accent} />
+      )}
     </svg>
   );
 }
