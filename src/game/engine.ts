@@ -269,7 +269,7 @@ export function createMatch(
   const keys = new Set<string>();
   const qa = new Set<string>();
   const touch: TouchState = { moveX: 0, jump: false, drop: false, fire: false, aim: null };
-  const mouse = { x: 0, y: 0, down: false, inside: false };
+  const mouse = { x: 0, y: 0, down: false, inside: false, aimed: false };
   const fighters: Fighter[] = [];
   const roster = [setup.you, ...setup.others];
   roster.forEach((entry, index) => {
@@ -598,7 +598,7 @@ export function createMatch(
       else if (mouse.inside) {
         const world = screenToWorld(mouse.x, mouse.y);
         fighter.aim = Math.atan2(world.y - (fighter.y + 28), world.x - (fighter.x + fighter.w / 2));
-      } else if (Math.abs(fighter.vx) > 8) {
+      } else if (!mouse.aimed && Math.abs(fighter.vx) > 8) {
         fighter.aim = fighter.vx > 0 ? 0 : Math.PI;
       }
       const wasHeld = fighter.jumpHeld;
@@ -624,9 +624,11 @@ export function createMatch(
       else fighter.vx -= Math.sign(fighter.vx) * fr * dt;
     }
     fighter.vx = clamp(fighter.vx, -max, max);
-    if (Math.abs(fighter.vx) > 20) fighter.facing = fighter.vx > 0 ? 1 : -1;
-    else if (Math.cos(fighter.aim) > 0.2) fighter.facing = 1;
-    else if (Math.cos(fighter.aim) < -0.2) fighter.facing = -1;
+    if (Math.abs(Math.cos(fighter.aim)) > 0.35) {
+      if (Math.abs(fighter.vx) > 20) fighter.facing = fighter.vx > 0 ? 1 : -1;
+      else if (Math.cos(fighter.aim) > 0) fighter.facing = 1;
+      else fighter.facing = -1;
+    }
     if (trigger) fire(fighter);
     else fighter.burst = 0;
   }
@@ -1006,17 +1008,33 @@ export function createMatch(
     mouse.x = event.clientX;
     mouse.y = event.clientY;
     mouse.inside = true;
+    mouse.aimed = true;
     if (event.type === "pointerdown") {
       mouse.down = true;
+      canvas.setPointerCapture(event.pointerId);
       unlock();
     }
   }
-  function onPointerUp() {
+  function onPointerUp(event: PointerEvent) {
     mouse.down = false;
+    const rect = canvas.getBoundingClientRect();
+    mouse.inside =
+      event.clientX >= rect.left &&
+      event.clientX <= rect.right &&
+      event.clientY >= rect.top &&
+      event.clientY <= rect.bottom;
   }
-  function onLeave() {
+  function onLeave(event: PointerEvent) {
+    if (mouse.down) return;
     mouse.inside = false;
     mouse.down = false;
+    if (event.pointerId) {
+      try {
+        canvas.releasePointerCapture(event.pointerId);
+      } catch {
+        /* already released */
+      }
+    }
   }
 
   canvas.addEventListener("pointerdown", onPointer);

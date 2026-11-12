@@ -224,7 +224,11 @@ function drawEyes(ctx: CanvasRenderingContext2D, x: number, y: number, facing: n
 function drawGun(ctx: CanvasRenderingContext2D, x: number, y: number, aim: number, weapon: string, paint: string) {
   ctx.save();
   ctx.translate(x, y);
-  ctx.rotate(aim);
+  let ang = aim;
+  while (ang > Math.PI) ang -= Math.PI * 2;
+  while (ang < -Math.PI) ang += Math.PI * 2;
+  ctx.rotate(ang);
+  if (Math.cos(ang) < 0) ctx.scale(1, -1);
   const body = (bx: number, by: number, w: number, h: number, r = 1.6) => {
     ctx.fillStyle = "#f7f7f7";
     roundRect(ctx, bx, by, w, h, r);

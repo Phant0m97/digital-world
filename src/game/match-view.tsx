@@ -106,7 +106,7 @@ export function MatchView({
           <button
             type="button"
             className="touch-btn rounded-full bg-mag px-4 text-sm text-ink"
-            onPointerDown={() => push({ fire: true, aim: touch.current.aim ?? 0 })}
+            onPointerDown={() => push({ fire: true })}
             onPointerUp={() => push({ fire: false })}
             onPointerCancel={() => push({ fire: false })}
           >
