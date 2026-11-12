@@ -677,9 +677,11 @@ function ProfilePanel() {
             key={avatar.id}
             type="button"
             onClick={() => setAvatarId(avatar.id)}
-            className={`rounded-2xl border p-1 ${avatarId === avatar.id ? "border-cyan" : "border-transparent"}`}
+            className={`rounded-2xl border p-1 text-center ${avatarId === avatar.id ? "border-cyan" : "border-transparent"}`}
+            aria-label={avatar.name}
           >
             <Avatar id={avatar.id} className="w-full" />
+            <span className="mt-1 block px-0.5 text-[11px] leading-tight">{avatar.name}</span>
           </button>
         ))}
       </div>
