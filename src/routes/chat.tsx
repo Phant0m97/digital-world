@@ -3,7 +3,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Avatar } from "@/components/avatar";
 import { AvatarPicker } from "@/components/avatar-picker";
 import { Shell, useHydrated } from "@/components/shell";
-import { AVATARS, GIFS, THEMES, type ThemeId } from "@/data/catalog";
+import { AVATARS, GIFS, THEMES, avatarById, type ThemeId } from "@/data/catalog";
 import { asset } from "@/lib/asset";
 import { claimDigitalId, ensureIdentity, findClaimedId, findSharedRoom, hasSavedPassword, publishDrop, publishMessage, publishRoom, savePassword, signInAccount, subscribeRoom } from "@/lib/live-chat";
 import { useWorld, type ChatMessage, type Room } from "@/lib/store";
@@ -625,12 +625,41 @@ function ProfilePanel() {
   const [password, setPassword] = useState("");
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const face = avatarById(profile.avatarId);
 
   useEffect(() => {
     setName(profile.username);
     setDigitalId(profile.digitalId);
     setAvatarId(profile.avatarId);
   }, [profile.avatarId, profile.digitalId, profile.username]);
+
+  if (!editing) {
+    return (
+      <div className="flex min-h-0 flex-1 flex-col px-3 pb-4">
+        <div className="flex flex-col items-center px-2 pt-6 text-center">
+          <Avatar id={profile.avatarId} className="size-28" />
+          <p className="mt-4 font-display text-2xl font-bold">{profile.username}</p>
+          <p className="mt-1 text-sm text-mute">{profile.digitalId}</p>
+          <p className="mt-1 text-sm text-mute">{face.name}</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            setName(profile.username);
+            setDigitalId(profile.digitalId);
+            setAvatarId(profile.avatarId);
+            setPassword("");
+            setNote("");
+            setEditing(true);
+          }}
+          className="mt-auto w-full rounded-full border border-line py-3 font-display"
+        >
+          Edit
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-3 px-3 pb-4">
@@ -697,12 +726,23 @@ function ProfilePanel() {
             setProfile({ username: clean, digitalId: id, avatarId });
             setPassword("");
             setBusy(false);
-            setNote("Saved.");
+            setEditing(false);
+            setNote("");
           });
         }}
         className="w-full rounded-full bg-cyan py-2 text-ink disabled:opacity-40"
       >
         Save profile
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          setEditing(false);
+          setNote("");
+        }}
+        className="w-full rounded-full border border-line py-2"
+      >
+        Cancel
       </button>
     </div>
   );
