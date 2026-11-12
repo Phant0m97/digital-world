@@ -83,7 +83,7 @@ const regulars = new Set(AVATARS.map((avatar) => avatar.id));
 
 function publicRoom(): Room {
   return {
-    id: "digital-world",
+    id: "world-chat",
     title: "Digital World Chat",
     visibility: "public",
     theme: "black",
@@ -303,7 +303,7 @@ export const useWorld = create<World>()(
     }),
     {
       name: "digitalworld-v1",
-      version: 6,
+      version: 7,
       merge: (persisted, current) => {
         const saved = (persisted ?? {}) as Partial<World>;
         return { ...current, ...saved, equipped: wornList(saved.equipped) };
@@ -333,6 +333,13 @@ export const useWorld = create<World>()(
           state.joinedRoomIds = (state.joinedRoomIds ?? []).filter((id) => roomIds.has(id));
         }
         if ((version ?? 0) < 4) state.cosmeticColors = state.cosmeticColors ?? {};
+        if ((version ?? 0) < 7) {
+          const rooms = (state.rooms ?? []).filter((room) => room.id !== "digital-world");
+          if (!rooms.some((room) => room.id === "world-chat")) rooms.unshift(publicRoom());
+          state.rooms = rooms;
+          state.messages = (state.messages ?? []).filter((message) => message.roomId !== "digital-world");
+          state.joinedRoomIds = (state.joinedRoomIds ?? []).filter((id) => id !== "digital-world");
+        }
         state.equipped = wornList(state.equipped ?? state.equippedSkin);
         return state;
       },

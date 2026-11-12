@@ -175,7 +175,7 @@ function ChatApp() {
   const [friendCode, setFriendCode] = useState("");
   const [note, setNote] = useState("");
   const [roomTitle, setRoomTitle] = useState("");
-  const [panel, setPanel] = useState<"rooms" | "people">("rooms");
+  const [panel, setPanel] = useState<"rooms" | "people" | "profile">("rooms");
   const [selfId, setSelfId] = useState("");
   const [needPassword, setNeedPassword] = useState(false);
   const [accountPassword, setAccountPassword] = useState("");
@@ -297,12 +297,15 @@ function ChatApp() {
       ) : null}
       <div className="grid h-[calc(100dvh-4.25rem)] overflow-hidden lg:grid-cols-[280px_1fr_280px]">
         <aside className={`${active ? "hidden" : "flex"} min-h-0 flex-col overflow-y-auto border-b border-line lg:flex lg:border-r lg:border-b-0`}>
-          <div className="flex gap-2 p-3">
+          <div className="flex flex-wrap gap-2 p-3">
             <button type="button" className={tab(panel === "rooms")} onClick={() => setPanel("rooms")}>
               Rooms
             </button>
             <button type="button" className={tab(panel === "people")} onClick={() => setPanel("people")}>
               People
+            </button>
+            <button type="button" className={tab(panel === "profile")} onClick={() => setPanel("profile")}>
+              Profile
             </button>
           </div>
           {panel === "rooms" ? (
@@ -390,7 +393,7 @@ function ChatApp() {
               </form>
               {note ? <p className="text-xs text-mute">{note}</p> : null}
             </div>
-          ) : (
+          ) : panel === "people" ? (
             <PeoplePanel
               friends={friends}
               party={party}
@@ -413,6 +416,8 @@ function ChatApp() {
               onParty={toggleParty}
               myCode={profile.digitalId}
             />
+          ) : (
+            <ProfilePanel />
           )}
         </aside>
 
@@ -616,6 +621,109 @@ function MessageRow({
           </button>
         ) : null}
       </div>
+    </div>
+  );
+}
+
+function ProfilePanel() {
+  const profile = useWorld((state) => state.profile)!;
+  const setProfile = useWorld((state) => state.setProfile);
+  const [name, setName] = useState(profile.username);
+  const [digitalId, setDigitalId] = useState(profile.digitalId);
+  const [avatarId, setAvatarId] = useState(profile.avatarId);
+  const [password, setPassword] = useState("");
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    setName(profile.username);
+    setDigitalId(profile.digitalId);
+    setAvatarId(profile.avatarId);
+  }, [profile.avatarId, profile.digitalId, profile.username]);
+
+  return (
+    <div className="space-y-3 px-3 pb-4">
+      <label className="block text-sm text-mute">
+        Username
+        <input
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+          maxLength={16}
+          className="mt-2 w-full rounded-xl border border-line bg-ink px-3 py-2 text-cream"
+        />
+      </label>
+      <label className="block text-sm text-mute">
+        DigitalWorld ID
+        <input
+          value={digitalId}
+          onChange={(event) => setDigitalId(event.target.value.replace(/[^A-Za-z0-9_]/g, ""))}
+          maxLength={16}
+          className="mt-2 w-full rounded-xl border border-line bg-ink px-3 py-2 text-cream"
+        />
+      </label>
+      <label className="block text-sm text-mute">
+        New password
+        <input
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
+          type="password"
+          placeholder="Leave blank to keep"
+          className="mt-2 w-full rounded-xl border border-line bg-ink px-3 py-2 text-cream"
+        />
+      </label>
+      <div className="grid grid-cols-4 gap-2">
+        {AVATARS.map((avatar) => (
+          <button
+            key={avatar.id}
+            type="button"
+            onClick={() => setAvatarId(avatar.id)}
+            className={`rounded-2xl border p-1 ${avatarId === avatar.id ? "border-cyan" : "border-transparent"}`}
+          >
+            <Avatar id={avatar.id} className="w-full" />
+          </button>
+        ))}
+      </div>
+      {note ? <p className="text-xs text-mute">{note}</p> : null}
+      <button
+        type="button"
+        disabled={busy}
+        onClick={() => {
+          const clean = name.trim();
+          const id = digitalId.trim();
+          if (clean.length < 2 || clean.length > 16) {
+            setNote("Username needs 2 to 16 characters.");
+            return;
+          }
+          if (!/^[A-Za-z0-9_]{2,16}$/.test(id)) {
+            setNote("ID needs 2 to 16 letters, numbers, or underscores.");
+            return;
+          }
+          setBusy(true);
+          setNote("Saving…");
+          void claimDigitalId(id, clean, avatarId).then(async (result) => {
+            if (!result.ok) {
+              setBusy(false);
+              setNote(result.reason);
+              return;
+            }
+            if (password) {
+              const saved = await savePassword(id, password);
+              if (!saved.ok) {
+                setBusy(false);
+                setNote(saved.reason);
+                return;
+              }
+            }
+            setProfile({ username: clean, digitalId: id, avatarId });
+            setPassword("");
+            setBusy(false);
+            setNote("Saved.");
+          });
+        }}
+        className="w-full rounded-full bg-cyan py-2 text-ink disabled:opacity-40"
+      >
+        Save profile
+      </button>
     </div>
   );
 }
