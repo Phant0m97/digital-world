@@ -8,10 +8,10 @@ function Home() {
   return (
     <Shell>
       <section className="py-6">
-        <div>
+        <div className="flex flex-col items-center text-center">
           <EyeMark className="mb-6 size-36 sm:size-44" />
           <Wordmark />
-          <div className="mt-8 grid gap-3 sm:grid-cols-2">
+          <div className="mt-8 grid w-full gap-3 sm:grid-cols-2">
             <Door to="/chat" kicker="Mode 01" title="Chat" />
             <Door to="/games" kicker="Mode 02" title="Games" />
           </div>

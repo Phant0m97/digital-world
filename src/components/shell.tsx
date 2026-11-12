@@ -15,12 +15,13 @@ export function Shell({ children, bare = false }: { children: ReactNode; bare?: 
   const path = useRouterState({ select: (state) => state.location.pathname });
   return (
     <div className="min-h-dvh bg-ink text-cream">
-      <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-line bg-ink/90 px-4 py-3 backdrop-blur">
-        <Link to="/" className="flex items-center gap-2">
+      <header className="sticky top-0 z-20 grid grid-cols-[1fr_auto_1fr] items-center gap-2 border-b border-line bg-ink/90 px-4 py-3 backdrop-blur">
+        <span />
+        <Link to="/" className="flex items-center gap-2 justify-self-center">
           <TinyEye className="size-9 rounded-full" />
           <span className="font-display text-lg font-bold tracking-wide uppercase">DigitalWorld</span>
         </Link>
-        <nav className="ml-auto flex items-center gap-2 text-sm">
+        <nav className="flex items-center justify-self-end gap-2 text-sm">
           <TopLink to="/chat" active={path.startsWith("/chat")}>
             Chat
           </TopLink>
