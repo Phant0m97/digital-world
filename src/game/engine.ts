@@ -47,7 +47,7 @@ export type MatchResult = {
   youCredits: number;
 };
 
-type Solid = { x: number; y: number; w: number; h: number; oneWay?: boolean };
+type Solid = { x: number; y: number; w: number; h: number; oneWay?: boolean; kind?: "ground" | "wood" | "mint" | "crate" };
 type Fighter = {
   id: number;
   name: string;
@@ -107,16 +107,262 @@ const PW = 26;
 const PH = 58;
 
 const SOLIDS: Solid[] = [
-  { x: 0, y: GROUND_Y, w: WORLD_W, h: 160 },
-  { x: 70, y: 400, w: 230, h: 16 },
-  { x: 360, y: 310, w: 180, h: 14, oneWay: true },
-  { x: 560, y: 410, w: 200, h: 16 },
-  { x: 800, y: 280, w: 260, h: 16 },
-  { x: 1120, y: 390, w: 170, h: 14, oneWay: true },
-  { x: 1340, y: 318, w: 210, h: 16 },
-  { x: 1620, y: 418, w: 240, h: 16 },
-  { x: 980, y: 440, w: 90, h: 80 },
+  { x: 0, y: GROUND_Y, w: WORLD_W, h: 160, kind: "ground" },
+  { x: 70, y: 400, w: 230, h: 16, kind: "wood" },
+  { x: 330, y: GROUND_Y - 64, w: 64, h: 64, kind: "crate" },
+  { x: 360, y: 310, w: 180, h: 14, oneWay: true, kind: "mint" },
+  { x: 560, y: 410, w: 200, h: 16, kind: "wood" },
+  { x: 800, y: 280, w: 260, h: 16, kind: "mint" },
+  { x: 1120, y: 390, w: 170, h: 14, oneWay: true, kind: "wood" },
+  { x: 1340, y: 318, w: 210, h: 16, kind: "mint" },
+  { x: 1620, y: 418, w: 240, h: 16, kind: "wood" },
+  { x: 980, y: 440, w: 72, h: 80, kind: "crate" },
 ];
+
+const INK = "#1a1a1a";
+const CREAM = "#f3f0e8";
+
+function roundPath(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+  const radius = Math.min(r, w / 2, h / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.arcTo(x + w, y, x + w, y + h, radius);
+  ctx.arcTo(x + w, y + h, x, y + h, radius);
+  ctx.arcTo(x, y + h, x, y, radius);
+  ctx.arcTo(x, y, x + w, y, radius);
+  ctx.closePath();
+}
+
+function ink(ctx: CanvasRenderingContext2D, width: number) {
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = width;
+  ctx.lineJoin = "round";
+  ctx.lineCap = "round";
+}
+
+function drawFigure(ctx: CanvasRenderingContext2D, fighter: Fighter, now: number) {
+  if (!fighter.alive) return;
+  ctx.save();
+  if (fighter.invuln > 0 && Math.floor(now / 80) % 2 === 0) ctx.globalAlpha = 0.45;
+  const cx = fighter.x + fighter.w / 2;
+  const y = fighter.y;
+  const face = fighter.facing >= 0 ? 1 : -1;
+  const bob = fighter.grounded ? Math.sin(now / 140 + fighter.id) * Math.min(2.2, Math.abs(fighter.vx) / 110) : 0;
+  const skin = fighter.skin;
+  const body =
+    skin === "camo" ? "#6eaf4e" : skin === "gasmask" ? "#2c3138" : fighter.color;
+
+  if (skin === "cape") {
+    ctx.fillStyle = fighter.color;
+    ctx.beginPath();
+    ctx.moveTo(cx - face * 2, y + 30);
+    ctx.lineTo(cx - face * 22, y + 60);
+    ctx.lineTo(cx - face * 2, y + 40);
+    ctx.closePath();
+    ctx.fill();
+    ink(ctx, 3);
+    ctx.stroke();
+  }
+
+  ink(ctx, 3.6);
+  ctx.beginPath();
+  ctx.moveTo(cx - 5, y + 48);
+  ctx.lineTo(cx - 6, y + fighter.h + bob);
+  ctx.moveTo(cx + 5, y + 48);
+  ctx.lineTo(cx + 6, y + fighter.h - bob);
+  ctx.stroke();
+
+  const tw = skin === "hoodie" ? 20 : 16;
+  const th = 18;
+  const tx = cx - tw / 2;
+  const ty = y + 32;
+  roundPath(ctx, tx, ty, tw, th, 5);
+  ctx.fillStyle = body;
+  ctx.fill();
+  ink(ctx, 3.4);
+  ctx.stroke();
+  if (skin === "camo") {
+    ctx.fillStyle = "#3d6a2e";
+    ctx.beginPath();
+    ctx.ellipse(cx - 2, ty + 11, 5.5, 4, -0.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  const aim = fighter.aim;
+  const gx = cx + Math.cos(aim) * 11;
+  const gy = ty + 8 + Math.sin(aim) * 7;
+  ink(ctx, 3.3);
+  ctx.beginPath();
+  ctx.moveTo(cx + face * 3, ty + 8);
+  ctx.lineTo(gx, gy);
+  ctx.stroke();
+  ctx.save();
+  ctx.translate(gx, gy);
+  ctx.rotate(aim);
+  roundPath(ctx, 0, -4, 15, 8, 3);
+  ctx.fillStyle = "#f7f7f4";
+  ctx.fill();
+  ink(ctx, 2.6);
+  ctx.stroke();
+  roundPath(ctx, 2, 2, 5, 6, 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = fighter.color;
+  ctx.beginPath();
+  ctx.arc(15, 0, 3.3, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  ctx.beginPath();
+  ctx.arc(cx, y + 15, 13.5, 0, Math.PI * 2);
+  ctx.fillStyle = "#fbfbf8";
+  ctx.fill();
+  ink(ctx, 3.6);
+  ctx.stroke();
+  ctx.fillStyle = INK;
+  const eyeX = cx + face * 1.5;
+  ctx.beginPath();
+  ctx.arc(eyeX - 4.2, y + 16, 1.8, 0, Math.PI * 2);
+  ctx.arc(eyeX + 4.2, y + 16, 1.8, 0, Math.PI * 2);
+  ctx.fill();
+
+  if (skin === "camo") {
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(cx - 18, y, 36, 16);
+    ctx.clip();
+    ctx.fillStyle = "#62a246";
+    ctx.beginPath();
+    ctx.arc(cx, y + 14, 14.5, 0, Math.PI * 2);
+    ctx.fill();
+    ink(ctx, 3.2);
+    ctx.stroke();
+    ctx.fillStyle = "#3c682c";
+    ctx.beginPath();
+    ctx.ellipse(cx + 4, y + 8, 4, 2.4, 0.4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    roundPath(ctx, cx - 16, y + 13, 32, 4.5, 2);
+    ctx.fillStyle = "#62a246";
+    ctx.fill();
+    ink(ctx, 2.8);
+    ctx.stroke();
+  } else if (skin === "beanie") {
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(cx - 18, y, 36, 14);
+    ctx.clip();
+    ctx.fillStyle = fighter.color;
+    ctx.beginPath();
+    ctx.arc(cx, y + 14, 14.5, 0, Math.PI * 2);
+    ctx.fill();
+    ink(ctx, 3);
+    ctx.stroke();
+    ctx.restore();
+    roundPath(ctx, cx - 15, y + 12, 30, 4, 2);
+    ctx.fillStyle = fighter.color;
+    ctx.fill();
+    ink(ctx, 2.6);
+    ctx.stroke();
+  } else if (skin === "bandana") {
+    ctx.fillStyle = fighter.color;
+    ctx.fillRect(cx - 12, y + 16, 24, 7);
+    ink(ctx, 2.4);
+    ctx.strokeRect(cx - 12, y + 16, 24, 7);
+  } else if (skin === "mohawk") {
+    ctx.fillStyle = fighter.color;
+    ctx.beginPath();
+    ctx.moveTo(cx - 3, y + 6);
+    ctx.lineTo(cx, y - 10);
+    ctx.lineTo(cx + 3, y + 6);
+    ctx.closePath();
+    ctx.fill();
+    ink(ctx, 2.4);
+    ctx.stroke();
+  } else if (skin === "visor") {
+    ctx.fillStyle = "#141414";
+    roundPath(ctx, cx - 12, y + 13, 24, 6, 2);
+    ctx.fill();
+    ctx.fillStyle = fighter.color;
+    ctx.fillRect(cx - 10, y + 14.5, 20, 2.5);
+  } else if (skin === "hoodie") {
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(cx, y + 18, 13, Math.PI * 1.08, Math.PI * 1.92);
+    ctx.stroke();
+  } else if (skin === "gasmask") {
+    ctx.fillStyle = "#1b1e24";
+    ctx.beginPath();
+    ctx.arc(cx, y + 16, 13, 0, Math.PI * 2);
+    ctx.fill();
+    ink(ctx, 3);
+    ctx.stroke();
+    ctx.fillStyle = fighter.color;
+    ctx.beginPath();
+    ctx.arc(cx - 5, y + 16, 3.2, 0, Math.PI * 2);
+    ctx.arc(cx + 5, y + 16, 3.2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawPlank(ctx: CanvasRenderingContext2D, solid: Solid, mint: boolean) {
+  roundPath(ctx, solid.x, solid.y, solid.w, solid.h, 7);
+  ctx.fillStyle = mint ? "#c7ebe6" : "#e6d2a2";
+  ctx.fill();
+  ink(ctx, 3.4);
+  ctx.stroke();
+  ink(ctx, 2.2);
+  if (mint) {
+    for (let x = solid.x + 16; x < solid.x + solid.w - 10; x += 22) {
+      ctx.beginPath();
+      ctx.moveTo(x, solid.y + 4);
+      ctx.lineTo(x, solid.y + solid.h - 4);
+      ctx.stroke();
+    }
+  } else {
+    const parts = Math.max(3, Math.round(solid.w / 46));
+    for (let i = 1; i < parts; i++) {
+      const x = solid.x + (solid.w / parts) * i;
+      ctx.beginPath();
+      ctx.moveTo(x, solid.y + 4);
+      ctx.lineTo(x, solid.y + solid.h - 4);
+      ctx.stroke();
+    }
+    ctx.fillStyle = INK;
+    ctx.beginPath();
+    ctx.arc(solid.x + 12, solid.y + solid.h / 2, 1.8, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function drawCrate(ctx: CanvasRenderingContext2D, solid: Solid) {
+  roundPath(ctx, solid.x, solid.y, solid.w, solid.h, 3);
+  ctx.fillStyle = "#e4c27a";
+  ctx.fill();
+  ink(ctx, 3.5);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(solid.x + 7, solid.y + 7);
+  ctx.lineTo(solid.x + solid.w - 7, solid.y + solid.h - 7);
+  ctx.moveTo(solid.x + solid.w - 7, solid.y + 7);
+  ctx.lineTo(solid.x + 7, solid.y + solid.h - 7);
+  ctx.stroke();
+}
+
+function drawSplat(ctx: CanvasRenderingContext2D, x: number, y: number, rx: number, ry: number, rot: number, color: string) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(rot);
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2);
+  ctx.ellipse(rx * 0.55, -ry * 0.15, rx * 0.42, ry * 0.55, 0.4, 0, Math.PI * 2);
+  ctx.ellipse(-rx * 0.5, ry * 0.1, rx * 0.34, ry * 0.4, -0.3, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
 
 const ZONE = { x: 900, y: 470, w: 220, h: 50 };
 const SPAWNS = [90, 240, 430, 680, 1240, 1500, 1720, 1880];
@@ -735,142 +981,7 @@ export function createMatch(
   }
 
   function drawStick(ctx: CanvasRenderingContext2D, fighter: Fighter, now: number) {
-    if (!fighter.alive && fighter.eliminated) return;
-    if (!fighter.alive) return;
-    if (fighter.invuln > 0 && Math.floor(now / 80) % 2 === 0) ctx.globalAlpha = 0.45;
-    const x = fighter.x;
-    const y = fighter.y;
-    const cx = x + fighter.w / 2;
-    const bob = fighter.grounded ? Math.sin(now / 90 + fighter.id) * Math.min(4, Math.abs(fighter.vx) / 80) : 0;
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
-    ctx.strokeStyle = "#16161c";
-    ctx.lineWidth = 3;
-    if (fighter.skin === "cape") {
-      ctx.fillStyle = fighter.color;
-      ctx.beginPath();
-      ctx.moveTo(cx, y + 22);
-      ctx.lineTo(cx - 18 * fighter.facing, y + 58);
-      ctx.lineTo(cx + 2 * fighter.facing, y + 34);
-      ctx.fill();
-    }
-    ctx.beginPath();
-    ctx.moveTo(cx, y + 36);
-    ctx.lineTo(cx - 8, y + PH + bob);
-    ctx.moveTo(cx, y + 36);
-    ctx.lineTo(cx + 8, y + PH - bob);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(cx, y + 26);
-    ctx.lineTo(cx, y + 40);
-    ctx.stroke();
-    const handX = cx + Math.cos(fighter.aim) * 16;
-    const handY = y + 30 + Math.sin(fighter.aim) * 16;
-    ctx.beginPath();
-    ctx.moveTo(cx, y + 28);
-    ctx.lineTo(handX, handY);
-    ctx.moveTo(cx, y + 28);
-    ctx.lineTo(cx - fighter.facing * 10, y + 34 + bob);
-    ctx.stroke();
-    ctx.strokeStyle = fighter.color;
-    ctx.lineWidth = 4;
-    ctx.beginPath();
-    ctx.moveTo(handX, handY);
-    ctx.lineTo(handX + Math.cos(fighter.aim) * 12, handY + Math.sin(fighter.aim) * 12);
-    ctx.stroke();
-    ctx.strokeStyle = "#16161c";
-    ctx.lineWidth = 3;
-    if (fighter.skin === "shirt" || !fighter.skin) {
-      ctx.fillStyle = fighter.skin === "shirt" ? fighter.color : "#f7f4ee";
-      ctx.fillRect(cx - 7, y + 24, 14, 14);
-      ctx.strokeRect(cx - 7, y + 24, 14, 14);
-    }
-    if (fighter.skin === "hoodie") {
-      ctx.fillStyle = fighter.color;
-      ctx.fillRect(cx - 10, y + 20, 20, 22);
-      ctx.strokeRect(cx - 10, y + 20, 20, 22);
-      ctx.beginPath();
-      ctx.arc(cx, y + 16, 12, Math.PI, 0);
-      ctx.fill();
-      ctx.stroke();
-    }
-    if (fighter.skin === "gasmask") {
-      ctx.fillStyle = "#2a2e36";
-      ctx.fillRect(cx - 10, y + 22, 20, 20);
-      ctx.strokeRect(cx - 10, y + 22, 20, 20);
-    }
-    if (fighter.skin === "camo") {
-      ctx.fillStyle = "#4e623f";
-      ctx.fillRect(cx - 11, y + 22, 22, 20);
-      ctx.strokeRect(cx - 11, y + 22, 22, 20);
-      ctx.fillStyle = "#6b7a45";
-      ctx.fillRect(cx - 6, y + 26, 5, 5);
-      ctx.fillRect(cx + 2, y + 32, 6, 4);
-    }
-    ctx.fillStyle = "#f7f4ee";
-    ctx.beginPath();
-    ctx.arc(cx, y + 14, 12, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-    if (fighter.skin === "bandana") {
-      ctx.fillStyle = fighter.color;
-      ctx.fillRect(cx - 12, y + 14, 24, 7);
-    }
-    if (fighter.skin === "beanie") {
-      ctx.fillStyle = fighter.color;
-      ctx.beginPath();
-      ctx.arc(cx, y + 12, 13, Math.PI, 0);
-      ctx.fill();
-      ctx.fillRect(cx - 13, y + 10, 26, 5);
-      ctx.strokeRect(cx - 13, y + 10, 26, 5);
-    }
-    if (fighter.skin === "mohawk") {
-      ctx.fillStyle = fighter.color;
-      ctx.beginPath();
-      ctx.moveTo(cx - 3, y + 6);
-      ctx.lineTo(cx, y - 12);
-      ctx.lineTo(cx + 3, y + 6);
-      ctx.fill();
-    }
-    if (fighter.skin === "visor") {
-      ctx.fillStyle = "#14141c";
-      ctx.fillRect(cx - 13, y + 10, 26, 6);
-      ctx.fillStyle = fighter.color;
-      ctx.fillRect(cx - 11, y + 11, 22, 3);
-    }
-    if (fighter.skin === "gasmask") {
-      ctx.fillStyle = "#1b1e24";
-      ctx.beginPath();
-      ctx.arc(cx, y + 14, 13, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = fighter.color;
-      ctx.beginPath();
-      ctx.arc(cx - 5, y + 14, 3.5, 0, Math.PI * 2);
-      ctx.arc(cx + 5, y + 14, 3.5, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    if (fighter.skin === "camo") {
-      ctx.fillStyle = "#3d4f32";
-      ctx.beginPath();
-      ctx.arc(cx, y + 12, 13, Math.PI, 0);
-      ctx.fill();
-      ctx.fillRect(cx - 16, y + 8, 6, 10);
-      ctx.fillRect(cx + 10, y + 8, 6, 10);
-    }
-    if (fighter.skin === "hoodie") {
-      ctx.strokeStyle = "#16161c";
-      ctx.beginPath();
-      ctx.arc(cx, y + 16, 12, Math.PI * 1.05, Math.PI * 1.95);
-      ctx.stroke();
-    }
-    ctx.globalAlpha = 1;
-    ctx.font = "600 12px Outfit, sans-serif";
-    ctx.textAlign = "center";
-    ctx.lineWidth = 4;
-    ctx.strokeStyle = "#f7f4ee";
-    ctx.strokeText(fighter.name, cx, y - 8);
-    ctx.fillStyle = "#16161c";
-    ctx.fillText(fighter.name, cx, y - 8);
+    drawFigure(ctx, fighter, now);
   }
 
   function render(now: number) {
@@ -884,79 +995,46 @@ export function createMatch(
     const cssH = canvas.clientHeight;
     const sx = cssW / viewW;
     const sy = cssH / viewH;
-    ctx.fillStyle = "#d5e4ec";
+    ctx.fillStyle = CREAM;
     ctx.fillRect(0, 0, cssW, cssH);
     ctx.setTransform(dpr * sx, 0, 0, dpr * sy, -camX * dpr * sx, 0);
-    const sky = ctx.createLinearGradient(0, 0, 0, WORLD_H);
-    sky.addColorStop(0, "#c5dceb");
-    sky.addColorStop(1, "#e7eef2");
-    ctx.fillStyle = sky;
-    ctx.fillRect(camX - 20, 0, viewW + 40, WORLD_H);
-    ctx.fillStyle = "rgba(255,255,255,0.7)";
-    for (let i = 0; i < 5; i++) {
-      const cx = ((i * 380 + now * 0.01) % (WORLD_W + 200)) - 100;
+    ctx.fillStyle = CREAM;
+    ctx.fillRect(camX - 40, 0, viewW + 80, WORLD_H);
+    ctx.fillStyle = "#c5c9d0";
+    ctx.fillRect(camX - 40, GROUND_Y, viewW + 80, 52);
+    ctx.fillStyle = "#8e949c";
+    ctx.fillRect(camX - 40, GROUND_Y + 52, viewW + 80, WORLD_H - GROUND_Y);
+    ctx.strokeStyle = "#7a8088";
+    ctx.lineWidth = 2;
+    for (let x = 0; x < WORLD_W; x += 84) {
       ctx.beginPath();
-      ctx.ellipse(cx, 80 + (i % 3) * 28, 50, 16, 0, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.moveTo(x, GROUND_Y + 52);
+      ctx.lineTo(x, WORLD_H);
+      ctx.stroke();
     }
+    ink(ctx, 5);
+    ctx.beginPath();
+    ctx.moveTo(0, GROUND_Y);
+    ctx.lineTo(WORLD_W, GROUND_Y);
+    ctx.stroke();
     if (mode === "koth") {
-      ctx.fillStyle = "rgba(255, 200, 60, 0.45)";
+      ctx.fillStyle = "rgba(255, 214, 92, 0.45)";
       ctx.fillRect(ZONE.x, ZONE.y, ZONE.w, ZONE.h);
-      ctx.strokeStyle = "#e0a020";
+      ink(ctx, 3);
       ctx.strokeRect(ZONE.x, ZONE.y, ZONE.w, ZONE.h);
     }
     for (const solid of SOLIDS) {
-      if (solid.y === GROUND_Y) {
-        ctx.fillStyle = "#66707a";
-        ctx.fillRect(solid.x, solid.y, solid.w, solid.h);
-        ctx.strokeStyle = "#4c555e";
-        ctx.lineWidth = 2;
-        for (let x = 0; x < WORLD_W; x += 40) {
-          ctx.strokeRect(x, GROUND_Y, 40, 28);
-          ctx.strokeRect(x + 20, GROUND_Y + 28, 40, 28);
-        }
-      } else if (solid.oneWay) {
-        ctx.fillStyle = "#7dcea0";
-        ctx.fillRect(solid.x, solid.y, solid.w, solid.h);
-        ctx.fillStyle = "#16161c";
-        for (let x = solid.x + 8; x < solid.x + solid.w; x += 16) ctx.fillRect(x, solid.y + 4, 6, 4);
-      } else if (solid.h > 40) {
-        ctx.fillStyle = "#d7a15a";
-        ctx.fillRect(solid.x, solid.y, solid.w, solid.h);
-        ctx.strokeStyle = "#6b3d1e";
-        ctx.lineWidth = 3;
-        ctx.strokeRect(solid.x, solid.y, solid.w, solid.h);
-        ctx.beginPath();
-        ctx.moveTo(solid.x, solid.y);
-        ctx.lineTo(solid.x + solid.w, solid.y + solid.h);
-        ctx.moveTo(solid.x + solid.w, solid.y);
-        ctx.lineTo(solid.x, solid.y + solid.h);
-        ctx.stroke();
-      } else {
-        ctx.fillStyle = "#e0a15a";
-        ctx.fillRect(solid.x, solid.y, solid.w, solid.h);
-        ctx.strokeStyle = "#6b3d1e";
-        ctx.lineWidth = 3;
-        ctx.strokeRect(solid.x, solid.y, solid.w, solid.h);
-        ctx.fillStyle = "#6b3d1e";
-        ctx.beginPath();
-        ctx.arc(solid.x + 8, solid.y + solid.h / 2, 2, 0, Math.PI * 2);
-        ctx.arc(solid.x + solid.w - 8, solid.y + solid.h / 2, 2, 0, Math.PI * 2);
-        ctx.fill();
-      }
+      if (solid.kind === "ground") continue;
+      if (solid.kind === "crate") drawCrate(ctx, solid);
+      else drawPlank(ctx, solid, solid.kind === "mint");
     }
-    for (const decal of decals) {
-      ctx.save();
-      ctx.translate(decal.x, decal.y);
-      ctx.rotate(decal.rot);
-      ctx.fillStyle = decal.color;
-      ctx.globalAlpha = 0.85;
-      ctx.beginPath();
-      ctx.ellipse(0, 0, decal.rx, decal.ry, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
-      ctx.globalAlpha = 1;
-    }
+    const yardPaint = [
+      { x: 250, y: GROUND_Y - 8, rx: 16, ry: 9, rot: -0.2, color: "#ff5b8a" },
+      { x: 292, y: GROUND_Y - 2, rx: 22, ry: 11, rot: 0.15, color: "#ff4d7d" },
+      { x: 430, y: GROUND_Y - 4, rx: 14, ry: 8, rot: 0.4, color: "#7ed9d0" },
+    ];
+    for (const splat of yardPaint) drawSplat(ctx, splat.x, splat.y, splat.rx, splat.ry, splat.rot, splat.color);
+    for (const decal of decals) drawSplat(ctx, decal.x, decal.y, decal.rx, decal.ry, decal.rot, decal.color);
     if (mode === "crystal") {
       for (const crystal of crystals) {
         ctx.save();
@@ -982,35 +1060,18 @@ export function createMatch(
     for (const bullet of bullets) {
       ctx.fillStyle = bullet.color;
       ctx.beginPath();
-      ctx.arc(bullet.x, bullet.y, bullet.r, 0, Math.PI * 2);
+      ctx.arc(bullet.x, bullet.y, Math.max(4.5, bullet.r), 0, Math.PI * 2);
       ctx.fill();
-      ctx.strokeStyle = "#16161c";
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
     }
     for (const bit of bits) {
       ctx.fillStyle = bit.color;
       ctx.fillRect(bit.x, bit.y, 4, 4);
     }
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.fillStyle = "rgba(7,7,11,0.78)";
-    ctx.fillRect(12, 12, 220, 58);
-    ctx.fillStyle = "#f4f0e6";
-    ctx.font = "700 18px Oxanium, sans-serif";
+    ctx.fillStyle = INK;
+    ctx.font = "700 22px Oxanium, sans-serif";
     ctx.textAlign = "left";
-    const clock = mode === "lms" && timeLeft > 0 ? format(timeLeft) : format(timeLeft);
-    ctx.fillText(clock, 24, 36);
-    ctx.font = "500 13px Outfit, sans-serif";
-    ctx.fillStyle = "#2ee6ff";
-    ctx.fillText(`${you().name}  ${you().hp <= 0 ? "out" : you().hp === 2 ? "full" : "tagged"}`, 24, 56);
-    if (!ended && timeLeft > seconds - 4) {
-      ctx.fillStyle = "rgba(7,7,11,0.72)";
-      ctx.fillRect(cssW / 2 - 160, cssH - 72, 320, 44);
-      ctx.fillStyle = "#f4f0e6";
-      ctx.font = "500 13px Outfit, sans-serif";
-      ctx.textAlign = "center";
-      ctx.fillText("A D move   W / Space jump   hold click to shoot", cssW / 2, cssH - 46);
-    }
+    ctx.fillText(format(timeLeft), 18, 34);
   }
 
   function format(value: number) {
@@ -1144,18 +1205,25 @@ export function paintPreview(canvas: HTMLCanvasElement, skin: string | null, col
   const w = canvas.width;
   const h = canvas.height;
   ctx.clearRect(0, 0, w, h);
-  ctx.fillStyle = "#e7eef2";
+  ctx.fillStyle = CREAM;
   ctx.fillRect(0, 0, w, h);
-  ctx.fillStyle = "#66707a";
-  ctx.fillRect(0, h - 28, w, 28);
+  ctx.fillStyle = "#c5c9d0";
+  ctx.fillRect(0, h - 36, w, 18);
+  ctx.fillStyle = "#8e949c";
+  ctx.fillRect(0, h - 18, w, 18);
+  ink(ctx, 4);
+  ctx.beginPath();
+  ctx.moveTo(0, h - 36);
+  ctx.lineTo(w, h - 36);
+  ctx.stroke();
   const fake = {
-    x: w / 2 - 18,
-    y: h - 28 - 78,
-    w: 36,
-    h: 78,
+    x: w / 2 - 16,
+    y: h - 36 - 64,
+    w: 32,
+    h: 64,
     skin,
     color,
-    aim: 0.1,
+    aim: 0.05,
     facing: 1,
     vx: 0,
     grounded: true,
@@ -1165,94 +1233,5 @@ export function paintPreview(canvas: HTMLCanvasElement, skin: string | null, col
     eliminated: false,
     invuln: 0,
   } as Fighter;
-  ctx.save();
-  ctx.translate(0, 8);
-  drawPreview(ctx, fake);
-  ctx.restore();
-}
-
-function drawPreview(ctx: CanvasRenderingContext2D, fighter: Fighter) {
-  const scale = 1.15;
-  ctx.translate(fighter.x, fighter.y);
-  ctx.scale(scale, scale);
-  ctx.translate(-fighter.x, -fighter.y);
-  const now = 0;
-  const x = fighter.x;
-  const y = fighter.y;
-  const cx = x + fighter.w / 2;
-  ctx.lineCap = "round";
-  ctx.strokeStyle = "#16161c";
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-  ctx.moveTo(cx, y + 36);
-  ctx.lineTo(cx - 8, y + fighter.h);
-  ctx.moveTo(cx, y + 36);
-  ctx.lineTo(cx + 8, y + fighter.h);
-  ctx.moveTo(cx, y + 26);
-  ctx.lineTo(cx, y + 40);
-  ctx.moveTo(cx, y + 28);
-  ctx.lineTo(cx + 16, y + 32);
-  ctx.stroke();
-  ctx.strokeStyle = fighter.color;
-  ctx.beginPath();
-  ctx.moveTo(cx + 16, y + 32);
-  ctx.lineTo(cx + 28, y + 32);
-  ctx.stroke();
-  ctx.strokeStyle = "#16161c";
-  if (fighter.skin === "shirt" || !fighter.skin) {
-    ctx.fillStyle = fighter.skin === "shirt" ? fighter.color : "#f7f4ee";
-    ctx.fillRect(cx - 7, y + 24, 14, 14);
-    ctx.strokeRect(cx - 7, y + 24, 14, 14);
-  }
-  if (fighter.skin === "hoodie") {
-    ctx.fillStyle = fighter.color;
-    ctx.fillRect(cx - 10, y + 20, 20, 22);
-    ctx.strokeRect(cx - 10, y + 20, 20, 22);
-  }
-  if (fighter.skin === "cape") {
-    ctx.fillStyle = fighter.color;
-    ctx.beginPath();
-    ctx.moveTo(cx, y + 24);
-    ctx.lineTo(cx - 16, y + 56);
-    ctx.lineTo(cx + 2, y + 34);
-    ctx.fill();
-  }
-  if (fighter.skin === "camo" || fighter.skin === "gasmask") {
-    ctx.fillStyle = fighter.skin === "camo" ? "#4e623f" : "#2a2e36";
-    ctx.fillRect(cx - 10, y + 22, 20, 20);
-  }
-  ctx.fillStyle = "#f7f4ee";
-  ctx.beginPath();
-  ctx.arc(cx, y + 14, 12, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.stroke();
-  if (fighter.skin === "bandana") {
-    ctx.fillStyle = fighter.color;
-    ctx.fillRect(cx - 12, y + 14, 24, 7);
-  }
-  if (fighter.skin === "beanie" || fighter.skin === "camo") {
-    ctx.fillStyle = fighter.skin === "camo" ? "#3d4f32" : fighter.color;
-    ctx.beginPath();
-    ctx.arc(cx, y + 12, 13, Math.PI, 0);
-    ctx.fill();
-  }
-  if (fighter.skin === "mohawk") {
-    ctx.fillStyle = fighter.color;
-    ctx.beginPath();
-    ctx.moveTo(cx - 3, y + 6);
-    ctx.lineTo(cx, y - 10);
-    ctx.lineTo(cx + 3, y + 6);
-    ctx.fill();
-  }
-  if (fighter.skin === "visor") {
-    ctx.fillStyle = fighter.color;
-    ctx.fillRect(cx - 12, y + 10, 24, 5);
-  }
-  if (fighter.skin === "gasmask") {
-    ctx.fillStyle = "#1b1e24";
-    ctx.beginPath();
-    ctx.arc(cx, y + 14, 13, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  void now;
+  drawFigure(ctx, fake, 0);
 }

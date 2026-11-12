@@ -55,7 +55,7 @@ export function MatchView({
     <div className="arena-shell relative h-full min-h-[70dvh]">
       <canvas ref={canvasRef} className="arena-canvas h-full w-full" />
       <div className="pointer-events-none absolute top-3 right-3 left-3 flex justify-end">
-        <div className="rounded-2xl bg-ink/80 px-3 py-2 text-right text-xs text-cream">
+        <div className="rounded-2xl border-2 border-ink bg-[#f3f0e8] px-3 py-2 text-right text-xs text-ink">
           <p>{hud.weapon}</p>
           <p>
             You {hud.youScore} · Lead {hud.leader} {hud.leaderScore}
