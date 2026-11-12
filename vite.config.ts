@@ -212,7 +212,7 @@ function digitalWorldHostPlugin(): Plugin {
     // GitHub Pages serves 404.html for unknown paths. The built index already
     // references absolute /digital-world/assets, so a copy boots deep links.
     closeBundle() {
-      for (const dir of [".output/public", "dist/client", "dist"]) {
+      for (const dir of [".vercel/output/static", ".output/public", "dist/client", "dist"]) {
         const index = join(dir, "index.html");
         if (!existsSync(index)) continue;
         copyFileSync(index, join(dir, "404.html"));

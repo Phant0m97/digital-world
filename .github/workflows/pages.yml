@@ -1,0 +1,51 @@
+name: Publish site
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+        env:
+          GITHUB_PAGES: "1"
+      - name: Publish to gh-pages
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -eu
+          if [ -f .vercel/output/static/index.html ]; then DIR=.vercel/output/static
+          elif [ -f .output/public/index.html ]; then DIR=.output/public
+          elif [ -f dist/client/index.html ]; then DIR=dist/client
+          elif [ -f dist/index.html ]; then DIR=dist
+          else
+            echo "Could not find the prerendered site."
+            find . -name index.html -not -path './node_modules/*' | head -50
+            exit 1
+          fi
+          # GitHub Pages must not run Jekyll, or the __grok assets disappear.
+          touch "$DIR/.nojekyll"
+          cp "$DIR/index.html" "$DIR/404.html"
+          cd "$DIR"
+          git init -b gh-pages
+          git config user.name "Phant0m97"
+          git config user.email "353533979+Phant0m97@users.noreply.github.com"
+          git add -A
+          git commit -m "Publish DigitalWorld"
+          git push --force "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:gh-pages
