@@ -314,3 +314,121 @@ export async function findClaimedId(digitalId: string): Promise<ClaimedId | null
   if (!parsed) return null;
   return { digitalId: parsed.digitalId, name: parsed.name, avatarId: parsed.avatarId, pubkey: owner.pubkey };
 }
+
+function loginTag(id: string) {
+  return `dwpass-${idKey(id)}`;
+}
+
+function tight(bytes: Uint8Array) {
+  const copy = new Uint8Array(new ArrayBuffer(bytes.byteLength));
+  copy.set(bytes);
+  return copy;
+}
+
+function b64encode(bytes: Uint8Array) {
+  let raw = "";
+  for (const byte of bytes) raw += String.fromCharCode(byte);
+  return btoa(raw);
+}
+
+function b64decode(value: string) {
+  const raw = atob(value);
+  const bytes = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i += 1) bytes[i] = raw.charCodeAt(i);
+  return bytes;
+}
+
+async function passwordKey(password: string, salt: Uint8Array) {
+  const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveKey"]);
+  return crypto.subtle.deriveKey(
+    { name: "PBKDF2", salt: tight(salt), iterations: 100000, hash: "SHA-256" },
+    base,
+    { name: "AES-GCM", length: 256 },
+    false,
+    ["encrypt", "decrypt"],
+  );
+}
+
+async function loginEvents(id: string) {
+  const pool = await getPool();
+  return pool.querySync(RELAYS, { kinds: [1], "#t": [loginTag(id)], limit: 12 }, { maxWait: 4000 });
+}
+
+function parseLogin(content: string) {
+  try {
+    const data = JSON.parse(content) as Record<string, unknown>;
+    if (data.t !== "login") return null;
+    const salt = b64decode(String(data.salt ?? ""));
+    const iv = b64decode(String(data.iv ?? ""));
+    const box = b64decode(String(data.box ?? ""));
+    if (salt.length < 8 || iv.length < 8 || box.length < 16) return null;
+    return { salt, iv, box };
+  } catch {
+    return null;
+  }
+}
+
+export async function savePassword(
+  digitalId: string,
+  password: string,
+): Promise<{ ok: true } | { ok: false; reason: string }> {
+  if (password.length < 4) return { ok: false, reason: "Use at least 4 characters." };
+  const me = await ensureIdentity();
+  if (!me || !identity) return { ok: false, reason: "Couldn't save that password. Try again." };
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const key = await passwordKey(password, salt);
+  const box = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv: tight(iv) }, key, tight(identity.sk)));
+  const posted = await publish(
+    [loginTag(digitalId)],
+    JSON.stringify({
+      v: 1,
+      t: "login",
+      id: digitalId.trim(),
+      salt: b64encode(salt),
+      iv: b64encode(iv),
+      box: b64encode(box),
+    }),
+  );
+  if (!posted) return { ok: false, reason: "Couldn't save that password. Try again." };
+  return { ok: true };
+}
+
+export async function hasSavedPassword(digitalId: string) {
+  const me = await ensureIdentity();
+  const events = await loginEvents(digitalId);
+  return events.some((event) => event.pubkey === me && parseLogin(event.content));
+}
+
+export async function signInAccount(
+  digitalId: string,
+  password: string,
+): Promise<{ ok: true; username: string; digitalId: string; avatarId: string } | { ok: false; reason: string }> {
+  if (password.length < 4) return { ok: false, reason: "Use at least 4 characters." };
+  try {
+    const found = await findClaimedId(digitalId);
+    if (!found) return { ok: false, reason: "No account uses that ID." };
+    const events = [...(await loginEvents(digitalId))].sort((a, b) => b.created_at - a.created_at);
+    const { getPublicKey } = await tools();
+    const { bytesToHex } = await import("nostr-tools/utils");
+    for (const event of events) {
+      if (event.pubkey !== found.pubkey) continue;
+      const packed = parseLogin(event.content);
+      if (!packed) continue;
+      try {
+        const key = await passwordKey(password, packed.salt);
+        const secret = new Uint8Array(await crypto.subtle.decrypt({ name: "AES-GCM", iv: tight(packed.iv) }, key, tight(packed.box)));
+        if (secret.length !== 32 || getPublicKey(secret) !== found.pubkey) continue;
+        localStorage.setItem(SECRET_KEY, bytesToHex(secret));
+        identity = null;
+        return { ok: true, username: found.name, digitalId: found.digitalId, avatarId: found.avatarId };
+      } catch {
+        continue;
+      }
+    }
+    const saved = events.some((event) => event.pubkey === found.pubkey);
+    return { ok: false, reason: saved ? "Wrong password." : "That account has no password yet. Set one on the device where you made it." };
+  } catch {
+    return { ok: false, reason: "Couldn't sign in. Try again." };
+  }
+}

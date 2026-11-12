@@ -4,7 +4,7 @@ import { Avatar } from "@/components/avatar";
 import { Shell, useHydrated } from "@/components/shell";
 import { AVATARS, GIFS, THEMES, type ThemeId } from "@/data/catalog";
 import { asset } from "@/lib/asset";
-import { claimDigitalId, ensureIdentity, findClaimedId, findSharedRoom, publishDrop, publishMessage, publishRoom, subscribeRoom } from "@/lib/live-chat";
+import { claimDigitalId, ensureIdentity, findClaimedId, findSharedRoom, hasSavedPassword, publishDrop, publishMessage, publishRoom, savePassword, signInAccount, subscribeRoom } from "@/lib/live-chat";
 import { useWorld, type ChatMessage, type Room } from "@/lib/store";
 
 export const Route = createFileRoute("/chat")({
@@ -31,28 +31,42 @@ function ChatPage() {
 function ProfileGate() {
   const profile = useWorld((state) => state.profile);
   const setProfile = useWorld((state) => state.setProfile);
+  const [mode, setMode] = useState<"create" | "signin">("signin");
   const [name, setName] = useState(profile?.username ?? "");
   const [digitalId, setDigitalId] = useState("");
+  const [password, setPassword] = useState("");
   const [avatarId, setAvatarId] = useState(profile?.avatarId ?? AVATARS[0]!.id);
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   const clean = name.trim();
   const id = digitalId.trim();
-  const ok = clean.length >= 2 && clean.length <= 16 && /^[A-Za-z0-9_]{2,16}$/.test(id) && !busy;
+  const idOk = /^[A-Za-z0-9_]{2,16}$/.test(id);
+  const createOk = clean.length >= 2 && clean.length <= 16 && idOk && password.length >= 4 && !busy;
+  const signOk = idOk && password.length >= 4 && !busy;
   return (
     <Shell>
       <div className="mx-auto max-w-3xl">
-        <h1 className="font-display text-4xl font-bold">Pick a face</h1>
-        <label className="mt-6 block text-sm text-mute">
-          Username
-          <input
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            maxLength={16}
-            placeholder="Your callsign"
-            className="mt-2 w-full rounded-2xl border border-line bg-panel px-4 py-3 text-cream outline-none focus:border-cyan"
-          />
-        </label>
+        <h1 className="font-display text-4xl font-bold">{mode === "signin" ? "Sign in" : "Pick a face"}</h1>
+        <div className="mt-5 flex gap-2">
+          <button type="button" className={mode === "signin" ? "rounded-full bg-cyan px-4 py-2 text-ink" : "rounded-full border border-line px-4 py-2"} onClick={() => setMode("signin")}>
+            Sign in
+          </button>
+          <button type="button" className={mode === "create" ? "rounded-full bg-cyan px-4 py-2 text-ink" : "rounded-full border border-line px-4 py-2"} onClick={() => setMode("create")}>
+            Create account
+          </button>
+        </div>
+        {mode === "create" ? (
+          <label className="mt-6 block text-sm text-mute">
+            Username
+            <input
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              maxLength={16}
+              placeholder="Your callsign"
+              className="mt-2 w-full rounded-2xl border border-line bg-panel px-4 py-3 text-cream outline-none focus:border-cyan"
+            />
+          </label>
+        ) : null}
         <label className="mt-4 block text-sm text-mute">
           DigitalWorld ID
           <input
@@ -63,30 +77,61 @@ function ProfileGate() {
             className="mt-2 w-full rounded-2xl border border-line bg-panel px-4 py-3 text-cream outline-none focus:border-cyan"
           />
         </label>
-        <div className="mt-5 grid grid-cols-4 gap-2 sm:grid-cols-5">
-          {AVATARS.map((avatar) => (
-            <button
-              key={avatar.id}
-              type="button"
-              onClick={() => setAvatarId(avatar.id)}
-              className={`rounded-2xl border p-1 text-left ${avatarId === avatar.id ? "border-cyan" : "border-transparent"}`}
-            >
-              <Avatar id={avatar.id} className="w-full" />
-              <span className="mt-1 block truncate px-1 text-xs">{avatar.name}</span>
-            </button>
-          ))}
-        </div>
+        <label className="mt-4 block text-sm text-mute">
+          Password
+          <input
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            type="password"
+            maxLength={64}
+            placeholder="At least 4 characters"
+            className="mt-2 w-full rounded-2xl border border-line bg-panel px-4 py-3 text-cream outline-none focus:border-cyan"
+          />
+        </label>
+        {mode === "create" ? (
+          <div className="mt-5 grid grid-cols-4 gap-2 sm:grid-cols-5">
+            {AVATARS.map((avatar) => (
+              <button
+                key={avatar.id}
+                type="button"
+                onClick={() => setAvatarId(avatar.id)}
+                className={`rounded-2xl border p-1 text-left ${avatarId === avatar.id ? "border-cyan" : "border-transparent"}`}
+              >
+                <Avatar id={avatar.id} className="w-full" />
+                <span className="mt-1 block truncate px-1 text-xs">{avatar.name}</span>
+              </button>
+            ))}
+          </div>
+        ) : null}
         {note ? <p className="mt-4 text-sm text-mute">{note}</p> : null}
         <button
           type="button"
-          disabled={!ok}
+          disabled={mode === "create" ? !createOk : !signOk}
           onClick={() => {
             setBusy(true);
+            if (mode === "signin") {
+              setNote("Signing in…");
+              void signInAccount(id, password).then((result) => {
+                setBusy(false);
+                if (!result.ok) {
+                  setNote(result.reason);
+                  return;
+                }
+                setProfile({ username: result.username, digitalId: result.digitalId, avatarId: result.avatarId });
+              });
+              return;
+            }
             setNote("Checking that ID…");
-            void claimDigitalId(id, clean, avatarId).then((result) => {
-              setBusy(false);
+            void claimDigitalId(id, clean, avatarId).then(async (result) => {
               if (!result.ok) {
+                setBusy(false);
                 setNote(result.reason);
+                return;
+              }
+              const saved = await savePassword(id, password);
+              setBusy(false);
+              if (!saved.ok) {
+                setNote(saved.reason);
                 return;
               }
               setProfile({ username: clean, digitalId: id, avatarId });
@@ -94,7 +139,7 @@ function ProfileGate() {
           }}
           className="mt-6 rounded-full bg-cyan px-5 py-3 font-display text-ink disabled:opacity-40"
         >
-          Enter chat
+          {mode === "signin" ? "Sign in" : "Enter chat"}
         </button>
       </div>
     </Shell>
@@ -132,6 +177,9 @@ function ChatApp() {
   const [roomTitle, setRoomTitle] = useState("");
   const [panel, setPanel] = useState<"rooms" | "people">("rooms");
   const [selfId, setSelfId] = useState("");
+  const [needPassword, setNeedPassword] = useState(false);
+  const [accountPassword, setAccountPassword] = useState("");
+  const [passwordNote, setPasswordNote] = useState("");
   const scroller = useRef<HTMLDivElement>(null);
   const pinned = useRef(true);
 
@@ -159,6 +207,16 @@ function ChatApp() {
   useEffect(() => {
     void ensureIdentity().then(setSelfId);
   }, []);
+
+  useEffect(() => {
+    let stop = false;
+    void hasSavedPassword(profile.digitalId).then((saved) => {
+      if (!stop) setNeedPassword(!saved);
+    });
+    return () => {
+      stop = true;
+    };
+  }, [profile.digitalId]);
 
   useEffect(() => {
     if (!activeId || !canTalk) return;
@@ -207,6 +265,36 @@ function ChatApp() {
 
   return (
     <Shell bare>
+      {needPassword ? (
+        <form
+          className="flex flex-wrap items-center gap-2 border-b border-line bg-panel px-4 py-3"
+          onSubmit={(event) => {
+            event.preventDefault();
+            setPasswordNote("Saving…");
+            void savePassword(profile.digitalId, accountPassword).then((result) => {
+              if (!result.ok) {
+                setPasswordNote(result.reason);
+                return;
+              }
+              setNeedPassword(false);
+              setAccountPassword("");
+            });
+          }}
+        >
+          <p className="text-sm">Set a password so you can sign in on another device.</p>
+          <input
+            value={accountPassword}
+            onChange={(event) => setAccountPassword(event.target.value)}
+            type="password"
+            placeholder="Password"
+            className="rounded-full border border-line bg-ink px-4 py-2"
+          />
+          <button type="submit" className="rounded-full bg-cyan px-4 py-2 text-ink">
+            Save
+          </button>
+          {passwordNote ? <p className="text-xs text-mute">{passwordNote}</p> : null}
+        </form>
+      ) : null}
       <div className="grid h-[calc(100dvh-4.25rem)] overflow-hidden lg:grid-cols-[280px_1fr_280px]">
         <aside className={`${active ? "hidden" : "flex"} min-h-0 flex-col overflow-y-auto border-b border-line lg:flex lg:border-r lg:border-b-0`}>
           <div className="flex gap-2 p-3">
