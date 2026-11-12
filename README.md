@@ -1,6 +1,5 @@
 # DigitalWorld
 
-Chat in themed rooms, then drop into stick-figure paintball.
 
 Live site: https://Phant0m97.github.io/digital-world/
 
