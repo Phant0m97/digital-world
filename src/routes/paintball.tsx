@@ -71,7 +71,7 @@ function Locker() {
               type="button"
               aria-label={swatch.id}
               onClick={() => setPaint(swatch.id)}
-              className={`size-7 rounded-full border-2 ${paint === swatch.id ? "border-cream" : "border-transparent"}`}
+              className={`size-7 rounded-full border-2 ${paint === swatch.id ? "border-cream" : swatch.id === "black" ? "border-mute" : "border-transparent"}`}
               style={{ background: swatch.hex }}
             />
           ))}
@@ -153,10 +153,11 @@ function Locker() {
                           type="button"
                           aria-label={`${item.name} ${swatch.id}`}
                           onClick={() => {
+                            if (!owned) return;
                             setCosmeticColor(item.id, swatch.id);
-                            setLooking(item.id);
                           }}
-                          className={`size-6 rounded-full border-2 ${chosen ? "border-cream" : "border-transparent"}`}
+                          disabled={!owned}
+                          className={`size-6 rounded-full border-2 disabled:opacity-40 ${chosen ? "border-cream" : swatch.id === "black" ? "border-mute" : "border-transparent"}`}
                           style={{ background: swatch.hex }}
                         />
                       );

@@ -85,6 +85,7 @@ export const PAINTS = [
   { id: "violet", hex: "#9b8cff" },
   { id: "white", hex: "#f4f0e6" },
   { id: "red", hex: "#ff4d4d" },
+  { id: "black", hex: "#111111" },
 ] as const;
 
 export type WeaponId = "marker" | "splatter" | "needle" | "hopper" | "longarm" | "spray" | "ricochet";
