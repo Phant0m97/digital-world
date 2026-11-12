@@ -258,8 +258,8 @@ function StickPreview({ loadout, dyes }: { loadout: Loadout; dyes: Dyes }) {
     const canvas = ref.current;
     if (!canvas) return;
     canvas.width = 280;
-    canvas.height = 640;
+    canvas.height = 420;
     paintPreview(canvas, loadout, dyes);
   }, [loadout.head, loadout.body, loadout.legs, dyes.head, dyes.body, dyes.legs]);
-  return <canvas ref={ref} width={280} height={640} className="mx-auto block h-36 w-auto rounded-xl" />;
+  return <canvas ref={ref} width={280} height={420} className="mx-auto block h-36 w-auto rounded-xl" />;
 }
