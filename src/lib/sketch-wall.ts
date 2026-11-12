@@ -5,6 +5,8 @@ const SECRET_KEY = "dw-chat-sk";
 const LOCAL_KEY = "dw-sketch-local-v1";
 const DRAW_TAG = "dwdraw";
 const HEART_TAG = "dwheart";
+// Test drawings published before delete existed. Their signing keys are gone.
+const HIDDEN_POSTS = new Set(["sk-h7cwi45r", "sk-mvsd7uzr"]);
 
 export const PAPER = "#f4f0e6";
 export const PEN_IDS = ["ink", "marker", "pencil", "highlighter", "spray", "neon", "erase"] as const;
@@ -247,7 +249,7 @@ function parsePost(content: string, author: string, at: number): SketchPost | nu
     const data = JSON.parse(content) as Record<string, unknown>;
     if (data.t !== "draw") return null;
     const id = clean(data.id, 24);
-    if (!/^sk-[a-z0-9]{4,16}$/.test(id)) return null;
+    if (!/^sk-[a-z0-9]{4,16}$/.test(id) || HIDDEN_POSTS.has(id)) return null;
     const strokes = normalizeStrokes(data.strokes);
     if (!strokes) return null;
     if (dropped.get(id) === author) return null;
