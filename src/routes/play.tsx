@@ -1,9 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useRef, useState } from "react";
 import { Shell, useHydrated } from "@/components/shell";
-import { AVATARS, MODES, PAINTS, SKIN_HEX, SKINS, paintHex, weaponById, wornList, type Dyes, type Loadout, type ModeId } from "@/data/catalog";
+import { MODES, SKIN_HEX, paintHex, weaponById, wornList, type Dyes, type ModeId } from "@/data/catalog";
 import { MatchView } from "@/game/match-view";
-import type { MatchFighterSetup, MatchResult, MatchSetup } from "@/game/engine";
+import type { MatchResult, MatchSetup } from "@/game/engine";
 import { useWorld } from "@/lib/store";
 
 export const Route = createFileRoute("/play")({
@@ -16,15 +16,7 @@ export const Route = createFileRoute("/play")({
 
 function clampPlayers(value: number) {
   if (!Number.isFinite(value)) return 6;
-  return Math.max(2, Math.min(8, Math.round(value)));
-}
-
-function botLoadout(n: number): Loadout {
-  return SKINS.filter((_, index) => (n + index) % 3 === 0).map((skin) => skin.id);
-}
-
-function botDyes(n: number): Dyes {
-  return Object.fromEntries(SKINS.map((skin, index) => [skin.id, PAINTS[(n + index) % PAINTS.length]!.hex]));
+  return Math.max(1, Math.min(8, Math.round(value)));
 }
 
 function PlayPage() {
@@ -35,59 +27,28 @@ function PlayPage() {
   const loadout = useWorld((state) => state.equipped);
   const cosmeticColors = useWorld((state) => state.cosmeticColors);
   const weapon = useWorld((state) => state.equippedWeapon);
-  const party = useWorld((state) => state.party);
   const award = useWorld((state) => state.award);
   const [result, setResult] = useState<MatchResult | null>(null);
   const paid = useRef(false);
 
   const setup = useMemo<MatchSetup>(() => {
-    const youName = profile?.username || "You";
-    const others: MatchFighterSetup[] = [];
-    const colors = PAINTS.map((item) => item.hex).filter((hex) => hex !== paintHex(paint));
     const worn = wornList(loadout);
     const youDyes: Dyes = Object.fromEntries(
       worn.map((id) => [id, cosmeticColors[id] ? paintHex(cosmeticColors[id]) : (SKIN_HEX[id] ?? paintHex(paint))]),
     );
-    party.forEach((member, index) => {
-      others.push({
-        name: member.name,
-        color: colors[index % colors.length]!,
-        loadout: botLoadout(index + 1),
-        dyes: botDyes(index + 1),
-        weapon: index % 2 === 0 ? "marker" : "spray",
-        bot: true,
-      });
-    });
-    const target = Math.max(search.players, others.length + 1);
-    let cursor = 0;
-    while (others.length + 1 < target) {
-      const avatar = AVATARS[cursor % AVATARS.length]!;
-      if (avatar.name !== youName && !others.some((entry) => entry.name === avatar.name)) {
-        others.push({
-          name: avatar.name,
-          color: colors[(others.length + 2) % colors.length]!,
-          loadout: botLoadout(cursor + 2),
-          dyes: botDyes(cursor + 4),
-          weapon: WEAPON_CYCLE[cursor % WEAPON_CYCLE.length]!,
-          bot: true,
-        });
-      }
-      cursor += 1;
-      if (cursor > 40) break;
-    }
     return {
       mode: search.mode,
       you: {
-        name: youName,
+        name: profile?.username || "You",
         color: paintHex(paint),
         loadout: worn,
         dyes: youDyes,
         weapon,
         bot: false,
       },
-      others,
+      others: [],
     };
-  }, [cosmeticColors, paint, party, profile?.username, search.mode, search.players, loadout, weapon]);
+  }, [cosmeticColors, paint, profile?.username, search.mode, loadout, weapon]);
 
   if (!ready) {
     return (

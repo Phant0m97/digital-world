@@ -31,7 +31,6 @@ function GamesPage() {
 function Locker() {
   const credits = useWorld((state) => state.credits);
   const mode = useWorld((state) => state.mode);
-  const rosterSize = useWorld((state) => state.rosterSize);
   const paint = useWorld((state) => state.paint);
   const cosmeticColors = useWorld((state) => state.cosmeticColors);
   const equipped = useWorld((state) => state.equipped);
@@ -40,7 +39,6 @@ function Locker() {
   const ownedWeapons = useWorld((state) => state.ownedWeapons);
   const party = useWorld((state) => state.party);
   const setMode = useWorld((state) => state.setMode);
-  const setRosterSize = useWorld((state) => state.setRosterSize);
   const setPaint = useWorld((state) => state.setPaint);
   const setCosmeticColor = useWorld((state) => state.setCosmeticColor);
   const buySkin = useWorld((state) => state.buySkin);
@@ -78,7 +76,7 @@ function Locker() {
         </div>
         <Link
           to="/play"
-          search={{ mode, players: rosterSize }}
+          search={{ mode, players: 1 }}
           className="ml-auto rounded-full bg-cyan px-5 py-2 font-display text-ink"
         >
           Drop in
@@ -96,18 +94,6 @@ function Locker() {
             {item.name}
           </button>
         ))}
-        <label className="ml-auto text-sm text-mute">
-          Sticks
-          <input
-            type="range"
-            min={2}
-            max={8}
-            value={rosterSize}
-            onChange={(event) => setRosterSize(Number(event.target.value))}
-            className="ml-2 align-middle"
-          />
-          <span className="ml-2 text-cream">{rosterSize}</span>
-        </label>
       </div>
       {party.length > 0 ? (
         <div className="flex shrink-0 gap-2 overflow-x-auto">
