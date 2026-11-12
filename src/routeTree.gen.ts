@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ChatRouteImport } from './routes/chat'
 import { Route as GamesRouteImport } from './routes/games'
+import { Route as LifeRouteImport } from './routes/life'
 import { Route as PlayRouteImport } from './routes/play'
 
 const IndexRoute = IndexRouteImport.update({
@@ -29,6 +30,11 @@ const GamesRoute = GamesRouteImport.update({
   path: '/games',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LifeRoute = LifeRouteImport.update({
+  id: '/life',
+  path: '/life',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PlayRoute = PlayRouteImport.update({
   id: '/play',
   path: '/play',
@@ -39,12 +45,14 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/chat': typeof ChatRoute
   '/games': typeof GamesRoute
+  '/life': typeof LifeRoute
   '/play': typeof PlayRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/chat': typeof ChatRoute
   '/games': typeof GamesRoute
+  '/life': typeof LifeRoute
   '/play': typeof PlayRoute
 }
 export interface FileRoutesById {
@@ -52,20 +60,22 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/chat': typeof ChatRoute
   '/games': typeof GamesRoute
+  '/life': typeof LifeRoute
   '/play': typeof PlayRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/chat' | '/games' | '/play'
+  fullPaths: '/' | '/chat' | '/games' | '/life' | '/play'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/chat' | '/games' | '/play'
-  id: '__root__' | '/' | '/chat' | '/games' | '/play'
+  to: '/' | '/chat' | '/games' | '/life' | '/play'
+  id: '__root__' | '/' | '/chat' | '/games' | '/life' | '/play'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ChatRoute: typeof ChatRoute
   GamesRoute: typeof GamesRoute
+  LifeRoute: typeof LifeRoute
   PlayRoute: typeof PlayRoute
 }
 
@@ -92,6 +102,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof GamesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/life': {
+      id: '/life'
+      path: '/life'
+      fullPath: '/life'
+      preLoaderRoute: typeof LifeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/play': {
       id: '/play'
       path: '/play'
@@ -106,6 +123,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ChatRoute: ChatRoute,
   GamesRoute: GamesRoute,
+  LifeRoute: LifeRoute,
   PlayRoute: PlayRoute,
 }
 export const routeTree = rootRouteImport

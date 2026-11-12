@@ -66,6 +66,9 @@ function Locker() {
     <div className="flex flex-col gap-4">
       <div className="flex shrink-0 flex-wrap items-center gap-3">
         <h1 className="font-display text-3xl font-bold">Paintball</h1>
+        <Link to="/life" className="rounded-full border border-line px-3 py-1 text-sm text-cyan">
+          LifeSim
+        </Link>
         <p className="font-display text-xl text-cyan">{credits} cr</p>
         <div className="flex gap-2">
           {PAINTS.map((swatch) => (
