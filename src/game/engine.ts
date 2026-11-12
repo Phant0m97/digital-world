@@ -330,7 +330,8 @@ export function createMatch(
   let acc = 0;
   let last = performance.now();
   let camX = 0;
-  let viewW = 900;
+  let camY = 160;
+  let viewW = 980;
   let viewH = 640;
   let raf = 0;
   let audio: AudioContext | null = null;
@@ -844,23 +845,32 @@ export function createMatch(
     const dpr = Math.min(2, window.devicePixelRatio || 1);
     canvas.width = Math.max(1, Math.floor(rect.width * dpr));
     canvas.height = Math.max(1, Math.floor(rect.height * dpr));
-    viewH = 640;
-    viewW = clamp(viewH * (rect.width / Math.max(1, rect.height)), 460, 1500);
+    const width = rect.width;
+    viewW = width < 700 ? 740 : 980;
+    viewH = viewW * (rect.height / Math.max(1, width));
   }
 
   function screenToWorld(clientX: number, clientY: number) {
     const rect = canvas.getBoundingClientRect();
     const u = (clientX - rect.left) / Math.max(1, rect.width);
     const v = (clientY - rect.top) / Math.max(1, rect.height);
-    return { x: camX + u * viewW, y: v * viewH };
+    return { x: camX + u * viewW, y: camY + v * viewH };
   }
 
   function updateCam() {
     const fighter = you();
-    const target = fighter.x + fighter.w / 2 - viewW * 0.42;
-    camX += (target - camX) * 0.14;
-    camX = clamp(camX, 0, Math.max(0, WORLD_W - viewW));
-    if (shake > 0) camX += (Math.random() - 0.5) * shake;
+    const lookX = fighter.x + fighter.w / 2 + fighter.facing * 90;
+    const lookY = Math.min(520, fighter.y + 20);
+    const halfW = viewW / 2;
+    const halfH = viewH / 2;
+    const destX = clamp(lookX, halfW, Math.max(halfW, WORLD_W - halfW));
+    const destY = clamp(lookY, halfH - 40, Math.max(halfH - 40, 700 - halfH + 40));
+    camX += (destX - halfW - camX) * 0.14;
+    camY += (destY - halfH - camY) * 0.14;
+    if (shake > 0) {
+      camX += (Math.random() - 0.5) * shake;
+      camY += (Math.random() - 0.5) * shake;
+    }
   }
 
   function drawStick(ctx: CanvasRenderingContext2D, fighter: Fighter, now: number) {
@@ -880,9 +890,9 @@ export function createMatch(
     const sy = cssH / viewH;
     ctx.fillStyle = CREAM;
     ctx.fillRect(0, 0, cssW, cssH);
-    ctx.setTransform(dpr * sx, 0, 0, dpr * sy, -camX * dpr * sx, 0);
+    ctx.setTransform(dpr * sx, 0, 0, dpr * sy, -camX * dpr * sx, -camY * dpr * sy);
     ctx.fillStyle = CREAM;
-    ctx.fillRect(camX - 40, 0, viewW + 80, WORLD_H);
+    ctx.fillRect(camX - 40, camY - 40, viewW + 80, viewH + 80);
     ctx.fillStyle = "#c5c9d0";
     ctx.fillRect(camX - 40, GROUND_Y, viewW + 80, 52);
     ctx.fillStyle = "#8e949c";
