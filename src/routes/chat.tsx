@@ -256,9 +256,10 @@ function ChatApp() {
 
   return (
     <Shell bare>
+      <div className="flex h-[calc(100dvh-4.25rem)] min-h-0 flex-col overflow-hidden">
       {needPassword ? (
         <form
-          className="flex flex-wrap items-center gap-2 border-b border-line bg-panel px-4 py-3"
+          className="flex shrink-0 flex-wrap items-center gap-2 border-b border-line bg-panel px-4 py-3"
           onSubmit={(event) => {
             event.preventDefault();
             setPasswordNote("Saving…");
@@ -286,7 +287,23 @@ function ChatApp() {
           {passwordNote ? <p className="text-xs text-mute">{passwordNote}</p> : null}
         </form>
       ) : null}
-      <div className="grid h-[calc(100dvh-4.25rem)] overflow-hidden lg:grid-cols-[280px_1fr_280px]">
+      {panel === "profile" ? (
+        <>
+          <div className="flex shrink-0 flex-wrap gap-2 p-3">
+            <button type="button" className={tab(false)} onClick={() => setPanel("rooms")}>
+              Rooms
+            </button>
+            <button type="button" className={tab(false)} onClick={() => setPanel("people")}>
+              People
+            </button>
+            <button type="button" className={tab(true)} onClick={() => setPanel("profile")}>
+              Profile
+            </button>
+          </div>
+          <ProfilePanel />
+        </>
+      ) : (
+      <div className="grid min-h-0 flex-1 overflow-hidden lg:grid-cols-[280px_1fr_280px]">
         <aside className={`${active ? "hidden" : "flex"} min-h-0 flex-col overflow-y-auto border-b border-line lg:flex lg:border-r lg:border-b-0`}>
           <div className="flex flex-wrap gap-2 p-3">
             <button type="button" className={tab(panel === "rooms")} onClick={() => setPanel("rooms")}>
@@ -295,7 +312,7 @@ function ChatApp() {
             <button type="button" className={tab(panel === "people")} onClick={() => setPanel("people")}>
               People
             </button>
-            <button type="button" className={tab(panel === "profile")} onClick={() => setPanel("profile")}>
+            <button type="button" className={tab(false)} onClick={() => setPanel("profile")}>
               Profile
             </button>
           </div>
@@ -384,7 +401,7 @@ function ChatApp() {
               </form>
               {note ? <p className="text-xs text-mute">{note}</p> : null}
             </div>
-          ) : panel === "people" ? (
+          ) : (
             <PeoplePanel
               friends={friends}
               party={party}
@@ -407,8 +424,6 @@ function ChatApp() {
               onParty={toggleParty}
               myCode={profile.digitalId}
             />
-          ) : (
-            <ProfilePanel />
           )}
         </aside>
 
@@ -540,6 +555,8 @@ function ChatApp() {
           </Link>
         </aside>
       </div>
+      )}
+      </div>
     </Shell>
   );
 }
@@ -636,12 +653,14 @@ function ProfilePanel() {
 
   if (!editing) {
     return (
-      <div className="flex min-h-0 flex-1 flex-col px-3 pb-4">
-        <div className="flex flex-col items-center px-2 pt-6 text-center">
-          <Avatar id={profile.avatarId} className="size-28" />
-          <p className="mt-4 font-display text-2xl font-bold">{profile.username}</p>
-          <p className="mt-1 text-sm text-mute">{profile.digitalId}</p>
-          <p className="mt-1 text-sm text-mute">{face.name}</p>
+      <div className="mx-auto flex min-h-0 w-full max-w-lg flex-1 flex-col px-4 pb-4">
+        <div className="flex min-h-0 flex-1 flex-col items-center justify-center text-center">
+          <div className="flex min-h-0 w-full flex-1 items-center justify-center">
+            <Avatar id={profile.avatarId} className="aspect-square h-full max-h-72 w-auto" />
+          </div>
+          <p className="mt-4 font-display text-3xl font-bold">{profile.username}</p>
+          <p className="mt-1 text-mute">{profile.digitalId}</p>
+          <p className="text-sm text-mute">{face.name}</p>
         </div>
         <button
           type="button"
@@ -653,7 +672,7 @@ function ProfilePanel() {
             setNote("");
             setEditing(true);
           }}
-          className="mt-auto w-full rounded-full border border-line py-3 font-display"
+          className="mt-4 w-full shrink-0 rounded-full border border-line py-3 font-display"
         >
           Edit
         </button>
@@ -662,7 +681,8 @@ function ProfilePanel() {
   }
 
   return (
-    <div className="space-y-3 px-3 pb-4">
+    <div className="mx-auto flex min-h-0 w-full max-w-lg flex-1 flex-col">
+      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4">
       <label className="block text-sm text-mute">
         Username
         <input
@@ -693,6 +713,8 @@ function ProfilePanel() {
       </label>
       <AvatarPicker value={avatarId} onChange={setAvatarId} />
       {note ? <p className="text-xs text-mute">{note}</p> : null}
+      </div>
+      <div className="flex shrink-0 gap-2 px-4 py-3">
       <button
         type="button"
         disabled={busy}
@@ -730,7 +752,7 @@ function ProfilePanel() {
             setNote("");
           });
         }}
-        className="w-full rounded-full bg-cyan py-2 text-ink disabled:opacity-40"
+        className="flex-1 rounded-full bg-cyan py-2 text-ink disabled:opacity-40"
       >
         Save profile
       </button>
@@ -740,10 +762,11 @@ function ProfilePanel() {
           setEditing(false);
           setNote("");
         }}
-        className="w-full rounded-full border border-line py-2"
+        className="flex-1 rounded-full border border-line py-2"
       >
         Cancel
       </button>
+      </div>
     </div>
   );
 }
