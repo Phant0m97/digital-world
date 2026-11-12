@@ -5,7 +5,7 @@ import { asset } from "@/lib/asset";
 export const Route = createFileRoute("/games")({ component: GamesPage });
 
 const GAMES = [
-  { to: "/paintball", title: "Paintball", image: "games/paintball-duel.jpg" },
+  { to: "/paintball", title: "Paintball", image: "games/paintball-duel2.jpg" },
   { to: "/life", title: "LifeSim", image: "games/lifesim.jpg" },
 ] as const;
 
