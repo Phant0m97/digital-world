@@ -142,7 +142,7 @@ function Locker() {
             ))}
           </div>
         </div>
-        <div className="grid items-start gap-4 lg:grid-cols-[280px_1fr]">
+        <div className="grid items-start gap-4 lg:grid-cols-[240px_1fr]">
           <div className="rounded-card border border-line bg-paper p-3 text-paper-ink">
             <StickPreview loadout={preview} color={paintHex(paint)} />
             <p className="mt-2 text-center font-display">{profile?.username ?? "You"}</p>
@@ -254,9 +254,9 @@ function StickPreview({ loadout, color }: { loadout: Loadout; color: string }) {
   useEffect(() => {
     const canvas = ref.current;
     if (!canvas) return;
-    canvas.width = 320;
-    canvas.height = 380;
+    canvas.width = 240;
+    canvas.height = 420;
     paintPreview(canvas, loadout, color);
   }, [loadout.head, loadout.body, loadout.legs, color]);
-  return <canvas ref={ref} className="h-72 w-full rounded-xl" />;
+  return <canvas ref={ref} width={240} height={420} className="mx-auto block h-auto w-[200px] max-w-full rounded-xl" />;
 }

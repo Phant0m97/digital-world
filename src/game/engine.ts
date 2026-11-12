@@ -1255,16 +1255,17 @@ export function paintPreview(canvas: HTMLCanvasElement, loadout: Loadout, color:
   ctx.moveTo(0, h - 28);
   ctx.lineTo(w, h - 28);
   ctx.stroke();
-  const scale = Math.min(w / 70, (h - 36) / 78);
+  const figureH = 96;
+  const scale = Math.min((w * 0.62) / 36, (h - 40) / (figureH + 8));
   ctx.save();
   ctx.translate(w / 2, h - 28);
   ctx.scale(scale, scale);
-  ctx.translate(-16, -64);
+  ctx.translate(-16, -figureH);
   const fake = {
     x: 0,
     y: 0,
     w: 32,
-    h: 64,
+    h: figureH,
     loadout,
     color,
     aim: 0.05,
