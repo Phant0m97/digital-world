@@ -97,29 +97,43 @@ type Bullet = {
   head: number;
   color: string;
   gravity: number;
+  bounce: number;
 };
 type Decal = { x: number; y: number; rx: number; ry: number; rot: number; color: string };
 type Bit = { x: number; y: number; vx: number; vy: number; life: number; color: string };
 type Crystal = { x: number; y: number; team: number; hp: number; max: number };
 
-const WORLD_W = 2000;
-const WORLD_H = 640;
-const GROUND_Y = 520;
+const WORLD_W = 2400;
+const WORLD_H = 760;
+const GROUND_Y = 620;
 const PW = 26;
 const PH = 58;
 
 const SOLIDS: Solid[] = [
-  { x: 0, y: GROUND_Y, w: WORLD_W, h: 160, kind: "ground" },
-  { x: 70, y: 400, w: 230, h: 16, kind: "wood" },
-  { x: 330, y: GROUND_Y - 64, w: 64, h: 64, kind: "crate" },
-  { x: 360, y: 310, w: 180, h: 14, oneWay: true, kind: "mint" },
-  { x: 560, y: 410, w: 200, h: 16, kind: "wood" },
-  { x: 800, y: 280, w: 260, h: 16, kind: "mint" },
-  { x: 1120, y: 390, w: 170, h: 14, oneWay: true, kind: "wood" },
-  { x: 1340, y: 318, w: 210, h: 16, kind: "mint" },
-  { x: 1620, y: 418, w: 240, h: 16, kind: "wood" },
-  { x: 980, y: 440, w: 72, h: 80, kind: "crate" },
+  { x: 0, y: GROUND_Y, w: WORLD_W, h: 140, kind: "ground" },
+  { x: 160, y: 430, w: 230, h: 16, kind: "wood" },
+  { x: 0, y: 522, w: 150, h: 14, oneWay: true, kind: "mint" },
+  { x: 460, y: 390, w: 170, h: 14, oneWay: true, kind: "mint" },
+  { x: 880, y: 500, w: 280, h: 18, kind: "wood" },
+  { x: 1080, y: 340, w: 160, h: 14, oneWay: true, kind: "mint" },
+  { x: 1320, y: 450, w: 210, h: 16, kind: "wood" },
+  { x: 1680, y: 370, w: 180, h: 14, oneWay: true, kind: "mint" },
+  { x: 1960, y: 480, w: 250, h: 18, kind: "wood" },
+  { x: 2140, y: 370, w: 160, h: 14, oneWay: true, kind: "mint" },
+  { x: 360, y: 572, w: 48, h: 48, kind: "crate" },
+  { x: 1860, y: 572, w: 56, h: 48, kind: "crate" },
 ];
+
+const SPAWNS = [
+  { x: 90, y: 520 },
+  { x: 2140, y: 520 },
+  { x: 190, y: 340 },
+  { x: 960, y: 410 },
+  { x: 1360, y: 360 },
+  { x: 1980, y: 390 },
+];
+const LEFT_SPAWNS = [SPAWNS[0]!, SPAWNS[2]!, SPAWNS[3]!];
+const RIGHT_SPAWNS = [SPAWNS[1]!, SPAWNS[5]!, SPAWNS[4]!];
 
 const INK = "#1a1a1a";
 const CREAM = "#f3f0e8";
@@ -408,8 +422,7 @@ function drawSplat(ctx: CanvasRenderingContext2D, x: number, y: number, rx: numb
   ctx.restore();
 }
 
-const ZONE = { x: 900, y: 470, w: 220, h: 50 };
-const SPAWNS = [90, 240, 430, 680, 1240, 1500, 1720, 1880];
+const ZONE = { x: 1040, y: 548, w: 320, h: 78 };
 
 export type TouchState = {
   moveX: number;
@@ -465,11 +478,8 @@ export function createMatch(
   const roster = [setup.you, ...setup.others];
   roster.forEach((entry, index) => {
     const team = teamMode ? (index < Math.ceil(roster.length / 2) ? 0 : 1) : index;
-    const spawnX = teamMode
-      ? team === 0
-        ? SPAWNS[index % 4]!
-        : SPAWNS[4 + (index % 4)]!
-      : SPAWNS[index % SPAWNS.length]!;
+    const spots = teamMode ? (team === 0 ? LEFT_SPAWNS : RIGHT_SPAWNS) : SPAWNS;
+    const spawn = spots[index % spots.length]!;
     fighters.push({
       id: index,
       name: entry.name,
@@ -480,8 +490,8 @@ export function createMatch(
       loadout: entry.loadout,
       dyes: entry.dyes,
       weapon: entry.weapon,
-      x: spawnX,
-      y: GROUND_Y - PH,
+      x: spawn.x,
+      y: spawn.y,
       w: PW,
       h: PH,
       vx: 0,
@@ -508,8 +518,8 @@ export function createMatch(
   });
 
   const crystals: Crystal[] = [
-    { x: 120, y: 468, team: 0, hp: 18, max: 18 },
-    { x: 1880, y: 468, team: 1, hp: 18, max: 18 },
+    { x: 230, y: 578, team: 0, hp: 18, max: 18 },
+    { x: 2160, y: 578, team: 1, hp: 18, max: 18 },
   ];
   const bullets: Bullet[] = [];
   const decals: Decal[] = [];
@@ -621,6 +631,7 @@ export function createMatch(
       head: spec.head,
       color: fighter.color,
       gravity: spec.gravity,
+      bounce: spec.id === "ricochet" ? 1 : 0,
     });
     fighter.burst += 1;
     if (fighter.burst >= spec.burst) {
@@ -831,11 +842,10 @@ export function createMatch(
       if (fighter.eliminated || fighter.respawn <= 0) return;
       fighter.respawn -= dt;
       if (fighter.respawn <= 0) {
-        const spots = teamMode
-          ? SPAWNS.filter((_, index) => (fighter.team === 0 ? index < 4 : index >= 4))
-          : SPAWNS;
-        fighter.x = spots[Math.floor(Math.random() * spots.length)]!;
-        fighter.y = GROUND_Y - PH;
+        const spots = teamMode ? (fighter.team === 0 ? LEFT_SPAWNS : RIGHT_SPAWNS) : SPAWNS;
+        const spot = spots[Math.floor(Math.random() * spots.length)]!;
+        fighter.x = spot.x;
+        fighter.y = spot.y;
         fighter.vx = 0;
         fighter.vy = 0;
         fighter.hp = 2;
@@ -896,8 +906,23 @@ export function createMatch(
             bullet.y > solid.y &&
             bullet.y < solid.y + solid.h
           ) {
-            splat(bullet.x, bullet.y, bullet.color);
-            dead = true;
+            if (bullet.bounce > 0) {
+              bullet.bounce -= 1;
+              const left = bullet.x - solid.x;
+              const right = solid.x + solid.w - bullet.x;
+              const top = bullet.y - solid.y;
+              const bottom = solid.y + solid.h - bullet.y;
+              if (Math.min(left, right) < Math.min(top, bottom)) {
+                bullet.vx *= -1;
+                bullet.x += Math.sign(bullet.vx) * (bullet.r + 2);
+              } else {
+                bullet.vy *= -1;
+                bullet.y += Math.sign(bullet.vy) * (bullet.r + 2);
+              }
+            } else {
+              splat(bullet.x, bullet.y, bullet.color);
+              dead = true;
+            }
             break;
           }
         }

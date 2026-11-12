@@ -87,7 +87,7 @@ export const PAINTS = [
   { id: "red", hex: "#ff4d4d" },
 ] as const;
 
-export type WeaponId = "marker" | "splatter" | "needle" | "hopper" | "longarm" | "spray";
+export type WeaponId = "marker" | "splatter" | "needle" | "hopper" | "longarm" | "spray" | "ricochet";
 
 export type WeaponDef = {
   id: WeaponId;
@@ -209,6 +209,23 @@ export const WEAPONS: WeaponDef[] = [
     blurb: "Hose the platform. Most of it misses. Some of it doesn't.",
     strength: "Ridiculous fire rate",
     weakness: "Wild spread, slow balls",
+  },
+  {
+    id: "ricochet",
+    name: "Ricochet",
+    cost: 75,
+    rof: 2.2,
+    speed: 700,
+    spread: 0.04,
+    gravity: 280,
+    body: 1,
+    head: 2,
+    radius: 5,
+    burst: 1,
+    gap: 0,
+    blurb: "Bounces off one wall.",
+    strength: "Bank shots around corners",
+    weakness: "Medium everything, one bounce only",
   },
 ];
 

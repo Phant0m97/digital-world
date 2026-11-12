@@ -158,5 +158,5 @@ function PlayPage() {
   );
 }
 
-const WEAPON_CYCLE = ["marker", "splatter", "needle", "spray", "longarm", "hopper"];
+const WEAPON_CYCLE = ["marker", "splatter", "needle", "spray", "longarm", "hopper", "ricochet"];
 
