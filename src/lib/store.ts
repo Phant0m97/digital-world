@@ -75,69 +75,25 @@ type World = {
   award: (amount: number) => void;
 };
 
-const regulars = AVATARS.map((a) => a.id);
+const regulars = new Set(AVATARS.map((avatar) => avatar.id));
+
+function publicRoom(): Room {
+  return {
+    id: "digital-world",
+    title: "Digital World Chat",
+    visibility: "public",
+    theme: "black",
+    inviteCode: "WORLD",
+    memberIds: [],
+  };
+}
 
 function seedRooms(): Room[] {
-  return [
-    {
-      id: "plaza",
-      title: "The Plaza",
-      visibility: "public",
-      theme: "cyber",
-      inviteCode: "PLAZA",
-      memberIds: regulars.slice(0, 8),
-    },
-    {
-      id: "keep",
-      title: "Dragon Keep",
-      visibility: "public",
-      theme: "fantasy",
-      inviteCode: "KEEP",
-      memberIds: regulars.slice(4, 12),
-    },
-    {
-      id: "doodle",
-      title: "Stick Yard",
-      visibility: "public",
-      theme: "doodle",
-      inviteCode: "YARD",
-      memberIds: regulars.slice(8, 18),
-    },
-  ];
+  return [publicRoom()];
 }
 
 function seedMessages(): ChatMessage[] {
-  const now = Date.now();
-  const line = (
-    roomId: string,
-    avatarId: string,
-    body: string,
-    ago: number,
-    gif?: string,
-  ): ChatMessage => {
-    const avatar = AVATARS.find((a) => a.id === avatarId)!;
-    return {
-      id: `${roomId}-${ago}`,
-      roomId,
-      fromId: avatarId,
-      fromName: avatar.name,
-      avatarId,
-      body,
-      gif,
-      at: now - ago,
-    };
-  };
-  return [
-    line("plaza", "robot", "Night market lights are up. Who is painting tonight?", 1000 * 60 * 18),
-    line("plaza", "ninja", "Bring a hopper or don't peek mid.", 1000 * 60 * 12),
-    line("plaza", "cyborg", "", 1000 * 60 * 8, "glitch"),
-    line("keep", "dragon", "Castle side is windy. Dragon says the high wood is free.", 1000 * 60 * 40),
-    line("keep", "wizard", "Crystal games at dusk. Don't shoot your own gem.", 1000 * 60 * 22),
-    line("keep", "knight", "", 1000 * 60 * 6, "dragon"),
-    line("doodle", "cat", "Stick yard is doodling again. Bandanas half off.", 1000 * 60 * 30),
-    line("doodle", "fox", "King of the yellow box. I will live there.", 1000 * 60 * 9),
-    line("doodle", "skull", "", 1000 * 60 * 4, "splat"),
-  ];
+  return [];
 }
 
 function uid(prefix: string) {
@@ -154,15 +110,7 @@ export const useWorld = create<World>()(
       equippedSkin: null,
       equippedWeapon: "marker",
       paint: "cyan",
-      friends: [
-        {
-          id: "ninja",
-          name: "Null",
-          avatarId: "ninja",
-          code: "NULL-2201",
-          status: "incoming",
-        },
-      ],
+      friends: [],
       rooms: seedRooms(),
       messages: seedMessages(),
       joinedRoomIds: [],
@@ -263,25 +211,6 @@ export const useWorld = create<World>()(
         }),
       addByCode: (code) => {
         const trimmed = code.trim().toUpperCase();
-        const avatar = AVATARS.find((item) => item.code.toUpperCase() === trimmed);
-        if (avatar) {
-          const existing = get().friends.find((friend) => friend.id === avatar.id);
-          if (!existing) {
-            set({
-              friends: [
-                ...get().friends,
-                {
-                  id: avatar.id,
-                  name: avatar.name,
-                  avatarId: avatar.id,
-                  code: avatar.code,
-                  status: "incoming",
-                },
-              ],
-            });
-          }
-          return `Invite from ${avatar.name} is waiting.`;
-        }
         const id = uid("pal");
         set({
           friends: [
@@ -295,7 +224,7 @@ export const useWorld = create<World>()(
             },
           ],
         });
-        return "Invite saved on this device. Plaza regulars accept instantly — use their code.";
+        return "Invite saved on this device.";
       },
       toggleParty: (member) => {
         const has = get().party.some((item) => item.id === member.id);
@@ -329,7 +258,33 @@ export const useWorld = create<World>()(
       setRosterSize: (n) => set({ rosterSize: Math.max(2, Math.min(8, n)) }),
       award: (amount) => set({ credits: get().credits + amount }),
     }),
-    { name: "digitalworld-v1" },
+    {
+      name: "digitalworld-v1",
+      version: 2,
+      migrate: (persisted) => {
+        if (!persisted || typeof persisted !== "object") return persisted;
+        const state = persisted as {
+          rooms?: Room[];
+          messages?: ChatMessage[];
+          friends?: Friend[];
+          party?: PartyMember[];
+          joinedRoomIds?: string[];
+        };
+        const rooms = (state.rooms ?? []).filter((room) => room.visibility !== "public");
+        rooms.unshift(publicRoom());
+        const roomIds = new Set(rooms.map((room) => room.id));
+        return {
+          ...state,
+          rooms,
+          messages: (state.messages ?? []).filter(
+            (message) => message.fromId === "me" && roomIds.has(message.roomId),
+          ),
+          friends: (state.friends ?? []).filter((friend) => !regulars.has(friend.id)),
+          party: (state.party ?? []).filter((member) => !regulars.has(member.id)),
+          joinedRoomIds: (state.joinedRoomIds ?? []).filter((id) => roomIds.has(id)),
+        };
+      },
+    },
   ),
 );
 

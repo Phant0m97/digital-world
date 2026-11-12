@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Avatar } from "@/components/avatar";
 import { Shell, useHydrated } from "@/components/shell";
-import { AVATARS, GIFS, REPLIES, THEMES, avatarById, type ThemeId } from "@/data/catalog";
+import { AVATARS, GIFS, THEMES, avatarById, type ThemeId } from "@/data/catalog";
 import { asset } from "@/lib/asset";
 import { useWorld, userCode, type ChatMessage, type Room } from "@/lib/store";
 
@@ -19,7 +19,7 @@ function ChatPage() {
   if (!ready) {
     return (
       <Shell>
-        <p className="text-mute">Opening the plaza…</p>
+        <p className="text-mute">Opening chat…</p>
       </Shell>
     );
   }
@@ -87,9 +87,7 @@ function ChatApp() {
   const joinByCode = useWorld((state) => state.joinByCode);
   const sendMessage = useWorld((state) => state.sendMessage);
   const deleteMessage = useWorld((state) => state.deleteMessage);
-  const pushMessage = useWorld((state) => state.pushMessage);
   const setTheme = useWorld((state) => state.setTheme);
-  const inviteRegular = useWorld((state) => state.inviteRegular);
   const respondFriend = useWorld((state) => state.respondFriend);
   const addByCode = useWorld((state) => state.addByCode);
   const toggleParty = useWorld((state) => state.toggleParty);
@@ -130,23 +128,6 @@ function ChatApp() {
     setDraft("");
     setGif(null);
     setShowGifs(false);
-    if (active.memberIds.length && Math.random() < 0.85) {
-      const who = active.memberIds[Math.floor(Math.random() * active.memberIds.length)]!;
-      const avatar = avatarById(who);
-      const line = REPLIES[Math.floor(Math.random() * REPLIES.length)]!;
-      window.setTimeout(() => {
-        const message: ChatMessage = {
-          id: `bot-${Date.now()}`,
-          roomId: active.id,
-          fromId: who,
-          fromName: avatar.name,
-          avatarId: who,
-          body: line,
-          at: Date.now(),
-        };
-        pushMessage(message);
-      }, 700);
-    }
   }
 
   const theme = active?.theme ?? "black";
@@ -242,7 +223,6 @@ function ChatApp() {
               setFriendCode={setFriendCode}
               onAdd={() => setNote(addByCode(friendCode))}
               onRespond={respondFriend}
-              onInvite={inviteRegular}
               onParty={toggleParty}
               myCode={userCode(profile.username)}
             />
@@ -350,9 +330,6 @@ function ChatApp() {
                   <p className="truncate">{member.name}</p>
                   <p className="text-xs text-mute">{member.code}</p>
                 </div>
-                <button type="button" className="ml-auto text-xs text-cyan" onClick={() => inviteRegular(member.id)}>
-                  Invite
-                </button>
               </li>
             ))}
           </ul>
@@ -444,7 +421,6 @@ function PeoplePanel({
   setFriendCode,
   onAdd,
   onRespond,
-  onInvite,
   onParty,
   myCode,
 }: {
@@ -454,7 +430,6 @@ function PeoplePanel({
   setFriendCode: (value: string) => void;
   onAdd: () => void;
   onRespond: (id: string, accept: boolean) => void;
-  onInvite: (id: string) => void;
   onParty: (member: { id: string; name: string; avatarId: string }) => void;
   myCode: string;
 }) {
@@ -506,15 +481,6 @@ function PeoplePanel({
           </div>
         </div>
       ))}
-      <p className="pt-2 text-xs text-mute">Plaza regulars</p>
-      <div className="grid grid-cols-2 gap-2">
-        {AVATARS.slice(0, 8).map((avatar) => (
-          <button key={avatar.id} type="button" onClick={() => onInvite(avatar.id)} className="rounded-xl border border-line p-2 text-left">
-            <Avatar id={avatar.id} className="size-12" />
-            <span className="mt-1 block text-xs">{avatar.name}</span>
-          </button>
-        ))}
-      </div>
     </div>
   );
 }
