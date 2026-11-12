@@ -7,16 +7,14 @@ const DRAW_TAG = "dwdraw";
 const HEART_TAG = "dwheart";
 
 export const PAPER = "#f4f0e6";
-export const PENS = ["#07070b", "#2ee6ff", "#ff2bd6"] as const;
-export const WIDTHS = [8, 18, 40] as const;
+export const PEN_IDS = ["ink", "marker", "pencil", "highlighter", "spray", "neon", "erase"] as const;
 
-export type Pen = (typeof PENS)[number];
-export type Width = (typeof WIDTHS)[number];
-export type SketchColor = Pen | typeof PAPER;
+export type StrokePen = (typeof PEN_IDS)[number];
 
 export type SketchStroke = {
-  c: SketchColor;
-  w: Width;
+  c: string;
+  w: number;
+  pen: StrokePen;
   p: [number, number][];
 };
 
@@ -71,26 +69,32 @@ function knownAvatar(id: string) {
   return AVATARS.some((avatar) => avatar.id === id) ? id : "";
 }
 
-function isPen(value: unknown): value is Pen {
-  return PENS.includes(value as Pen);
+function normalizeColor(value: unknown) {
+  if (value === PAPER) return PAPER;
+  const text = String(value ?? "").trim().toLowerCase();
+  return /^#[0-9a-f]{6}$/.test(text) ? text : null;
 }
 
-function isWidth(value: unknown): value is Width {
-  return WIDTHS.includes(value as Width);
+function normalizeWidth(value: unknown) {
+  const width = Math.round(Number(value));
+  if (!Number.isFinite(width) || width < 2 || width > 80) return null;
+  return width;
 }
 
-function isColor(value: unknown): value is SketchColor {
-  return value === PAPER || isPen(value);
+function normalizePen(value: unknown): StrokePen {
+  return PEN_IDS.includes(value as StrokePen) ? (value as StrokePen) : "ink";
 }
 
 export function normalizeStrokes(value: unknown): SketchStroke[] | null {
-  if (!Array.isArray(value) || value.length === 0 || value.length > 60) return null;
+  if (!Array.isArray(value) || value.length === 0 || value.length > 80) return null;
   const strokes: SketchStroke[] = [];
   let count = 0;
   for (const raw of value) {
     if (!raw || typeof raw !== "object") return null;
-    const stroke = raw as { c?: unknown; w?: unknown; p?: unknown };
-    if (!isColor(stroke.c) || !isWidth(stroke.w) || !Array.isArray(stroke.p)) return null;
+    const stroke = raw as { c?: unknown; w?: unknown; pen?: unknown; p?: unknown };
+    const color = normalizeColor(stroke.c);
+    const width = normalizeWidth(stroke.w);
+    if (!color || width == null || !Array.isArray(stroke.p)) return null;
     const p: [number, number][] = [];
     for (const pt of stroke.p) {
       if (!Array.isArray(pt) || pt.length < 2) continue;
@@ -101,7 +105,7 @@ export function normalizeStrokes(value: unknown): SketchStroke[] | null {
       count += 1;
       if (p.length >= 280 || count >= 1800) break;
     }
-    if (p.length) strokes.push({ c: stroke.c, w: stroke.w, p });
+    if (p.length) strokes.push({ c: color, w: width, pen: normalizePen(stroke.pen), p });
     if (count >= 1800) break;
   }
   return strokes.length ? strokes : null;

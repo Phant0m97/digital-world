@@ -4,37 +4,60 @@ import { useEffect, useRef, useState } from "react";
 import { Shell, useHydrated } from "@/components/shell";
 import {
   PAPER,
-  PENS,
-  WIDTHS,
   postSketch,
   toggleHeart,
   watchWall,
-  type Pen,
-  type SketchColor,
   type SketchStroke,
+  type StrokePen,
   type WallSnapshot,
-  type Width,
 } from "@/lib/sketch-wall";
 import { useWorld } from "@/lib/store";
 
 export const Route = createFileRoute("/sketch")({ component: SketchPage });
 
 const EMPTY: WallSnapshot = { posts: [], hearts: {}, me: "" };
+const PENS = [
+  { id: "ink", name: "Ink", cost: 0 },
+  { id: "marker", name: "Marker", cost: 0 },
+  { id: "pencil", name: "Pencil", cost: 0 },
+  { id: "highlighter", name: "Highlighter", cost: 12 },
+  { id: "spray", name: "Spray", cost: 18 },
+  { id: "neon", name: "Neon", cost: 24 },
+] as const;
+
+type PenId = (typeof PENS)[number]["id"];
+type Layer = { id: string; name: string; hidden: boolean; strokes: SketchStroke[] };
+
+function freshLayers(): Layer[] {
+  return [{ id: "layer-1", name: "1", hidden: false, strokes: [] }];
+}
 
 function SketchPage() {
   const hydrated = useHydrated();
   const profile = useWorld((state) => state.profile);
+  const credits = useWorld((state) => state.credits);
+  const ownedPens = useWorld((state) => state.ownedPens) ?? [];
+  const buyPen = useWorld((state) => state.buyPen);
   const [wall, setWall] = useState<WallSnapshot>(EMPTY);
   const [title, setTitle] = useState("");
   const [guest, setGuest] = useState("");
-  const [strokes, setStrokes] = useState<SketchStroke[]>([]);
-  const [pen, setPen] = useState<Pen>(PENS[0]);
-  const [width, setWidth] = useState<Width>(WIDTHS[1]);
+  const [layers, setLayers] = useState<Layer[]>(freshLayers);
+  const [activeId, setActiveId] = useState("layer-1");
+  const [penId, setPenId] = useState<PenId>("ink");
+  const [width, setWidth] = useState(18);
+  const [hue, setHue] = useState(188);
+  const [shade, setShade] = useState(30);
   const [erase, setErase] = useState(false);
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [seen, setSeen] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
+  const color = hsvToHex(hue, 0.92, shade / 100);
+  const pen = PENS.find((item) => item.id === penId) ?? PENS[0];
+  const owned = pen.cost === 0 || ownedPens.includes(pen.id);
+  const tool: StrokePen = erase ? "erase" : pen.id;
+  const active = layers.find((layer) => layer.id === activeId) ?? layers[0]!;
+  const visible = layers.filter((layer) => !layer.hidden).flatMap((layer) => layer.strokes);
 
   useEffect(() => watchWall((next) => {
     setWall(next);
@@ -51,14 +74,29 @@ function SketchPage() {
   }, [openId]);
 
   const open = wall.posts.find((post) => post.id === openId) ?? null;
-
   const name = profile?.username || guest.trim() || "Guest";
 
+  function patchActive(next: (strokes: SketchStroke[]) => SketchStroke[], reveal = false) {
+    setLayers((list) =>
+      list.map((layer) =>
+        layer.id === active.id ? { ...layer, hidden: reveal ? false : layer.hidden, strokes: next(layer.strokes) } : layer,
+      ),
+    );
+  }
+
+  function addLayer() {
+    if (layers.length >= 4) return;
+    const id = `layer-${Date.now().toString(36)}`;
+    setLayers((list) => [...list, { id, name: String(list.length + 1), hidden: false, strokes: [] }]);
+    setActiveId(id);
+  }
+
   function publish() {
-    if (!strokes.length || busy) return;
-    const drawing = strokes;
+    if (!visible.length || busy) return;
+    const drawing = visible;
     const caption = title;
-    setStrokes([]);
+    setLayers(freshLayers());
+    setActiveId("layer-1");
     setTitle("");
     setBusy(true);
     setNote("Posting…");
@@ -68,8 +106,6 @@ function SketchPage() {
         setNote(result.reason);
         return;
       }
-      setStrokes([]);
-      setTitle("");
       setNote(result.shared ? "Posted on the wall." : "Posted here. The wall will catch up when it can.");
     });
   }
@@ -84,19 +120,25 @@ function SketchPage() {
       <div className="mt-6 grid items-start gap-6 lg:grid-cols-2">
         <section className="rounded-card border border-line bg-panel p-4">
           <div className="flex flex-wrap items-center gap-2">
-            {PENS.map((color) => (
-              <button
-                key={color}
-                type="button"
-                aria-label={color === PENS[0] ? "Ink" : color === PENS[1] ? "Cyan" : "Magenta"}
-                onClick={() => {
-                  setPen(color);
-                  setErase(false);
-                }}
-                className={`size-11 rounded-full border-2 ${!erase && pen === color ? "border-cyan" : "border-line"}`}
-                style={{ background: color }}
-              />
-            ))}
+            {PENS.map((item) => {
+              const has = item.cost === 0 || ownedPens.includes(item.id);
+              const on = !erase && penId === item.id;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  aria-pressed={on}
+                  onClick={() => {
+                    setPenId(item.id);
+                    setErase(false);
+                  }}
+                  className={`rounded-full border px-3 py-2 text-sm ${on ? "border-cyan text-cyan" : "border-line text-cream"}`}
+                >
+                  {item.name}
+                  {has ? "" : ` · ${item.cost} cr`}
+                </button>
+              );
+            })}
             <button
               type="button"
               onClick={() => setErase(true)}
@@ -104,38 +146,141 @@ function SketchPage() {
             >
               Eraser
             </button>
-            {WIDTHS.map((size, index) => (
+          </div>
+          {!erase && !owned ? (
+            <button
+              type="button"
+              disabled={credits < pen.cost}
+              onClick={() => {
+                const bought = buyPen(pen.id, pen.cost);
+                setNote(bought ? `${pen.name} is yours.` : `You need ${pen.cost} cr for ${pen.name}.`);
+              }}
+              className="mt-3 rounded-full bg-cyan px-4 py-2 font-display text-ink disabled:opacity-40"
+            >
+              {credits < pen.cost ? `Need ${pen.cost} cr` : `Buy ${pen.name} · ${pen.cost} cr`}
+            </button>
+          ) : null}
+          <div className="mt-4 flex flex-wrap items-center gap-4">
+            <ColorWheel hue={hue} onHue={setHue} />
+            <div className="min-w-40 flex-1">
+              <label className="block text-sm text-mute">
+                Shade
+                <input
+                  type="range"
+                  min={12}
+                  max={100}
+                  value={shade}
+                  onChange={(event) => {
+                    setShade(Number(event.target.value));
+                    setErase(false);
+                  }}
+                  className="mt-2 w-full"
+                />
+              </label>
+              <label className="mt-3 block text-sm text-mute">
+                Thickness
+                <input
+                  type="range"
+                  min={4}
+                  max={64}
+                  value={width}
+                  onChange={(event) => setWidth(Number(event.target.value))}
+                  className="mt-2 w-full"
+                />
+              </label>
+              <span className="mt-2 inline-block rounded-full border border-line" style={{ width: 36, height: Math.max(4, width / 4), background: erase ? PAPER : color }} />
+            </div>
+          </div>
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            {layers.map((layer, index) => (
               <button
-                key={size}
+                key={layer.id}
                 type="button"
-                onClick={() => setWidth(size)}
-                className={`rounded-full border px-3 py-2 text-sm ${width === size ? "border-cyan text-cyan" : "border-line text-cream"}`}
+                aria-pressed={layer.id === active.id}
+                onClick={() => setActiveId(layer.id)}
+                className={`rounded-full border px-3 py-2 text-sm ${layer.id === active.id ? "border-cyan text-cyan" : "border-line text-cream"} ${layer.hidden ? "opacity-50" : ""}`}
               >
-                {index === 0 ? "Thin" : index === 1 ? "Mid" : "Thick"}
+                Layer {index + 1}
               </button>
             ))}
             <button
               type="button"
-              onClick={() => setStrokes((current) => current.slice(0, -1))}
-              disabled={!strokes.length}
+              onClick={addLayer}
+              disabled={layers.length >= 4}
+              className="rounded-full border border-line px-3 py-2 text-sm disabled:opacity-40"
+            >
+              Add layer
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                setLayers((list) => list.map((layer) => (layer.id === active.id ? { ...layer, hidden: !layer.hidden } : layer)))
+              }
+              className="rounded-full border border-line px-3 py-2 text-sm"
+            >
+              {active.hidden ? "Show" : "Hide"}
+            </button>
+            <button
+              type="button"
+              disabled={layers[layers.length - 1]?.id === active.id}
+              onClick={() =>
+                setLayers((list) => {
+                  const index = list.findIndex((layer) => layer.id === active.id);
+                  if (index < 0 || index === list.length - 1) return list;
+                  const next = [...list];
+                  const [item] = next.splice(index, 1);
+                  next.splice(index + 1, 0, item!);
+                  return next;
+                })
+              }
+              className="rounded-full border border-line px-3 py-2 text-sm disabled:opacity-40"
+            >
+              Raise
+            </button>
+            <button
+              type="button"
+              disabled={layers.length < 2}
+              onClick={() => {
+                const next = layers.filter((layer) => layer.id !== active.id);
+                setLayers(next);
+                setActiveId(next[0]!.id);
+              }}
+              className="rounded-full border border-line px-3 py-2 text-sm disabled:opacity-40"
+            >
+              Delete
+            </button>
+            <button
+              type="button"
+              onClick={() => patchActive((strokes) => strokes.slice(0, -1))}
+              disabled={!active.strokes.length}
               className="rounded-full border border-line px-3 py-2 text-sm disabled:opacity-40"
             >
               Undo
             </button>
             <button
               type="button"
-              onClick={() => setStrokes([])}
-              disabled={!strokes.length}
+              onClick={() => patchActive(() => [])}
+              disabled={!active.strokes.length}
               className="rounded-full border border-line px-3 py-2 text-sm disabled:opacity-40"
             >
-              Clear
+              Clear layer
             </button>
           </div>
           <DrawBoard
-            strokes={strokes}
-            color={erase ? PAPER : pen}
+            layers={layers}
+            activeId={active.id}
+            color={color}
             width={width}
-            onStroke={(stroke) => setStrokes((current) => [...current, stroke].slice(-60))}
+            pen={tool}
+            locked={!erase && !owned}
+            onStroke={(stroke) => {
+              const total = layers.reduce((sum, layer) => sum + layer.strokes.length, 0);
+              if (total >= 80) {
+                setNote("This picture is full.");
+                return;
+              }
+              patchActive((strokes) => [...strokes, stroke], true);
+            }}
           />
           <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto]">
             <input
@@ -147,7 +292,7 @@ function SketchPage() {
             />
             <button
               type="button"
-              disabled={!strokes.length || busy}
+              disabled={!visible.length || busy}
               onClick={publish}
               className="rounded-full bg-cyan px-5 py-3 font-display font-bold text-ink disabled:opacity-40"
             >
@@ -280,35 +425,121 @@ function PaintingDialog({
   );
 }
 
+function ColorWheel({ hue, onHue }: { hue: number; onHue: (hue: number) => void }) {
+  const ref = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = ref.current;
+    if (!canvas) return;
+    const size = 144;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = size * dpr;
+    canvas.height = size * dpr;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, size, size);
+    const center = size / 2;
+    const radius = 54;
+    for (let degree = 0; degree < 360; degree += 1) {
+      ctx.beginPath();
+      ctx.strokeStyle = `hsl(${degree} 92% 52%)`;
+      ctx.lineWidth = 22;
+      const rad = ((degree - 0.6) * Math.PI) / 180;
+      const end = ((degree + 0.6) * Math.PI) / 180;
+      ctx.arc(center, center, radius, rad, end);
+      ctx.stroke();
+    }
+    const mark = (hue * Math.PI) / 180;
+    ctx.beginPath();
+    ctx.fillStyle = PAPER;
+    ctx.arc(center + Math.cos(mark) * radius, center + Math.sin(mark) * radius, 6, 0, Math.PI * 2);
+    ctx.fill();
+  }, [hue]);
+
+  function pick(event: React.PointerEvent<HTMLCanvasElement>) {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const x = event.clientX - rect.left - rect.width / 2;
+    const y = event.clientY - rect.top - rect.height / 2;
+    if (Math.hypot(x, y) < 28) return;
+    onHue(Math.round((Math.atan2(y, x) * 180) / Math.PI + 360) % 360);
+  }
+
+  return (
+    <canvas
+      ref={ref}
+      aria-label="Color wheel"
+      className="size-36 touch-none rounded-full"
+      onPointerDown={(event) => {
+        event.currentTarget.setPointerCapture(event.pointerId);
+        pick(event);
+      }}
+      onPointerMove={(event) => {
+        if (event.currentTarget.hasPointerCapture(event.pointerId)) pick(event);
+      }}
+    />
+  );
+}
+
+function hsvToHex(h: number, s: number, v: number) {
+  const chroma = v * s;
+  const section = h / 60;
+  const x = chroma * (1 - Math.abs((section % 2) - 1));
+  let red = 0;
+  let green = 0;
+  let blue = 0;
+  if (section < 1) [red, green, blue] = [chroma, x, 0];
+  else if (section < 2) [red, green, blue] = [x, chroma, 0];
+  else if (section < 3) [red, green, blue] = [0, chroma, x];
+  else if (section < 4) [red, green, blue] = [0, x, chroma];
+  else if (section < 5) [red, green, blue] = [x, 0, chroma];
+  else [red, green, blue] = [chroma, 0, x];
+  const match = v - chroma;
+  const channel = (value: number) => Math.round((value + match) * 255).toString(16).padStart(2, "0");
+  return `#${channel(red)}${channel(green)}${channel(blue)}`;
+}
+
 function DrawBoard({
-  strokes,
+  layers,
+  activeId,
   color,
   width,
+  pen,
+  locked,
   onStroke,
 }: {
-  strokes: SketchStroke[];
-  color: SketchColor;
-  width: Width;
+  layers: Layer[];
+  activeId: string;
+  color: string;
+  width: number;
+  pen: StrokePen;
+  locked: boolean;
   onStroke: (stroke: SketchStroke) => void;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const strokesRef = useRef(strokes);
+  const layersRef = useRef(layers);
+  const activeRef = useRef(activeId);
   const colorRef = useRef(color);
   const widthRef = useRef(width);
+  const penRef = useRef(pen);
+  const lockedRef = useRef(locked);
   const current = useRef<SketchStroke | null>(null);
-  strokesRef.current = strokes;
+  layersRef.current = layers;
+  activeRef.current = activeId;
   colorRef.current = color;
   widthRef.current = width;
+  penRef.current = pen;
+  lockedRef.current = locked;
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const draw = () => paint(canvas, current.current ? [...strokesRef.current, current.current] : strokesRef.current);
+    const draw = () => paintLayers(canvas, layersRef.current, current.current, activeRef.current);
     draw();
     const observer = new ResizeObserver(draw);
     observer.observe(canvas);
     return () => observer.disconnect();
-  }, [strokes]);
+  }, [layers]);
 
   function point(event: React.PointerEvent<HTMLCanvasElement>): [number, number] {
     const rect = event.currentTarget.getBoundingClientRect();
@@ -322,7 +553,7 @@ function DrawBoard({
     current.current = null;
     if (!stroke || stroke.p.length === 0) return;
     onStroke(stroke);
-    paint(canvas, [...strokesRef.current, stroke]);
+    paintLayers(canvas, layersRef.current, stroke, activeRef.current);
   }
 
   return (
@@ -330,10 +561,10 @@ function DrawBoard({
       ref={canvasRef}
       className="mt-4 aspect-[4/3] w-full touch-none rounded-2xl bg-cream"
       onPointerDown={(event) => {
-        if (event.button !== 0) return;
+        if (event.button !== 0 || lockedRef.current) return;
         event.currentTarget.setPointerCapture(event.pointerId);
-        current.current = { c: colorRef.current, w: widthRef.current, p: [point(event)] };
-        paint(event.currentTarget, [...strokesRef.current, current.current]);
+        current.current = { c: colorRef.current, w: widthRef.current, pen: penRef.current, p: [point(event)] };
+        paintLayers(event.currentTarget, layersRef.current, current.current, activeRef.current);
       }}
       onPointerMove={(event) => {
         const stroke = current.current;
@@ -342,7 +573,7 @@ function DrawBoard({
         const last = stroke.p[stroke.p.length - 1]!;
         if (Math.hypot(next[0] - last[0], next[1] - last[1]) < 6) return;
         stroke.p.push(next);
-        paint(event.currentTarget, [...strokesRef.current, stroke]);
+        paintLayers(event.currentTarget, layersRef.current, stroke, activeRef.current);
       }}
       onPointerUp={(event) => finish(event.currentTarget)}
       onPointerCancel={(event) => finish(event.currentTarget)}
@@ -355,7 +586,7 @@ function SketchView({ strokes, className }: { strokes: SketchStroke[]; className
   useEffect(() => {
     const canvas = ref.current;
     if (!canvas) return;
-    const draw = () => paint(canvas, strokes);
+    const draw = () => paintLayers(canvas, [{ id: "flat", name: "1", hidden: false, strokes }]);
     draw();
     const observer = new ResizeObserver(draw);
     observer.observe(canvas);
@@ -364,7 +595,9 @@ function SketchView({ strokes, className }: { strokes: SketchStroke[]; className
   return <canvas ref={ref} className={className} />;
 }
 
-function paint(canvas: HTMLCanvasElement, strokes: SketchStroke[]) {
+let scratch: HTMLCanvasElement | null = null;
+
+function paintLayers(canvas: HTMLCanvasElement, layers: Layer[], ghost?: SketchStroke | null, activeId?: string) {
   const rect = canvas.getBoundingClientRect();
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
   const width = Math.max(1, Math.round(rect.width * dpr));
@@ -375,30 +608,92 @@ function paint(canvas: HTMLCanvasElement, strokes: SketchStroke[]) {
   }
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.fillStyle = PAPER;
   ctx.fillRect(0, 0, width, height);
-  for (const stroke of strokes) {
-    const line = (stroke.w / 1000) * width;
-    ctx.strokeStyle = stroke.c;
-    ctx.fillStyle = stroke.c;
-    ctx.lineWidth = line;
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
-    const [first] = stroke.p;
-    if (!first) continue;
-    if (stroke.p.length === 1) {
-      ctx.beginPath();
-      ctx.arc((first[0] / 1000) * width, (first[1] / 1000) * height, line / 2, 0, Math.PI * 2);
-      ctx.fill();
-      continue;
-    }
-    ctx.beginPath();
+  if (!scratch) scratch = document.createElement("canvas");
+  if (scratch.width !== width || scratch.height !== height) {
+    scratch.width = width;
+    scratch.height = height;
+  }
+  const off = scratch.getContext("2d");
+  if (!off) return;
+  for (const layer of layers) {
+    if (layer.hidden && !(ghost && layer.id === activeId)) continue;
+    off.setTransform(1, 0, 0, 1, 0, 0);
+    off.clearRect(0, 0, width, height);
+    for (const stroke of layer.strokes) drawStroke(off, stroke, width, height);
+    if (ghost && layer.id === activeId) drawStroke(off, ghost, width, height);
+    ctx.drawImage(scratch, 0, 0);
+  }
+}
+
+function drawStroke(ctx: CanvasRenderingContext2D, stroke: SketchStroke, width: number, height: number) {
+  const line = Math.max(1, (stroke.w / 1000) * width);
+  ctx.save();
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  ctx.strokeStyle = stroke.c;
+  ctx.fillStyle = stroke.c;
+  ctx.globalAlpha = 1;
+  ctx.shadowBlur = 0;
+  ctx.lineWidth = line;
+  if (stroke.pen === "erase") {
+    ctx.globalCompositeOperation = "destination-out";
+    ctx.strokeStyle = "#000000";
+    ctx.fillStyle = "#000000";
+  } else if (stroke.pen === "pencil") {
+    ctx.globalAlpha = 0.45;
+    ctx.lineWidth = Math.max(1, line * 0.55);
+  } else if (stroke.pen === "marker") {
+    ctx.globalAlpha = 0.88;
+    ctx.lineCap = "butt";
+    ctx.lineWidth = line * 1.2;
+  } else if (stroke.pen === "highlighter") {
+    ctx.globalAlpha = 0.35;
+    ctx.lineCap = "butt";
+    ctx.lineWidth = line * 2.4;
+  } else if (stroke.pen === "neon") {
+    ctx.shadowColor = stroke.c;
+    ctx.shadowBlur = line;
+    ctx.lineWidth = Math.max(1, line * 0.55);
+  }
+  if (stroke.pen === "spray") {
+    const reach = Math.max(2, line * 0.7);
     stroke.p.forEach(([x, y], index) => {
       const px = (x / 1000) * width;
       const py = (y / 1000) * height;
-      if (index === 0) ctx.moveTo(px, py);
-      else ctx.lineTo(px, py);
+      for (let dot = 0; dot < 6; dot += 1) {
+        const angle = (((index * 17 + dot * 53) % 360) * Math.PI) / 180;
+        const dist = (((index * 13 + dot * 29) % 100) / 100) * reach;
+        ctx.globalAlpha = 0.28;
+        ctx.beginPath();
+        ctx.arc(px + Math.cos(angle) * dist, py + Math.sin(angle) * dist, Math.max(0.7, line * 0.08), 0, Math.PI * 2);
+        ctx.fill();
+      }
     });
-    ctx.stroke();
+    ctx.restore();
+    return;
   }
+  const [first] = stroke.p;
+  if (!first) {
+    ctx.restore();
+    return;
+  }
+  if (stroke.p.length === 1) {
+    ctx.beginPath();
+    ctx.arc((first[0] / 1000) * width, (first[1] / 1000) * height, line / 2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    return;
+  }
+  ctx.beginPath();
+  stroke.p.forEach(([x, y], index) => {
+    const px = (x / 1000) * width;
+    const py = (y / 1000) * height;
+    if (index === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  });
+  ctx.stroke();
+  ctx.restore();
 }

@@ -43,6 +43,7 @@ type World = {
   credits: number;
   ownedSkins: string[];
   ownedWeapons: string[];
+  ownedPens: string[];
   equipped: Loadout;
   equippedWeapon: string;
   paint: string;
@@ -70,6 +71,7 @@ type World = {
   toggleParty: (member: PartyMember) => void;
   buySkin: (id: string, cost: number) => boolean;
   buyWeapon: (id: string, cost: number) => boolean;
+  buyPen: (id: string, cost: number) => boolean;
   equipSkin: (id: string) => void;
   setWeapon: (id: string) => void;
   setPaint: (id: string) => void;
@@ -111,6 +113,7 @@ export const useWorld = create<World>()(
       credits: 45,
       ownedSkins: [],
       ownedWeapons: ["marker"],
+      ownedPens: [],
       equipped: [...EMPTY_LOADOUT],
       equippedWeapon: "marker",
       paint: "cyan",
@@ -285,6 +288,13 @@ export const useWorld = create<World>()(
         });
         return true;
       },
+      buyPen: (id, cost) => {
+        const state = get();
+        const owned = state.ownedPens ?? [];
+        if (!/^[a-z]{2,16}$/.test(id) || cost <= 0 || owned.includes(id) || state.credits < cost) return false;
+        set({ credits: state.credits - cost, ownedPens: [...owned, id] });
+        return true;
+      },
       equipSkin: (id) => {
         if (!skinById(id) || !get().ownedSkins.includes(id)) return;
         const equipped = wornList(get().equipped);
@@ -306,7 +316,12 @@ export const useWorld = create<World>()(
       version: 7,
       merge: (persisted, current) => {
         const saved = (persisted ?? {}) as Partial<World>;
-        return { ...current, ...saved, equipped: wornList(saved.equipped) };
+        return {
+          ...current,
+          ...saved,
+          equipped: wornList(saved.equipped),
+          ownedPens: Array.isArray(saved.ownedPens) ? saved.ownedPens : current.ownedPens,
+        };
       },
       migrate: (persisted, version) => {
         if (!persisted || typeof persisted !== "object") return persisted;
