@@ -792,7 +792,7 @@ export function createMatch(
     }
     if (mode === "lms") {
       const living = fighters.filter((fighter) => fighter.alive);
-      if (fighters.length > 1 && living.length <= 1) {
+      if (living.length <= 1) {
         title = living[0] ? `${living[0].name} is last standing` : "Yard empty";
         if (living[0]) living[0].score += 100;
         finish(title);
