@@ -58,7 +58,7 @@ function Locker() {
   ];
 
   return (
-    <div className="flex h-[calc(100dvh-8rem)] flex-col gap-3 overflow-hidden">
+    <div className="flex flex-col gap-4">
       <div className="flex shrink-0 flex-wrap items-center gap-3">
         <h1 className="font-display text-3xl font-bold">Paintball</h1>
         <p className="font-display text-xl text-cyan">{credits} cr</p>
@@ -123,13 +123,13 @@ function Locker() {
         </div>
       ) : null}
 
-      <section className="grid min-h-0 flex-1 items-stretch gap-3 lg:grid-cols-[220px_1fr]">
-        <div className="flex min-h-0 flex-col rounded-card border border-line bg-paper p-3 text-paper-ink">
+      <section className="grid items-start gap-6 lg:grid-cols-[240px_1fr]">
+        <div className="rounded-card border border-line bg-paper p-4 text-paper-ink">
           <StickPreview loadout={preview} color={paintHex(paint)} />
-          <p className="mt-2 shrink-0 text-center font-display">{profile?.username ?? "You"}</p>
+          <p className="mt-3 text-center font-display">{profile?.username ?? "You"}</p>
         </div>
-        <div className="flex min-h-0 flex-col">
-          <div className="mb-2 flex shrink-0 gap-2">
+        <div>
+          <div className="mb-4 flex gap-2">
             {slots.map((item) => (
               <button
                 key={item.id}
@@ -144,24 +144,24 @@ function Locker() {
               </button>
             ))}
           </div>
-          <div className="grid min-h-0 flex-1 content-start gap-2 overflow-y-auto sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-2">
             {SKINS.filter((item) => item.slot === slot).map((item) => {
               const owned = ownedSkins.includes(item.id);
               const on = equipped[item.slot] === item.id;
               return (
                 <article
                   key={item.id}
-                  className={`rounded-card border bg-panel p-3 ${looking === item.id || on ? "border-cyan" : "border-line"}`}
+                  className={`rounded-card border bg-panel p-4 ${looking === item.id || on ? "border-cyan" : "border-line"}`}
                 >
                   <button type="button" onClick={() => setLooking(looking === item.id ? null : item.id)} className="w-full text-left">
-                    <h3 className="font-display text-lg">{item.name}</h3>
-                    <p className="text-sm text-mute">{item.cost} cr</p>
+                    <h3 className="font-display text-xl">{item.name}</h3>
+                    <p className="mt-1 text-sm text-mute">{item.cost} cr</p>
                   </button>
                   {owned ? (
                     <button
                       type="button"
                       onClick={() => equipSkin(item.id)}
-                      className="mt-2 w-full rounded-full bg-cream py-2 text-sm text-ink"
+                      className="mt-4 w-full rounded-full bg-cream py-2 text-sm text-ink"
                     >
                       {on ? "Take off" : "Equip"}
                     </button>
@@ -170,7 +170,7 @@ function Locker() {
                       type="button"
                       disabled={credits < item.cost}
                       onClick={() => buySkin(item.id, item.cost)}
-                      className="mt-2 w-full rounded-full bg-cyan py-2 text-sm text-ink disabled:opacity-40"
+                      className="mt-4 w-full rounded-full bg-cyan py-2 text-sm text-ink disabled:opacity-40"
                     >
                       Buy
                     </button>
@@ -182,36 +182,44 @@ function Locker() {
         </div>
       </section>
 
-      <section className="shrink-0">
-        <div className="flex gap-2 overflow-x-auto pb-1">
+      <section>
+        <h2 className="mb-4 font-display text-2xl">Weapons</h2>
+        <div className="grid gap-4 md:grid-cols-2">
           {WEAPONS.map((item) => {
             const owned = ownedWeapons.includes(item.id);
             const on = weapon === item.id;
             return (
-              <article key={item.id} className="w-56 shrink-0 rounded-card border border-line bg-panel p-3">
-                <div className="flex items-baseline justify-between gap-2">
-                  <h3 className="font-display">{item.name}</h3>
-                  <p className="text-xs text-cyan">{item.cost === 0 ? "Owned" : `${item.cost} cr`}</p>
+              <article key={item.id} className="rounded-card border border-line bg-panel p-4">
+                <div className="flex items-baseline justify-between gap-3">
+                  <h3 className="font-display text-xl">{item.name}</h3>
+                  <p className="text-sm text-cyan">{item.cost === 0 ? "Owned" : `${item.cost} cr`}</p>
                 </div>
-                <p className="mt-1 text-xs text-mute">{item.strength}</p>
-                {owned ? (
-                  <button
-                    type="button"
-                    onClick={() => setWeapon(item.id)}
-                    className="mt-2 rounded-full bg-cream px-3 py-1 text-sm text-ink"
-                  >
-                    {on ? "Equipped" : "Equip"}
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    disabled={credits < item.cost}
-                    onClick={() => buyWeapon(item.id, item.cost)}
-                    className="mt-2 rounded-full bg-cyan px-3 py-1 text-sm text-ink disabled:opacity-40"
-                  >
-                    Buy
-                  </button>
-                )}
+                <p className="mt-3 text-sm">
+                  <span className="text-cyan">Strong:</span> {item.strength}
+                </p>
+                <p className="text-sm">
+                  <span className="text-mag">Weak:</span> {item.weakness}
+                </p>
+                <div className="mt-4">
+                  {owned ? (
+                    <button
+                      type="button"
+                      onClick={() => setWeapon(item.id)}
+                      className="rounded-full bg-cream px-4 py-2 text-sm text-ink"
+                    >
+                      {on ? "Equipped" : "Equip"}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={credits < item.cost}
+                      onClick={() => buyWeapon(item.id, item.cost)}
+                      className="rounded-full bg-cyan px-4 py-2 text-sm text-ink disabled:opacity-40"
+                    >
+                      Buy
+                    </button>
+                  )}
+                </div>
               </article>
             );
           })}
@@ -230,5 +238,5 @@ function StickPreview({ loadout, color }: { loadout: Loadout; color: string }) {
     canvas.height = 640;
     paintPreview(canvas, loadout, color);
   }, [loadout.head, loadout.body, loadout.legs, color]);
-  return <canvas ref={ref} width={280} height={640} className="mx-auto h-full min-h-0 w-auto max-w-full rounded-xl" />;
+  return <canvas ref={ref} width={280} height={640} className="mx-auto block h-auto w-full rounded-xl" />;
 }
