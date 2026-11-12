@@ -123,10 +123,10 @@ function Locker() {
         </div>
       ) : null}
 
-      <section className="grid items-start gap-6 lg:grid-cols-[240px_1fr]">
-        <div className="rounded-card border border-line bg-paper p-4 text-paper-ink">
+      <section className="grid items-start gap-6 lg:grid-cols-[7.5rem_1fr]">
+        <div className="rounded-card border border-line bg-paper p-2 text-paper-ink">
           <StickPreview loadout={preview} color={paintHex(paint)} />
-          <p className="mt-3 text-center font-display">{profile?.username ?? "You"}</p>
+          <p className="mt-1 text-center font-display text-sm">{profile?.username ?? "You"}</p>
         </div>
         <div>
           <div className="mb-4 flex gap-2">
@@ -238,5 +238,5 @@ function StickPreview({ loadout, color }: { loadout: Loadout; color: string }) {
     canvas.height = 640;
     paintPreview(canvas, loadout, color);
   }, [loadout.head, loadout.body, loadout.legs, color]);
-  return <canvas ref={ref} width={280} height={640} className="mx-auto block h-auto w-full rounded-xl" />;
+  return <canvas ref={ref} width={280} height={640} className="mx-auto block h-36 w-auto rounded-xl" />;
 }
