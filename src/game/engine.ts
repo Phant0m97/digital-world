@@ -663,9 +663,17 @@ export function createMatch(
     body.x += dx;
     for (const solid of SOLIDS) {
       if (solid.oneWay || !overlaps(body, solid)) continue;
-      if (dx > 0) body.x = solid.x - body.w;
-      else body.x = solid.x + solid.w;
-      body.vx = 0;
+      const rise = body.y + body.h - solid.y;
+      if (body.bot && solid.kind !== "ground" && body.vy < -40 && rise > 0 && rise < 170) {
+        body.y = solid.y - body.h;
+        body.vy = 0;
+        body.grounded = true;
+        body.x = dx > 0 ? solid.x + 4 : solid.x + solid.w - body.w - 4;
+      } else {
+        if (dx > 0) body.x = solid.x - body.w;
+        else body.x = solid.x + solid.w;
+        body.vx = 0;
+      }
     }
     body.x = clamp(body.x, 0, WORLD_W - body.w);
   }
@@ -730,9 +738,18 @@ export function createMatch(
     const left = dx < -10;
     const right = dx > 10;
     const dir = dx >= 0 ? 1 : -1;
-    const probe = { x: bot.x + dir * 16, y: bot.y + 8, w: bot.w, h: 24 };
-    const blocked = SOLIDS.some((solid) => !solid.oneWay && overlaps(probe, solid));
-    bot.wantJump = Boolean(bot.grounded && (blocked || ty + 30 < bot.y) && Math.abs(dx) < 140);
+    const reach = 78;
+    const probe = {
+      x: dir > 0 ? bot.x + bot.w - 6 : bot.x - reach,
+      y: bot.y + 4,
+      w: reach,
+      h: bot.h,
+    };
+    const blocked = SOLIDS.some(
+      (solid) => solid.kind !== "ground" && !solid.oneWay && overlaps(probe, solid),
+    );
+    const needUp = ty + 36 < bot.y && Math.abs(dx) < 240;
+    bot.wantJump = Boolean(bot.grounded && (blocked || needUp));
     bot.aim = Math.atan2(ty - (bot.y + 28), tx - (bot.x + bot.w / 2));
     const trigger = best < 680 && los(bot, tx, ty);
     return { left, right, jump: bot.wantJump, drop: false, fire: trigger, dt };
@@ -833,7 +850,7 @@ export function createMatch(
     if (fighter.grounded) fighter.coyote = 0.1;
     else fighter.coyote = Math.max(0, fighter.coyote - dt);
     if (fighter.jumpBuf > 0 && (fighter.grounded || fighter.coyote > 0)) {
-      fighter.vy = -690;
+      fighter.vy = fighter.you ? -690 : -820;
       fighter.grounded = false;
       fighter.coyote = 0;
       fighter.jumpBuf = 0;
