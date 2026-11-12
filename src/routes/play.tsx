@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useRef, useState } from "react";
 import { Shell, useHydrated } from "@/components/shell";
-import { AVATARS, MODES, PAINTS, paintHex, weaponById, type ModeId } from "@/data/catalog";
+import { AVATARS, MODES, PAINTS, SKINS, paintHex, weaponById, type CosmeticSlot, type Loadout, type ModeId } from "@/data/catalog";
 import { MatchView } from "@/game/match-view";
 import type { MatchFighterSetup, MatchResult, MatchSetup } from "@/game/engine";
 import { useWorld } from "@/lib/store";
@@ -19,14 +19,20 @@ function clampPlayers(value: number) {
   return Math.max(2, Math.min(8, Math.round(value)));
 }
 
-const BOT_SKINS = [null, "bandana", "beanie", "hoodie", "mohawk", "visor", "cape", "shirt"] as const;
+function botLoadout(n: number): Loadout {
+  const pick = (slot: CosmeticSlot, salt: number) => {
+    const options = [null, ...SKINS.filter((item) => item.slot === slot).map((item) => item.id)];
+    return options[(n + salt) % options.length] ?? null;
+  };
+  return { head: pick("head", 1), body: pick("body", 3), legs: pick("legs", 5) };
+}
 
 function PlayPage() {
   const ready = useHydrated();
   const search = Route.useSearch();
   const profile = useWorld((state) => state.profile);
   const paint = useWorld((state) => state.paint);
-  const skin = useWorld((state) => state.equippedSkin);
+  const loadout = useWorld((state) => state.equipped);
   const weapon = useWorld((state) => state.equippedWeapon);
   const party = useWorld((state) => state.party);
   const award = useWorld((state) => state.award);
@@ -41,7 +47,7 @@ function PlayPage() {
       others.push({
         name: member.name,
         color: colors[index % colors.length]!,
-        skin: BOT_SKINS[(index + 1) % BOT_SKINS.length] ?? null,
+        loadout: botLoadout(index + 1),
         weapon: index % 2 === 0 ? "marker" : "spray",
         bot: true,
       });
@@ -54,7 +60,7 @@ function PlayPage() {
         others.push({
           name: avatar.name,
           color: colors[(others.length + 2) % colors.length]!,
-          skin: BOT_SKINS[cursor % BOT_SKINS.length] ?? null,
+          loadout: botLoadout(cursor + 2),
           weapon: WEAPON_CYCLE[cursor % WEAPON_CYCLE.length]!,
           bot: true,
         });
@@ -67,13 +73,13 @@ function PlayPage() {
       you: {
         name: youName,
         color: paintHex(paint),
-        skin,
+        loadout,
         weapon,
         bot: false,
       },
       others,
     };
-  }, [paint, party, profile?.username, search.mode, search.players, skin, weapon]);
+  }, [paint, party, profile?.username, search.mode, search.players, loadout, weapon]);
 
   if (!ready) {
     return (

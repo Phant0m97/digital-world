@@ -212,34 +212,52 @@ export const WEAPONS: WeaponDef[] = [
   },
 ];
 
+export type CosmeticSlot = "head" | "body" | "legs";
+
+export type Loadout = {
+  head: string | null;
+  body: string | null;
+  legs: string | null;
+};
+
+export const EMPTY_LOADOUT: Loadout = { head: null, body: null, legs: null };
+
 export type SkinId =
-  | "shirt"
   | "bandana"
   | "beanie"
-  | "hoodie"
   | "mohawk"
   | "visor"
-  | "cape"
   | "gasmask"
-  | "camo";
+  | "camo"
+  | "shirt"
+  | "hoodie"
+  | "cape"
+  | "vest"
+  | "shorts"
+  | "pants"
+  | "boots";
 
 export type SkinDef = {
   id: SkinId;
   name: string;
   cost: number;
-  blurb: string;
+  slot: CosmeticSlot;
 };
 
 export const SKINS: SkinDef[] = [
-  { id: "shirt", name: "Shirt", cost: 20, blurb: "A plain tee in your paint." },
-  { id: "bandana", name: "Bandana", cost: 30, blurb: "A paint cloth across the mouth." },
-  { id: "beanie", name: "Beanie", cost: 40, blurb: "A knit cap pulled over the head." },
-  { id: "hoodie", name: "Hoodie", cost: 55, blurb: "The rectangle is the hoodie." },
-  { id: "mohawk", name: "Mohawk", cost: 50, blurb: "A tall stripe of hair." },
-  { id: "visor", name: "Visor", cost: 65, blurb: "A dark band across the eyes." },
-  { id: "cape", name: "Cape", cost: 80, blurb: "A short cape behind the stick." },
-  { id: "gasmask", name: "Gas Mask", cost: 90, blurb: "A welded hood and suit. No shirt showing." },
-  { id: "camo", name: "Camo", cost: 140, blurb: "Woodland helmet, ear flaps, camo body." },
+  { id: "bandana", name: "Bandana", cost: 30, slot: "head" },
+  { id: "beanie", name: "Beanie", cost: 40, slot: "head" },
+  { id: "mohawk", name: "Mohawk", cost: 50, slot: "head" },
+  { id: "visor", name: "Visor", cost: 65, slot: "head" },
+  { id: "gasmask", name: "Gas Mask", cost: 90, slot: "head" },
+  { id: "camo", name: "Helmet", cost: 80, slot: "head" },
+  { id: "shirt", name: "Shirt", cost: 20, slot: "body" },
+  { id: "hoodie", name: "Hoodie", cost: 55, slot: "body" },
+  { id: "cape", name: "Cape", cost: 80, slot: "body" },
+  { id: "vest", name: "Vest", cost: 45, slot: "body" },
+  { id: "shorts", name: "Shorts", cost: 25, slot: "legs" },
+  { id: "pants", name: "Pants", cost: 40, slot: "legs" },
+  { id: "boots", name: "Boots", cost: 35, slot: "legs" },
 ];
 
 export const MODES = [

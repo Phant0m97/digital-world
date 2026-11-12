@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { AVATARS, type ModeId, type ThemeId } from "@/data/catalog";
+import { AVATARS, EMPTY_LOADOUT, skinById, type Loadout, type ModeId, type ThemeId } from "@/data/catalog";
 
 export type Profile = { username: string; avatarId: string };
 
@@ -43,7 +43,7 @@ type World = {
   credits: number;
   ownedSkins: string[];
   ownedWeapons: string[];
-  equippedSkin: string | null;
+  equipped: Loadout;
   equippedWeapon: string;
   paint: string;
   friends: Friend[];
@@ -69,7 +69,7 @@ type World = {
   toggleParty: (member: PartyMember) => void;
   buySkin: (id: string, cost: number) => boolean;
   buyWeapon: (id: string, cost: number) => boolean;
-  equipSkin: (id: string | null) => void;
+  equipSkin: (id: string) => void;
   setWeapon: (id: string) => void;
   setPaint: (id: string) => void;
   setMode: (mode: ModeId) => void;
@@ -109,7 +109,7 @@ export const useWorld = create<World>()(
       credits: 45,
       ownedSkins: [],
       ownedWeapons: ["marker"],
-      equippedSkin: null,
+      equipped: { ...EMPTY_LOADOUT },
       equippedWeapon: "marker",
       paint: "cyan",
       friends: [],
@@ -260,8 +260,13 @@ export const useWorld = create<World>()(
       },
       buySkin: (id, cost) => {
         const state = get();
-        if (state.ownedSkins.includes(id) || state.credits < cost) return false;
-        set({ credits: state.credits - cost, ownedSkins: [...state.ownedSkins, id], equippedSkin: id });
+        const item = skinById(id);
+        if (!item || state.ownedSkins.includes(id) || state.credits < cost) return false;
+        set({
+          credits: state.credits - cost,
+          ownedSkins: [...state.ownedSkins, id],
+          equipped: { ...state.equipped, [item.slot]: id },
+        });
         return true;
       },
       buyWeapon: (id, cost) => {
@@ -274,7 +279,13 @@ export const useWorld = create<World>()(
         });
         return true;
       },
-      equipSkin: (id) => set({ equippedSkin: id }),
+      equipSkin: (id) => {
+        const item = skinById(id);
+        if (!item || !get().ownedSkins.includes(id)) return;
+        const equipped = { ...get().equipped };
+        equipped[item.slot] = equipped[item.slot] === id ? null : id;
+        set({ equipped });
+      },
       setWeapon: (id) => {
         if (!get().ownedWeapons.includes(id)) return;
         set({ equippedWeapon: id });
@@ -286,8 +297,8 @@ export const useWorld = create<World>()(
     }),
     {
       name: "digitalworld-v1",
-      version: 2,
-      migrate: (persisted) => {
+      version: 3,
+      migrate: (persisted, version) => {
         if (!persisted || typeof persisted !== "object") return persisted;
         const state = persisted as {
           rooms?: Room[];
@@ -295,20 +306,28 @@ export const useWorld = create<World>()(
           friends?: Friend[];
           party?: PartyMember[];
           joinedRoomIds?: string[];
+          equipped?: Loadout;
+          equippedSkin?: string | null;
         };
-        const rooms = (state.rooms ?? []).filter((room) => room.visibility !== "public");
-        rooms.unshift(publicRoom());
-        const roomIds = new Set(rooms.map((room) => room.id));
-        return {
-          ...state,
-          rooms,
-          messages: (state.messages ?? []).filter(
+        if ((version ?? 0) < 2) {
+          const rooms = (state.rooms ?? []).filter((room) => room.visibility !== "public");
+          rooms.unshift(publicRoom());
+          const roomIds = new Set(rooms.map((room) => room.id));
+          state.rooms = rooms;
+          state.messages = (state.messages ?? []).filter(
             (message) => message.fromId === "me" && roomIds.has(message.roomId),
-          ),
-          friends: (state.friends ?? []).filter((friend) => !regulars.has(friend.id)),
-          party: (state.party ?? []).filter((member) => !regulars.has(member.id)),
-          joinedRoomIds: (state.joinedRoomIds ?? []).filter((id) => roomIds.has(id)),
-        };
+          );
+          state.friends = (state.friends ?? []).filter((friend) => !regulars.has(friend.id));
+          state.party = (state.party ?? []).filter((member) => !regulars.has(member.id));
+          state.joinedRoomIds = (state.joinedRoomIds ?? []).filter((id) => roomIds.has(id));
+        }
+        if ((version ?? 0) < 3) {
+          const equipped = { ...EMPTY_LOADOUT, ...(state.equipped ?? {}) };
+          const previous = skinById(state.equippedSkin ?? null);
+          if (previous) equipped[previous.slot] = previous.id;
+          state.equipped = equipped;
+        }
+        return state;
       },
     },
   ),

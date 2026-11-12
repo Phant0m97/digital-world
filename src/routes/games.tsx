@@ -1,8 +1,18 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Avatar } from "@/components/avatar";
 import { Shell, useHydrated } from "@/components/shell";
-import { MODES, PAINTS, SKINS, WEAPONS, paintHex, type ModeId } from "@/data/catalog";
+import {
+  MODES,
+  PAINTS,
+  SKINS,
+  WEAPONS,
+  paintHex,
+  skinById,
+  type CosmeticSlot,
+  type Loadout,
+  type ModeId,
+} from "@/data/catalog";
 import { paintPreview } from "@/game/engine";
 import { useWorld } from "@/lib/store";
 
@@ -22,7 +32,7 @@ function Locker() {
   const mode = useWorld((state) => state.mode);
   const rosterSize = useWorld((state) => state.rosterSize);
   const paint = useWorld((state) => state.paint);
-  const skin = useWorld((state) => state.equippedSkin);
+  const equipped = useWorld((state) => state.equipped);
   const weapon = useWorld((state) => state.equippedWeapon);
   const ownedSkins = useWorld((state) => state.ownedSkins);
   const ownedWeapons = useWorld((state) => state.ownedWeapons);
@@ -36,6 +46,16 @@ function Locker() {
   const setWeapon = useWorld((state) => state.setWeapon);
   const toggleParty = useWorld((state) => state.toggleParty);
   const profile = useWorld((state) => state.profile);
+  const [slot, setSlot] = useState<CosmeticSlot>("head");
+  const [looking, setLooking] = useState<string | null>(null);
+  const preview: Loadout = { ...equipped };
+  const peeked = skinById(looking);
+  if (peeked && peeked.slot === slot) preview[peeked.slot] = peeked.id;
+  const slots: { id: CosmeticSlot; label: string }[] = [
+    { id: "head", label: "Head" },
+    { id: "body", label: "Body" },
+    { id: "legs", label: "Legs" },
+  ];
 
   return (
     <div className="space-y-8">
@@ -108,7 +128,7 @@ function Locker() {
 
       <section>
         <div className="mb-3 flex flex-wrap items-center gap-3">
-          <h2 className="font-display text-2xl">Paint</h2>
+          <h2 className="font-display text-2xl">Cosmetics</h2>
           <div className="flex gap-2">
             {PAINTS.map((swatch) => (
               <button
@@ -122,21 +142,63 @@ function Locker() {
             ))}
           </div>
         </div>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {SKINS.map((item) => (
-            <SkinCard
-              key={item.id}
-              id={item.id}
-              name={item.name}
-              cost={item.cost}
-              owned={ownedSkins.includes(item.id)}
-              equipped={skin === item.id}
-              color={paintHex(paint)}
-              credits={credits}
-              onBuy={() => buySkin(item.id, item.cost)}
-              onEquip={() => equipSkin(skin === item.id ? null : item.id)}
-            />
-          ))}
+        <div className="grid items-start gap-4 lg:grid-cols-[280px_1fr]">
+          <div className="rounded-card border border-line bg-paper p-3 text-paper-ink">
+            <StickPreview loadout={preview} color={paintHex(paint)} />
+            <p className="mt-2 text-center font-display">{profile?.username ?? "You"}</p>
+          </div>
+          <div>
+            <div className="mb-3 flex gap-2">
+              {slots.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => {
+                    setSlot(item.id);
+                    setLooking(null);
+                  }}
+                  className={`rounded-full px-4 py-2 text-sm ${slot === item.id ? "bg-cream text-ink" : "border border-line text-mute"}`}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {SKINS.filter((item) => item.slot === slot).map((item) => {
+                const owned = ownedSkins.includes(item.id);
+                const on = equipped[item.slot] === item.id;
+                return (
+                  <article
+                    key={item.id}
+                    className={`rounded-card border bg-panel p-3 ${looking === item.id || on ? "border-cyan" : "border-line"}`}
+                  >
+                    <button type="button" onClick={() => setLooking(looking === item.id ? null : item.id)} className="w-full text-left">
+                      <h3 className="font-display text-lg">{item.name}</h3>
+                      <p className="text-sm text-mute">{item.cost} cr</p>
+                    </button>
+                    {owned ? (
+                      <button
+                        type="button"
+                        onClick={() => equipSkin(item.id)}
+                        className="mt-3 w-full rounded-full bg-cream py-2 text-sm text-ink"
+                      >
+                        {on ? "Take off" : "Equip"}
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled={credits < item.cost}
+                        onClick={() => buySkin(item.id, item.cost)}
+                        className="mt-3 w-full rounded-full bg-cyan py-2 text-sm text-ink disabled:opacity-40"
+                      >
+                        Buy
+                      </button>
+                    )}
+                  </article>
+                );
+              })}
+            </div>
+          </div>
         </div>
       </section>
 
@@ -187,54 +249,14 @@ function Locker() {
   );
 }
 
-function SkinCard({
-  id,
-  name,
-  cost,
-  owned,
-  equipped,
-  color,
-  credits,
-  onBuy,
-  onEquip,
-}: {
-  id: string;
-  name: string;
-  cost: number;
-  owned: boolean;
-  equipped: boolean;
-  color: string;
-  credits: number;
-  onBuy: () => void;
-  onEquip: () => void;
-}) {
+function StickPreview({ loadout, color }: { loadout: Loadout; color: string }) {
   const ref = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
     const canvas = ref.current;
     if (!canvas) return;
-    canvas.width = 280;
-    canvas.height = 180;
-    paintPreview(canvas, equipped || owned ? id : id, color);
-  }, [id, color, owned, equipped]);
-  return (
-    <article className="rounded-card border border-line bg-paper p-3 text-paper-ink">
-      <canvas ref={ref} className="h-36 w-full rounded-xl" />
-      <h3 className="mt-2 font-display text-lg">{name}</h3>
-      <p className="mt-1 text-sm">{cost} cr</p>
-      {owned ? (
-        <button type="button" onClick={onEquip} className="mt-2 w-full rounded-full bg-paper-ink py-2 text-sm text-cream">
-          {equipped ? "Take off" : "Equip"}
-        </button>
-      ) : (
-        <button
-          type="button"
-          disabled={credits < cost}
-          onClick={onBuy}
-          className="mt-2 w-full rounded-full bg-paper-ink py-2 text-sm text-cream disabled:opacity-40"
-        >
-          Buy
-        </button>
-      )}
-    </article>
-  );
+    canvas.width = 320;
+    canvas.height = 380;
+    paintPreview(canvas, loadout, color);
+  }, [loadout.head, loadout.body, loadout.legs, color]);
+  return <canvas ref={ref} className="h-72 w-full rounded-xl" />;
 }

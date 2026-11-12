@@ -1,9 +1,9 @@
-import { weaponById, type ModeId, type WeaponDef } from "@/data/catalog";
+import { weaponById, type Loadout, type ModeId, type WeaponDef } from "@/data/catalog";
 
 export type MatchFighterSetup = {
   name: string;
   color: string;
-  skin: string | null;
+  loadout: Loadout;
   weapon: string;
   bot: boolean;
 };
@@ -55,7 +55,7 @@ type Fighter = {
   bot: boolean;
   team: number;
   color: string;
-  skin: string | null;
+  loadout: Loadout;
   weapon: string;
   x: number;
   y: number;
@@ -148,11 +148,11 @@ function drawFigure(ctx: CanvasRenderingContext2D, fighter: Fighter, now: number
   const y = fighter.y;
   const face = fighter.facing >= 0 ? 1 : -1;
   const bob = fighter.grounded ? Math.sin(now / 140 + fighter.id) * Math.min(2.2, Math.abs(fighter.vx) / 110) : 0;
-  const skin = fighter.skin;
-  const body =
-    skin === "camo" ? "#6eaf4e" : skin === "gasmask" ? "#2c3138" : fighter.color;
+  const head = fighter.loadout?.head ?? null;
+  const worn = fighter.loadout?.body ?? null;
+  const legs = fighter.loadout?.legs ?? null;
 
-  if (skin === "cape") {
+  if (worn === "cape") {
     ctx.fillStyle = fighter.color;
     ctx.beginPath();
     ctx.moveTo(cx - face * 2, y + 30);
@@ -171,20 +171,57 @@ function drawFigure(ctx: CanvasRenderingContext2D, fighter: Fighter, now: number
   ctx.moveTo(cx + 5, y + 48);
   ctx.lineTo(cx + 6, y + fighter.h - bob);
   ctx.stroke();
+  if (legs === "shorts") {
+    ctx.fillStyle = fighter.color;
+    roundPath(ctx, cx - 9, y + 47, 7, 10, 2);
+    ctx.fill();
+    ink(ctx, 2.4);
+    ctx.stroke();
+    roundPath(ctx, cx + 2, y + 47, 7, 10, 2);
+    ctx.fill();
+    ctx.stroke();
+  } else if (legs === "pants") {
+    ctx.strokeStyle = fighter.color;
+    ctx.lineWidth = 6;
+    ctx.beginPath();
+    ctx.moveTo(cx - 5, y + 48);
+    ctx.lineTo(cx - 6, y + fighter.h - 4 + bob);
+    ctx.moveTo(cx + 5, y + 48);
+    ctx.lineTo(cx + 6, y + fighter.h - 4 - bob);
+    ctx.stroke();
+    ink(ctx, 2);
+    ctx.stroke();
+  } else if (legs === "boots") {
+    ctx.fillStyle = fighter.color;
+    roundPath(ctx, cx - 10, y + fighter.h - 8, 8, 8, 2);
+    ctx.fill();
+    ink(ctx, 2.4);
+    ctx.stroke();
+    roundPath(ctx, cx + 2, y + fighter.h - 8, 8, 8, 2);
+    ctx.fill();
+    ctx.stroke();
+  }
 
-  const tw = skin === "hoodie" ? 20 : 16;
+  const tw = worn === "hoodie" ? 22 : 16;
   const th = 18;
   const tx = cx - tw / 2;
   const ty = y + 32;
   roundPath(ctx, tx, ty, tw, th, 5);
-  ctx.fillStyle = body;
+  ctx.fillStyle = fighter.color;
   ctx.fill();
   ink(ctx, 3.4);
   ctx.stroke();
-  if (skin === "camo") {
-    ctx.fillStyle = "#3d6a2e";
+  if (worn === "shirt") {
+    ink(ctx, 2);
     ctx.beginPath();
-    ctx.ellipse(cx - 2, ty + 11, 5.5, 4, -0.5, 0, Math.PI * 2);
+    ctx.moveTo(cx - 4, ty + 2);
+    ctx.lineTo(cx, ty + 7);
+    ctx.lineTo(cx + 4, ty + 2);
+    ctx.stroke();
+  }
+  if (worn === "vest") {
+    ctx.fillStyle = "#1c1c1c";
+    roundPath(ctx, cx - 5, ty + 3, 10, 12, 2);
     ctx.fill();
   }
 
@@ -226,7 +263,15 @@ function drawFigure(ctx: CanvasRenderingContext2D, fighter: Fighter, now: number
   ctx.arc(eyeX + 4.2, y + 16, 1.8, 0, Math.PI * 2);
   ctx.fill();
 
-  if (skin === "camo") {
+  if (worn === "hoodie") {
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(cx, y + 18, 13, Math.PI * 1.08, Math.PI * 1.92);
+    ctx.stroke();
+  }
+
+  if (head === "camo") {
     ctx.save();
     ctx.beginPath();
     ctx.rect(cx - 18, y, 36, 16);
@@ -247,7 +292,7 @@ function drawFigure(ctx: CanvasRenderingContext2D, fighter: Fighter, now: number
     ctx.fill();
     ink(ctx, 2.8);
     ctx.stroke();
-  } else if (skin === "beanie") {
+  } else if (head === "beanie") {
     ctx.save();
     ctx.beginPath();
     ctx.rect(cx - 18, y, 36, 14);
@@ -264,12 +309,12 @@ function drawFigure(ctx: CanvasRenderingContext2D, fighter: Fighter, now: number
     ctx.fill();
     ink(ctx, 2.6);
     ctx.stroke();
-  } else if (skin === "bandana") {
+  } else if (head === "bandana") {
     ctx.fillStyle = fighter.color;
     ctx.fillRect(cx - 12, y + 16, 24, 7);
     ink(ctx, 2.4);
     ctx.strokeRect(cx - 12, y + 16, 24, 7);
-  } else if (skin === "mohawk") {
+  } else if (head === "mohawk") {
     ctx.fillStyle = fighter.color;
     ctx.beginPath();
     ctx.moveTo(cx - 3, y + 6);
@@ -279,19 +324,13 @@ function drawFigure(ctx: CanvasRenderingContext2D, fighter: Fighter, now: number
     ctx.fill();
     ink(ctx, 2.4);
     ctx.stroke();
-  } else if (skin === "visor") {
+  } else if (head === "visor") {
     ctx.fillStyle = "#141414";
     roundPath(ctx, cx - 12, y + 13, 24, 6, 2);
     ctx.fill();
     ctx.fillStyle = fighter.color;
     ctx.fillRect(cx - 10, y + 14.5, 20, 2.5);
-  } else if (skin === "hoodie") {
-    ctx.strokeStyle = INK;
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.arc(cx, y + 18, 13, Math.PI * 1.08, Math.PI * 1.92);
-    ctx.stroke();
-  } else if (skin === "gasmask") {
+  } else if (head === "gasmask") {
     ctx.fillStyle = "#1b1e24";
     ctx.beginPath();
     ctx.arc(cx, y + 16, 13, 0, Math.PI * 2);
@@ -433,7 +472,7 @@ export function createMatch(
       bot: entry.bot,
       team,
       color: entry.color,
-      skin: entry.skin,
+      loadout: entry.loadout,
       weapon: entry.weapon,
       x: spawnX,
       y: GROUND_Y - PH,
@@ -1199,7 +1238,7 @@ export function createMatch(
   };
 }
 
-export function paintPreview(canvas: HTMLCanvasElement, skin: string | null, color: string) {
+export function paintPreview(canvas: HTMLCanvasElement, loadout: Loadout, color: string) {
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
   const w = canvas.width;
@@ -1208,20 +1247,25 @@ export function paintPreview(canvas: HTMLCanvasElement, skin: string | null, col
   ctx.fillStyle = CREAM;
   ctx.fillRect(0, 0, w, h);
   ctx.fillStyle = "#c5c9d0";
-  ctx.fillRect(0, h - 36, w, 18);
+  ctx.fillRect(0, h - 28, w, 14);
   ctx.fillStyle = "#8e949c";
-  ctx.fillRect(0, h - 18, w, 18);
+  ctx.fillRect(0, h - 14, w, 14);
   ink(ctx, 4);
   ctx.beginPath();
-  ctx.moveTo(0, h - 36);
-  ctx.lineTo(w, h - 36);
+  ctx.moveTo(0, h - 28);
+  ctx.lineTo(w, h - 28);
   ctx.stroke();
+  const scale = Math.min(w / 70, (h - 36) / 78);
+  ctx.save();
+  ctx.translate(w / 2, h - 28);
+  ctx.scale(scale, scale);
+  ctx.translate(-16, -64);
   const fake = {
-    x: w / 2 - 16,
-    y: h - 36 - 64,
+    x: 0,
+    y: 0,
     w: 32,
     h: 64,
-    skin,
+    loadout,
     color,
     aim: 0.05,
     facing: 1,
@@ -1234,4 +1278,5 @@ export function paintPreview(canvas: HTMLCanvasElement, skin: string | null, col
     invuln: 0,
   } as Fighter;
   drawFigure(ctx, fake, 0);
+  ctx.restore();
 }
