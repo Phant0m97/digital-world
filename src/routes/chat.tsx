@@ -317,7 +317,7 @@ function ChatApp() {
                   const node = scroller.current;
                   if (node && pinned.current) node.scrollTop = node.scrollHeight;
                 }}
-                className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-4"
+                className="min-h-0 flex-1 space-y-1.5 overflow-y-auto px-4 py-3"
               >
                 {thread.map((message) => (
                   <MessageRow
@@ -465,7 +465,7 @@ function MessageRow({
   return (
     <div className={`flex gap-2 ${mine ? "flex-row-reverse" : ""}`}>
       <Avatar id={message.avatarId} className="size-9 shrink-0" />
-      <div className={`max-w-[80%] rounded-2xl px-3 py-2 ${bubbleClass(theme, mine)}`}>
+      <div className={`max-w-[80%] rounded-2xl px-3 py-1 ${bubbleClass(theme, mine)}`}>
         <p className="text-xs opacity-70">{message.fromName}</p>
         {message.body ? <p>{message.body}</p> : null}
         {message.gif ? (

@@ -1255,8 +1255,8 @@ export function paintPreview(canvas: HTMLCanvasElement, loadout: Loadout, color:
   ctx.moveTo(0, h - 28);
   ctx.lineTo(w, h - 28);
   ctx.stroke();
-  const figureH = 96;
-  const scale = Math.min((w * 0.62) / 36, (h - 40) / (figureH + 8));
+  const figureH = 168;
+  const scale = Math.min((w * 0.55) / 32, (h - 36) / (figureH + 4));
   ctx.save();
   ctx.translate(w / 2, h - 28);
   ctx.scale(scale, scale);
