@@ -1,9 +1,10 @@
-import { weaponById, type Loadout, type ModeId, type WeaponDef } from "@/data/catalog";
+import { weaponById, type Dyes, type Loadout, type ModeId, type WeaponDef } from "@/data/catalog";
 
 export type MatchFighterSetup = {
   name: string;
   color: string;
   loadout: Loadout;
+  dyes: Dyes;
   weapon: string;
   bot: boolean;
 };
@@ -56,6 +57,7 @@ type Fighter = {
   team: number;
   color: string;
   loadout: Loadout;
+  dyes: Dyes;
   weapon: string;
   x: number;
   y: number;
@@ -151,9 +153,12 @@ function drawFigure(ctx: CanvasRenderingContext2D, fighter: Fighter, now: number
   const head = fighter.loadout?.head ?? null;
   const worn = fighter.loadout?.body ?? null;
   const legs = fighter.loadout?.legs ?? null;
+  const headColor = fighter.dyes?.head ?? fighter.color;
+  const bodyColor = fighter.dyes?.body ?? fighter.color;
+  const legsColor = fighter.dyes?.legs ?? fighter.color;
 
   if (worn === "cape") {
-    ctx.fillStyle = fighter.color;
+    ctx.fillStyle = bodyColor;
     ctx.beginPath();
     ctx.moveTo(cx - face * 2, y + 30);
     ctx.lineTo(cx - face * 22, y + 60);
@@ -172,7 +177,7 @@ function drawFigure(ctx: CanvasRenderingContext2D, fighter: Fighter, now: number
   ctx.lineTo(cx + 6, y + fighter.h - bob);
   ctx.stroke();
   if (legs === "shorts") {
-    ctx.fillStyle = fighter.color;
+    ctx.fillStyle = legsColor;
     roundPath(ctx, cx - 9, y + 47, 7, 10, 2);
     ctx.fill();
     ink(ctx, 2.4);
@@ -181,7 +186,7 @@ function drawFigure(ctx: CanvasRenderingContext2D, fighter: Fighter, now: number
     ctx.fill();
     ctx.stroke();
   } else if (legs === "pants") {
-    ctx.strokeStyle = fighter.color;
+    ctx.strokeStyle = legsColor;
     ctx.lineWidth = 6;
     ctx.beginPath();
     ctx.moveTo(cx - 5, y + 48);
@@ -192,7 +197,7 @@ function drawFigure(ctx: CanvasRenderingContext2D, fighter: Fighter, now: number
     ink(ctx, 2);
     ctx.stroke();
   } else if (legs === "boots") {
-    ctx.fillStyle = fighter.color;
+    ctx.fillStyle = legsColor;
     roundPath(ctx, cx - 10, y + fighter.h - 8, 8, 8, 2);
     ctx.fill();
     ink(ctx, 2.4);
@@ -207,7 +212,7 @@ function drawFigure(ctx: CanvasRenderingContext2D, fighter: Fighter, now: number
   const tx = cx - tw / 2;
   const ty = y + 32;
   roundPath(ctx, tx, ty, tw, th, 5);
-  ctx.fillStyle = fighter.color;
+  ctx.fillStyle = worn ? bodyColor : fighter.color;
   ctx.fill();
   ink(ctx, 3.4);
   ctx.stroke();
@@ -244,7 +249,7 @@ function drawFigure(ctx: CanvasRenderingContext2D, fighter: Fighter, now: number
   roundPath(ctx, 2, 2, 5, 6, 2);
   ctx.fill();
   ctx.stroke();
-  ctx.fillStyle = fighter.color;
+  ctx.fillStyle = bodyColor;
   ctx.beginPath();
   ctx.arc(15, 0, 3.3, 0, Math.PI * 2);
   ctx.fill();
@@ -276,19 +281,19 @@ function drawFigure(ctx: CanvasRenderingContext2D, fighter: Fighter, now: number
     ctx.beginPath();
     ctx.rect(cx - 18, y, 36, 16);
     ctx.clip();
-    ctx.fillStyle = "#62a246";
+    ctx.fillStyle = headColor;
     ctx.beginPath();
     ctx.arc(cx, y + 14, 14.5, 0, Math.PI * 2);
     ctx.fill();
     ink(ctx, 3.2);
     ctx.stroke();
-    ctx.fillStyle = "#3c682c";
+    ctx.fillStyle = headColor;
     ctx.beginPath();
     ctx.ellipse(cx + 4, y + 8, 4, 2.4, 0.4, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
     roundPath(ctx, cx - 16, y + 13, 32, 4.5, 2);
-    ctx.fillStyle = "#62a246";
+    ctx.fillStyle = headColor;
     ctx.fill();
     ink(ctx, 2.8);
     ctx.stroke();
@@ -297,7 +302,7 @@ function drawFigure(ctx: CanvasRenderingContext2D, fighter: Fighter, now: number
     ctx.beginPath();
     ctx.rect(cx - 18, y, 36, 14);
     ctx.clip();
-    ctx.fillStyle = fighter.color;
+    ctx.fillStyle = headColor;
     ctx.beginPath();
     ctx.arc(cx, y + 14, 14.5, 0, Math.PI * 2);
     ctx.fill();
@@ -305,17 +310,17 @@ function drawFigure(ctx: CanvasRenderingContext2D, fighter: Fighter, now: number
     ctx.stroke();
     ctx.restore();
     roundPath(ctx, cx - 15, y + 12, 30, 4, 2);
-    ctx.fillStyle = fighter.color;
+    ctx.fillStyle = headColor;
     ctx.fill();
     ink(ctx, 2.6);
     ctx.stroke();
   } else if (head === "bandana") {
-    ctx.fillStyle = fighter.color;
+    ctx.fillStyle = headColor;
     ctx.fillRect(cx - 12, y + 16, 24, 7);
     ink(ctx, 2.4);
     ctx.strokeRect(cx - 12, y + 16, 24, 7);
   } else if (head === "mohawk") {
-    ctx.fillStyle = fighter.color;
+    ctx.fillStyle = headColor;
     ctx.beginPath();
     ctx.moveTo(cx - 3, y + 6);
     ctx.lineTo(cx, y - 10);
@@ -328,7 +333,7 @@ function drawFigure(ctx: CanvasRenderingContext2D, fighter: Fighter, now: number
     ctx.fillStyle = "#141414";
     roundPath(ctx, cx - 12, y + 13, 24, 6, 2);
     ctx.fill();
-    ctx.fillStyle = fighter.color;
+    ctx.fillStyle = headColor;
     ctx.fillRect(cx - 10, y + 14.5, 20, 2.5);
   } else if (head === "gasmask") {
     ctx.fillStyle = "#1b1e24";
@@ -337,7 +342,7 @@ function drawFigure(ctx: CanvasRenderingContext2D, fighter: Fighter, now: number
     ctx.fill();
     ink(ctx, 3);
     ctx.stroke();
-    ctx.fillStyle = fighter.color;
+    ctx.fillStyle = headColor;
     ctx.beginPath();
     ctx.arc(cx - 5, y + 16, 3.2, 0, Math.PI * 2);
     ctx.arc(cx + 5, y + 16, 3.2, 0, Math.PI * 2);
@@ -473,6 +478,7 @@ export function createMatch(
       team,
       color: entry.color,
       loadout: entry.loadout,
+      dyes: entry.dyes,
       weapon: entry.weapon,
       x: spawnX,
       y: GROUND_Y - PH,
@@ -1238,7 +1244,7 @@ export function createMatch(
   };
 }
 
-export function paintPreview(canvas: HTMLCanvasElement, loadout: Loadout, color: string) {
+export function paintPreview(canvas: HTMLCanvasElement, loadout: Loadout, dyes: Dyes) {
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
   const w = canvas.width;
@@ -1267,7 +1273,8 @@ export function paintPreview(canvas: HTMLCanvasElement, loadout: Loadout, color:
     w: 32,
     h: figureH,
     loadout,
-    color,
+    dyes,
+    color: dyes.body,
     aim: 0.05,
     facing: 1,
     vx: 0,

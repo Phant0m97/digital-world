@@ -220,6 +220,12 @@ export type Loadout = {
   legs: string | null;
 };
 
+export type Dyes = {
+  head: string;
+  body: string;
+  legs: string;
+};
+
 export const EMPTY_LOADOUT: Loadout = { head: null, body: null, legs: null };
 
 export type SkinId =

@@ -10,6 +10,7 @@ import {
   paintHex,
   skinById,
   type CosmeticSlot,
+  type Dyes,
   type Loadout,
   type ModeId,
 } from "@/data/catalog";
@@ -32,6 +33,7 @@ function Locker() {
   const mode = useWorld((state) => state.mode);
   const rosterSize = useWorld((state) => state.rosterSize);
   const paint = useWorld((state) => state.paint);
+  const cosmeticColors = useWorld((state) => state.cosmeticColors);
   const equipped = useWorld((state) => state.equipped);
   const weapon = useWorld((state) => state.equippedWeapon);
   const ownedSkins = useWorld((state) => state.ownedSkins);
@@ -40,6 +42,7 @@ function Locker() {
   const setMode = useWorld((state) => state.setMode);
   const setRosterSize = useWorld((state) => state.setRosterSize);
   const setPaint = useWorld((state) => state.setPaint);
+  const setCosmeticColor = useWorld((state) => state.setCosmeticColor);
   const buySkin = useWorld((state) => state.buySkin);
   const buyWeapon = useWorld((state) => state.buyWeapon);
   const equipSkin = useWorld((state) => state.equipSkin);
@@ -51,6 +54,8 @@ function Locker() {
   const preview: Loadout = { ...equipped };
   const peeked = skinById(looking);
   if (peeked && peeked.slot === slot) preview[peeked.slot] = peeked.id;
+  const dye = (id: string | null) => paintHex(id ? (cosmeticColors[id] ?? paint) : paint);
+  const dyes: Dyes = { head: dye(preview.head), body: dye(preview.body), legs: dye(preview.legs) };
   const slots: { id: CosmeticSlot; label: string }[] = [
     { id: "head", label: "Head" },
     { id: "body", label: "Body" },
@@ -125,7 +130,7 @@ function Locker() {
 
       <section className="grid items-start gap-6 lg:grid-cols-[7.5rem_1fr]">
         <div className="rounded-card border border-line bg-paper p-2 text-paper-ink">
-          <StickPreview loadout={preview} color={paintHex(paint)} />
+          <StickPreview loadout={preview} dyes={dyes} />
           <p className="mt-1 text-center font-display text-sm">{profile?.username ?? "You"}</p>
         </div>
         <div>
@@ -157,6 +162,24 @@ function Locker() {
                     <h3 className="font-display text-xl">{item.name}</h3>
                     <p className="mt-1 text-sm text-mute">{item.cost} cr</p>
                   </button>
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    {PAINTS.map((swatch) => {
+                      const chosen = (cosmeticColors[item.id] ?? paint) === swatch.id;
+                      return (
+                        <button
+                          key={swatch.id}
+                          type="button"
+                          aria-label={`${item.name} ${swatch.id}`}
+                          onClick={() => {
+                            setCosmeticColor(item.id, swatch.id);
+                            setLooking(item.id);
+                          }}
+                          className={`size-6 rounded-full border-2 ${chosen ? "border-cream" : "border-transparent"}`}
+                          style={{ background: swatch.hex }}
+                        />
+                      );
+                    })}
+                  </div>
                   {owned ? (
                     <button
                       type="button"
@@ -229,14 +252,14 @@ function Locker() {
   );
 }
 
-function StickPreview({ loadout, color }: { loadout: Loadout; color: string }) {
+function StickPreview({ loadout, dyes }: { loadout: Loadout; dyes: Dyes }) {
   const ref = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
     const canvas = ref.current;
     if (!canvas) return;
     canvas.width = 280;
     canvas.height = 640;
-    paintPreview(canvas, loadout, color);
-  }, [loadout.head, loadout.body, loadout.legs, color]);
+    paintPreview(canvas, loadout, dyes);
+  }, [loadout.head, loadout.body, loadout.legs, dyes.head, dyes.body, dyes.legs]);
   return <canvas ref={ref} width={280} height={640} className="mx-auto block h-36 w-auto rounded-xl" />;
 }

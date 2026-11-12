@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useRef, useState } from "react";
 import { Shell, useHydrated } from "@/components/shell";
-import { AVATARS, MODES, PAINTS, SKINS, paintHex, weaponById, type CosmeticSlot, type Loadout, type ModeId } from "@/data/catalog";
+import { AVATARS, MODES, PAINTS, SKINS, paintHex, weaponById, type CosmeticSlot, type Dyes, type Loadout, type ModeId } from "@/data/catalog";
 import { MatchView } from "@/game/match-view";
 import type { MatchFighterSetup, MatchResult, MatchSetup } from "@/game/engine";
 import { useWorld } from "@/lib/store";
@@ -27,12 +27,18 @@ function botLoadout(n: number): Loadout {
   return { head: pick("head", 1), body: pick("body", 3), legs: pick("legs", 5) };
 }
 
+function botDyes(n: number): Dyes {
+  const hex = (salt: number) => PAINTS[(n + salt) % PAINTS.length]!.hex;
+  return { head: hex(1), body: hex(3), legs: hex(5) };
+}
+
 function PlayPage() {
   const ready = useHydrated();
   const search = Route.useSearch();
   const profile = useWorld((state) => state.profile);
   const paint = useWorld((state) => state.paint);
   const loadout = useWorld((state) => state.equipped);
+  const cosmeticColors = useWorld((state) => state.cosmeticColors);
   const weapon = useWorld((state) => state.equippedWeapon);
   const party = useWorld((state) => state.party);
   const award = useWorld((state) => state.award);
@@ -43,11 +49,17 @@ function PlayPage() {
     const youName = profile?.username || "You";
     const others: MatchFighterSetup[] = [];
     const colors = PAINTS.map((item) => item.hex).filter((hex) => hex !== paintHex(paint));
+    const youDyes: Dyes = {
+      head: paintHex(loadout.head ? (cosmeticColors[loadout.head] ?? paint) : paint),
+      body: paintHex(loadout.body ? (cosmeticColors[loadout.body] ?? paint) : paint),
+      legs: paintHex(loadout.legs ? (cosmeticColors[loadout.legs] ?? paint) : paint),
+    };
     party.forEach((member, index) => {
       others.push({
         name: member.name,
         color: colors[index % colors.length]!,
         loadout: botLoadout(index + 1),
+        dyes: botDyes(index + 1),
         weapon: index % 2 === 0 ? "marker" : "spray",
         bot: true,
       });
@@ -61,6 +73,7 @@ function PlayPage() {
           name: avatar.name,
           color: colors[(others.length + 2) % colors.length]!,
           loadout: botLoadout(cursor + 2),
+          dyes: botDyes(cursor + 4),
           weapon: WEAPON_CYCLE[cursor % WEAPON_CYCLE.length]!,
           bot: true,
         });
@@ -74,12 +87,13 @@ function PlayPage() {
         name: youName,
         color: paintHex(paint),
         loadout,
+        dyes: youDyes,
         weapon,
         bot: false,
       },
       others,
     };
-  }, [paint, party, profile?.username, search.mode, search.players, loadout, weapon]);
+  }, [cosmeticColors, paint, party, profile?.username, search.mode, search.players, loadout, weapon]);
 
   if (!ready) {
     return (

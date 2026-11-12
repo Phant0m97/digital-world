@@ -46,6 +46,7 @@ type World = {
   equipped: Loadout;
   equippedWeapon: string;
   paint: string;
+  cosmeticColors: Record<string, string>;
   friends: Friend[];
   rooms: Room[];
   messages: ChatMessage[];
@@ -72,6 +73,7 @@ type World = {
   equipSkin: (id: string) => void;
   setWeapon: (id: string) => void;
   setPaint: (id: string) => void;
+  setCosmeticColor: (skinId: string, paintId: string) => void;
   setMode: (mode: ModeId) => void;
   setRosterSize: (n: number) => void;
   award: (amount: number) => void;
@@ -112,6 +114,7 @@ export const useWorld = create<World>()(
       equipped: { ...EMPTY_LOADOUT },
       equippedWeapon: "marker",
       paint: "cyan",
+      cosmeticColors: {},
       friends: [],
       rooms: seedRooms(),
       messages: seedMessages(),
@@ -291,13 +294,15 @@ export const useWorld = create<World>()(
         set({ equippedWeapon: id });
       },
       setPaint: (id) => set({ paint: id }),
+      setCosmeticColor: (skinId, paintId) =>
+        set({ cosmeticColors: { ...get().cosmeticColors, [skinId]: paintId } }),
       setMode: (mode) => set({ mode }),
       setRosterSize: (n) => set({ rosterSize: Math.max(2, Math.min(8, n)) }),
       award: (amount) => set({ credits: get().credits + amount }),
     }),
     {
       name: "digitalworld-v1",
-      version: 3,
+      version: 4,
       migrate: (persisted, version) => {
         if (!persisted || typeof persisted !== "object") return persisted;
         const state = persisted as {
@@ -308,6 +313,7 @@ export const useWorld = create<World>()(
           joinedRoomIds?: string[];
           equipped?: Loadout;
           equippedSkin?: string | null;
+          cosmeticColors?: Record<string, string>;
         };
         if ((version ?? 0) < 2) {
           const rooms = (state.rooms ?? []).filter((room) => room.visibility !== "public");
@@ -327,6 +333,7 @@ export const useWorld = create<World>()(
           if (previous) equipped[previous.slot] = previous.id;
           state.equipped = equipped;
         }
+        if ((version ?? 0) < 4) state.cosmeticColors = state.cosmeticColors ?? {};
         return state;
       },
     },
