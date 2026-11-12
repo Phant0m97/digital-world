@@ -1,0 +1,102 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: "Oxanium", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Outfit", ui-sans-serif, system-ui, sans-serif;
+  --color-ink: #07070b;
+  --color-panel: #12121a;
+  --color-panel-2: #1b1b26;
+  --color-line: #2c2c3a;
+  --color-cream: #f4f0e6;
+  --color-mute: #9b97a8;
+  --color-cyan: #2ee6ff;
+  --color-mag: #ff2bd6;
+  --color-paper: #f6f1e6;
+  --color-paper-ink: #1a1814;
+  --radius-card: 1.25rem;
+}
+
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+
+  html,
+  body {
+    background: var(--color-ink);
+    color: var(--color-cream);
+    font-family: var(--font-sans);
+  }
+
+  body {
+    min-height: 100dvh;
+  }
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+.glitch {
+  position: relative;
+  text-shadow:
+    -2px 0 var(--color-cyan),
+    2px 0 var(--color-mag);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .glitch {
+    animation: glitch-shift 2.8s steps(2, end) infinite;
+  }
+}
+
+@keyframes glitch-shift {
+  0%,
+  88%,
+  100% {
+    transform: none;
+    text-shadow:
+      -2px 0 var(--color-cyan),
+      2px 0 var(--color-mag);
+  }
+  90% {
+    transform: translate(-2px, 1px);
+    text-shadow:
+      3px 0 var(--color-cyan),
+      -3px 0 var(--color-mag);
+  }
+  94% {
+    transform: translate(2px, -1px);
+  }
+}
+
+.touch-btn {
+  min-height: 3rem;
+  min-width: 3rem;
+}
+
+.arena-shell {
+  background: #d5e4ec;
+}
+
+.arena-canvas {
+  touch-action: none;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.bubble-fantasy {
+  border: 2px solid #6b3d1e;
+  background: #f3e2b8;
+  color: #2a1c10;
+}
+
+.bubble-doodle {
+  border: 2px solid var(--color-paper-ink);
+  background: var(--color-paper);
+  color: var(--color-paper-ink);
+  border-radius: 1.1rem 0.4rem 1rem 0.7rem;
+}
+

@@ -1,0 +1,9 @@
+{
+  "installCommand": "npm install --omit=dev --no-audit --no-fund",
+  "rewrites": [
+    { "source": "/digital-world/assets/:path*", "destination": "/assets/:path*" },
+    { "source": "/digital-world/backgrounds/:path*", "destination": "/backgrounds/:path*" },
+    { "source": "/digital-world/gifs/:path*", "destination": "/gifs/:path*" },
+    { "source": "/digital-world/:file.:ext", "destination": "/:file.:ext" }
+  ]
+}
