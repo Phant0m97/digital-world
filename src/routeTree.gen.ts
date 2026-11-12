@@ -15,6 +15,7 @@ import { Route as GamesRouteImport } from './routes/games'
 import { Route as LifeRouteImport } from './routes/life'
 import { Route as PaintballRouteImport } from './routes/paintball'
 import { Route as PlayRouteImport } from './routes/play'
+import { Route as SketchRouteImport } from './routes/sketch'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -46,6 +47,11 @@ const PlayRoute = PlayRouteImport.update({
   path: '/play',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SketchRoute = SketchRouteImport.update({
+  id: '/sketch',
+  path: '/sketch',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -54,6 +60,7 @@ export interface FileRoutesByFullPath {
   '/life': typeof LifeRoute
   '/paintball': typeof PaintballRoute
   '/play': typeof PlayRoute
+  '/sketch': typeof SketchRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -62,6 +69,7 @@ export interface FileRoutesByTo {
   '/life': typeof LifeRoute
   '/paintball': typeof PaintballRoute
   '/play': typeof PlayRoute
+  '/sketch': typeof SketchRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -71,13 +79,23 @@ export interface FileRoutesById {
   '/life': typeof LifeRoute
   '/paintball': typeof PaintballRoute
   '/play': typeof PlayRoute
+  '/sketch': typeof SketchRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/chat' | '/games' | '/life' | '/paintball' | '/play'
+  fullPaths:
+    '/' | '/chat' | '/games' | '/life' | '/paintball' | '/play' | '/sketch'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/chat' | '/games' | '/life' | '/paintball' | '/play'
-  id: '__root__' | '/' | '/chat' | '/games' | '/life' | '/paintball' | '/play'
+  to: '/' | '/chat' | '/games' | '/life' | '/paintball' | '/play' | '/sketch'
+  id:
+    | '__root__'
+    | '/'
+    | '/chat'
+    | '/games'
+    | '/life'
+    | '/paintball'
+    | '/play'
+    | '/sketch'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -87,6 +105,7 @@ export interface RootRouteChildren {
   LifeRoute: typeof LifeRoute
   PaintballRoute: typeof PaintballRoute
   PlayRoute: typeof PlayRoute
+  SketchRoute: typeof SketchRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -133,6 +152,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PlayRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/sketch': {
+      id: '/sketch'
+      path: '/sketch'
+      fullPath: '/sketch'
+      preLoaderRoute: typeof SketchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -143,6 +169,7 @@ const rootRouteChildren: RootRouteChildren = {
   LifeRoute: LifeRoute,
   PaintballRoute: PaintballRoute,
   PlayRoute: PlayRoute,
+  SketchRoute: SketchRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

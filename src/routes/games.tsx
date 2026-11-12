@@ -7,6 +7,7 @@ export const Route = createFileRoute("/games")({ component: GamesPage });
 const GAMES = [
   { to: "/paintball", title: "Paintball", image: "games/paintball-yard2.jpg" },
   { to: "/life", title: "LifeSim", image: "games/lifesim.jpg" },
+  { to: "/sketch", title: "Sketch", image: "games/sketch.jpg" },
 ] as const;
 
 function GamesPage() {

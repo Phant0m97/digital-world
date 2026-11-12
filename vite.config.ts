@@ -260,6 +260,7 @@ export default defineConfig(({ command, isPreview }) => ({
               { path: "/chat" },
               { path: "/games" },
               { path: "/play" },
+              { path: "/sketch" },
             ],
           }
         : undefined,
