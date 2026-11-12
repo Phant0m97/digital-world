@@ -4,9 +4,14 @@ import { useEffect, useRef, useState } from "react";
 import { Shell, useHydrated } from "@/components/shell";
 import {
   PAPER,
+  deleteSketch,
   postSketch,
+  readProjects,
+  removeProject,
+  saveProject,
   toggleHeart,
   watchWall,
+  type SketchProject,
   type SketchStroke,
   type StrokePen,
   type WallSnapshot,
@@ -53,6 +58,8 @@ function SketchPage() {
   const [busy, setBusy] = useState(false);
   const [seen, setSeen] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
+  const [projectId, setProjectId] = useState<string | null>(null);
+  const [projects, setProjects] = useState<SketchProject[]>([]);
   const color = hsvToHex(hue, 0.92, shade / 100);
   const pen = PENS.find((item) => item.id === penId) ?? PENS[0];
   const owned = pen.cost === 0 || ownedPens.includes(pen.id);
@@ -64,6 +71,10 @@ function SketchPage() {
     setWall(next);
     setSeen(true);
   }), []);
+
+  useEffect(() => {
+    setProjects(readProjects());
+  }, []);
 
   useEffect(() => {
     if (!openId) return;
@@ -118,6 +129,7 @@ function SketchPage() {
     setLayers(freshLayers());
     setActiveId("layer-1");
     setTitle("");
+    setProjectId(null);
     setBusy(true);
     setNote("Posting…");
     void postSketch({ name, avatarId: profile?.avatarId || "", title: caption, strokes: drawing }).then((result) => {
@@ -127,6 +139,51 @@ function SketchPage() {
         return;
       }
       setNote(result.shared ? "Posted." : "Posted here. Others will see it when the connection catches up.");
+    });
+  }
+
+  function save() {
+    const stored = saveProject({
+      id: projectId,
+      title,
+      layers: layers.map((layer) => ({ id: layer.id, hidden: layer.hidden, strokes: layer.strokes })),
+    });
+    if (!stored) {
+      setNote("Draw something before saving.");
+      return;
+    }
+    setProjectId(stored.id);
+    setProjects(readProjects());
+    setNote("Saved. It stays on this device until you post it.");
+  }
+
+  function startNew() {
+    setLayers(freshLayers());
+    setActiveId("layer-1");
+    setTitle("");
+    setProjectId(null);
+    setNote("");
+  }
+
+  function openProject(project: SketchProject) {
+    const next = project.layers.length
+      ? project.layers.map((layer) => ({ ...layer, name: layer.id }))
+      : freshLayers();
+    setLayers(next);
+    setActiveId(next[0]!.id);
+    setTitle(project.title);
+    setProjectId(project.id);
+    setNote("Opened. You can keep drawing.");
+  }
+
+  function remove(id: string) {
+    void deleteSketch(id).then((ok) => {
+      if (!ok) {
+        setNote("You can only delete your own posts.");
+        return;
+      }
+      if (openId === id) setOpenId(null);
+      setNote("Deleted.");
     });
   }
 
@@ -302,14 +359,24 @@ function SketchPage() {
               patchActive((strokes) => [...strokes, stroke], true);
             }}
           />
-          <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto]">
+          <div className="mt-4 flex flex-wrap gap-2">
             <input
               value={title}
               onChange={(event) => setTitle(event.target.value)}
               maxLength={42}
               placeholder="Title, if you want one"
-              className="w-full rounded-xl border border-line bg-ink px-3 py-3 text-cream outline-none focus:border-cyan"
+              className="min-w-0 flex-1 rounded-xl border border-line bg-ink px-3 py-3 text-cream outline-none focus:border-cyan"
             />
+            <button
+              type="button"
+              onClick={save}
+              className="rounded-full border border-line px-5 py-3 font-display"
+            >
+              Save
+            </button>
+            <button type="button" onClick={startNew} className="rounded-full border border-line px-5 py-3 font-display">
+              New
+            </button>
             <button
               type="button"
               disabled={!visible.length || busy}
@@ -318,6 +385,33 @@ function SketchPage() {
             >
               Post
             </button>
+          </div>
+          <div className="mt-4">
+            <h2 className="font-display text-xl font-bold">Saved</h2>
+            {projects.length === 0 ? (
+              <p className="mt-2 text-sm text-mute">Nothing saved yet. Save keeps a project here without posting it.</p>
+            ) : (
+              <ul className="mt-2 grid gap-2">
+                {projects.map((project) => (
+                  <li key={project.id} className="flex items-center gap-2 rounded-2xl border border-line px-3 py-2">
+                    <button type="button" onClick={() => openProject(project)} className="min-h-11 min-w-0 flex-1 truncate text-left">
+                      {project.title || "Untitled"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        removeProject(project.id);
+                        if (projectId === project.id) setProjectId(null);
+                        setProjects(readProjects());
+                      }}
+                      className="min-h-11 rounded-full border border-line px-3 py-2 text-sm"
+                    >
+                      Delete
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
           {profile ? (
             <p className="mt-3 text-sm text-mute">Posting as {profile.username}</p>
@@ -360,6 +454,15 @@ function SketchPage() {
                       {index === 0 && count > 0 ? " · Top" : ""}
                     </p>
                   </button>
+                  {post.author === wall.me ? (
+                    <button
+                      type="button"
+                      onClick={() => remove(post.id)}
+                      className="absolute bottom-2 left-2 min-h-11 rounded-full border border-line bg-ink/80 px-3 py-1 text-sm"
+                    >
+                      Delete
+                    </button>
+                  ) : null}
                   <button
                     type="button"
                     aria-pressed={liked}
@@ -382,6 +485,7 @@ function SketchPage() {
               top={wall.posts[0]?.id === open.id && (wall.hearts[open.id]?.length ?? 0) > 0}
               onClose={() => setOpenId(null)}
               onHeart={() => void toggleHeart(open.id, !(wall.me && wall.hearts[open.id]?.includes(wall.me)))}
+              onDelete={open.author === wall.me ? () => remove(open.id) : undefined}
             />
           ) : null}
         </section>
@@ -397,6 +501,7 @@ function PaintingDialog({
   top,
   onClose,
   onHeart,
+  onDelete,
 }: {
   post: { id: string; title: string; name: string; strokes: SketchStroke[] };
   count: number;
@@ -404,6 +509,7 @@ function PaintingDialog({
   top: boolean;
   onClose: () => void;
   onHeart: () => void;
+  onDelete?: () => void;
 }) {
   return (
     <div
@@ -439,6 +545,11 @@ function PaintingDialog({
           <button type="button" onClick={onClose} className="min-h-11 rounded-full border border-line px-4 py-2">
             Close
           </button>
+          {onDelete ? (
+            <button type="button" onClick={onDelete} className="min-h-11 rounded-full border border-line px-4 py-2">
+              Delete
+            </button>
+          ) : null}
         </div>
       </div>
     </div>

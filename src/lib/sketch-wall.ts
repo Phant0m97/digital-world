@@ -35,9 +35,11 @@ export type WallSnapshot = {
 };
 
 type LocalHeart = { id: string; on: boolean; at: number; shared: boolean };
+type LocalDrop = { id: string; author: string; shared: boolean };
 type LocalFile = {
   posts: { post: SketchPost; shared: boolean }[];
   hearts: LocalHeart[];
+  drops: LocalDrop[];
 };
 
 type Tools = typeof import("nostr-tools/pure");
@@ -50,6 +52,7 @@ let poolPromise: Promise<Pool> | null = null;
 let me = "";
 const posts = new Map<string, SketchPost>();
 const heartState = new Map<string, { on: boolean; at: number }>();
+const dropped = new Map<string, string>();
 const listeners = new Set<(wall: WallSnapshot) => void>();
 let relayStarted = false;
 let closer: { close: () => void } | null = null;
@@ -136,15 +139,16 @@ async function ensureIdentity(): Promise<string> {
 }
 
 function readLocal(): LocalFile {
-  if (typeof window === "undefined") return { posts: [], hearts: [] };
+  if (typeof window === "undefined") return { posts: [], hearts: [], drops: [] };
   try {
     const parsed = JSON.parse(localStorage.getItem(LOCAL_KEY) || "") as LocalFile;
     return {
       posts: Array.isArray(parsed.posts) ? parsed.posts : [],
       hearts: Array.isArray(parsed.hearts) ? parsed.hearts : [],
+      drops: Array.isArray(parsed.drops) ? parsed.drops : [],
     };
   } catch {
-    return { posts: [], hearts: [] };
+    return { posts: [], hearts: [], drops: [] };
   }
 }
 
@@ -152,7 +156,7 @@ function writeLocal(file: LocalFile) {
   if (typeof window === "undefined") return;
   const postsKept = file.posts.slice(-40);
   const heartsKept = file.hearts.slice(-200);
-  localStorage.setItem(LOCAL_KEY, JSON.stringify({ posts: postsKept, hearts: heartsKept }));
+  localStorage.setItem(LOCAL_KEY, JSON.stringify({ posts: postsKept, hearts: heartsKept, drops: file.drops.slice(-80) }));
 }
 
 function snapshot(): WallSnapshot {
@@ -246,6 +250,7 @@ function parsePost(content: string, author: string, at: number): SketchPost | nu
     if (!/^sk-[a-z0-9]{4,16}$/.test(id)) return null;
     const strokes = normalizeStrokes(data.strokes);
     if (!strokes) return null;
+    if (dropped.get(id) === author) return null;
     const name = clean(data.name, 16) || "Guest";
     return {
       id,
@@ -278,6 +283,16 @@ function ingest(event: RelayEvent) {
   try {
     data = JSON.parse(event.content) as { t?: unknown };
   } catch {
+    return;
+  }
+  if (data.t === "drop") {
+    const id = clean((data as { id?: unknown }).id, 24);
+    if (!/^sk-[a-z0-9]{4,16}$/.test(id)) return;
+    const existing = posts.get(id);
+    if (existing && existing.author !== event.pubkey) return;
+    const prior = dropped.get(id);
+    if (prior && prior !== event.pubkey) return;
+    rememberDrop(id, event.pubkey, true);
     return;
   }
   if (data.t === "draw") {
@@ -318,12 +333,38 @@ async function publishHeart(id: string, on: boolean) {
   return shared;
 }
 
+function rememberDrop(id: string, author: string, shared: boolean) {
+  dropped.set(id, author);
+  posts.delete(id);
+  const file = readLocal();
+  const drops = file.drops.filter((item) => item.id !== id);
+  drops.push({ id, author, shared });
+  writeLocal({
+    ...file,
+    posts: file.posts.filter((item) => item.post.id !== id),
+    drops,
+  });
+}
+
+function markDropShared(id: string) {
+  const file = readLocal();
+  writeLocal({
+    ...file,
+    drops: file.drops.map((item) => (item.id === id ? { ...item, shared: true } : item)),
+  });
+}
+
 function applyLocal(pk: string) {
   const file = readLocal();
+  for (const drop of file.drops) {
+    if (/^sk-[a-z0-9]{4,16}$/.test(drop.id) && drop.author) dropped.set(drop.id, drop.author);
+  }
   for (const item of file.posts) {
     const strokes = normalizeStrokes(item.post?.strokes);
     if (!strokes || !item.post?.id) continue;
-    const post = { ...item.post, strokes, author: item.post.author || pk };
+    const author = item.post.author || pk;
+    if (dropped.get(item.post.id) === author) continue;
+    const post = { ...item.post, strokes, author };
     if (!posts.has(post.id)) posts.set(post.id, post);
   }
   for (const heart of file.hearts) {
@@ -337,7 +378,15 @@ function applyLocal(pk: string) {
 async function flushLocal() {
   const file = readLocal();
   for (const item of file.posts) {
-    if (!item.shared && posts.has(item.post.id)) await publishPost(posts.get(item.post.id)!);
+    if (!item.shared && posts.has(item.post.id) && dropped.get(item.post.id) !== item.post.author) {
+      await publishPost(posts.get(item.post.id)!);
+    }
+  }
+  for (const drop of file.drops) {
+    if (!drop.shared) {
+      const shared = await publish([DRAW_TAG], JSON.stringify({ v: 1, t: "drop", id: drop.id }));
+      if (shared) markDropShared(drop.id);
+    }
   }
   for (const heart of file.hearts) {
     if (!heart.shared) await publishHeart(heart.id, heart.on);
@@ -433,6 +482,54 @@ export async function postSketch(input: {
   emit();
   const shared = await publishPost(post);
   return { ok: true, shared };
+}
+
+export async function deleteSketch(id: string) {
+  const pk = await ensureIdentity();
+  const post = posts.get(id);
+  if (!pk || !post || post.author !== pk) return false;
+  me = pk;
+  rememberDrop(id, pk, false);
+  emit();
+  const shared = await publish([DRAW_TAG], JSON.stringify({ v: 1, t: "drop", id }));
+  if (shared) markDropShared(id);
+  return true;
+}
+
+const PROJECT_KEY = "dw-sketch-projects-v1";
+
+export type SketchLayer = { id: string; hidden: boolean; strokes: SketchStroke[] };
+export type SketchProject = { id: string; title: string; at: number; layers: SketchLayer[] };
+
+export function readProjects(): SketchProject[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const parsed = JSON.parse(localStorage.getItem(PROJECT_KEY) || "[]") as SketchProject[];
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((item) => item && /^pj-[a-z0-9]{4,16}$/.test(item.id) && Array.isArray(item.layers));
+  } catch {
+    return [];
+  }
+}
+
+export function saveProject(input: { id?: string | null; title: string; layers: SketchLayer[] }): SketchProject | null {
+  if (typeof window === "undefined") return null;
+  const layers = input.layers.slice(0, 4).map((layer, index) => ({
+    id: /^layer-[a-z0-9-]{1,24}$/.test(layer.id) ? layer.id : `layer-${index + 1}`,
+    hidden: Boolean(layer.hidden),
+    strokes: normalizeStrokes(layer.strokes) ?? [],
+  }));
+  if (!layers.some((layer) => layer.strokes.length)) return null;
+  const id = input.id && /^pj-[a-z0-9]{4,16}$/.test(input.id) ? input.id : `pj-${Math.random().toString(36).slice(2, 10)}`;
+  const project: SketchProject = { id, title: clean(input.title, 42), at: Date.now(), layers };
+  const next = [project, ...readProjects().filter((item) => item.id !== id)].slice(0, 16);
+  localStorage.setItem(PROJECT_KEY, JSON.stringify(next));
+  return project;
+}
+
+export function removeProject(id: string) {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(PROJECT_KEY, JSON.stringify(readProjects().filter((item) => item.id !== id)));
 }
 
 export async function toggleHeart(id: string, on: boolean) {
