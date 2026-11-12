@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as ChatRouteImport } from './routes/chat'
 import { Route as GamesRouteImport } from './routes/games'
 import { Route as LifeRouteImport } from './routes/life'
+import { Route as PaintballRouteImport } from './routes/paintball'
 import { Route as PlayRouteImport } from './routes/play'
 
 const IndexRoute = IndexRouteImport.update({
@@ -35,6 +36,11 @@ const LifeRoute = LifeRouteImport.update({
   path: '/life',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PaintballRoute = PaintballRouteImport.update({
+  id: '/paintball',
+  path: '/paintball',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PlayRoute = PlayRouteImport.update({
   id: '/play',
   path: '/play',
@@ -46,6 +52,7 @@ export interface FileRoutesByFullPath {
   '/chat': typeof ChatRoute
   '/games': typeof GamesRoute
   '/life': typeof LifeRoute
+  '/paintball': typeof PaintballRoute
   '/play': typeof PlayRoute
 }
 export interface FileRoutesByTo {
@@ -53,6 +60,7 @@ export interface FileRoutesByTo {
   '/chat': typeof ChatRoute
   '/games': typeof GamesRoute
   '/life': typeof LifeRoute
+  '/paintball': typeof PaintballRoute
   '/play': typeof PlayRoute
 }
 export interface FileRoutesById {
@@ -61,14 +69,15 @@ export interface FileRoutesById {
   '/chat': typeof ChatRoute
   '/games': typeof GamesRoute
   '/life': typeof LifeRoute
+  '/paintball': typeof PaintballRoute
   '/play': typeof PlayRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/chat' | '/games' | '/life' | '/play'
+  fullPaths: '/' | '/chat' | '/games' | '/life' | '/paintball' | '/play'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/chat' | '/games' | '/life' | '/play'
-  id: '__root__' | '/' | '/chat' | '/games' | '/life' | '/play'
+  to: '/' | '/chat' | '/games' | '/life' | '/paintball' | '/play'
+  id: '__root__' | '/' | '/chat' | '/games' | '/life' | '/paintball' | '/play'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -76,6 +85,7 @@ export interface RootRouteChildren {
   ChatRoute: typeof ChatRoute
   GamesRoute: typeof GamesRoute
   LifeRoute: typeof LifeRoute
+  PaintballRoute: typeof PaintballRoute
   PlayRoute: typeof PlayRoute
 }
 
@@ -109,6 +119,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LifeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/paintball': {
+      id: '/paintball'
+      path: '/paintball'
+      fullPath: '/paintball'
+      preLoaderRoute: typeof PaintballRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/play': {
       id: '/play'
       path: '/play'
@@ -124,6 +141,7 @@ const rootRouteChildren: RootRouteChildren = {
   ChatRoute: ChatRoute,
   GamesRoute: GamesRoute,
   LifeRoute: LifeRoute,
+  PaintballRoute: PaintballRoute,
   PlayRoute: PlayRoute,
 }
 export const routeTree = rootRouteImport

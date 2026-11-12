@@ -109,7 +109,7 @@ function PlayPage() {
         <div className="flex items-center gap-3 border-b border-line px-4 py-2 text-sm">
           <p className="font-display">{MODES.find((mode) => mode.id === search.mode)?.name}</p>
           <p className="text-mute">{weaponById(weapon).name}</p>
-          <Link to="/games" className="ml-auto text-cyan">
+          <Link to="/paintball" className="ml-auto text-cyan">
             Leave yard
           </Link>
         </div>
@@ -142,7 +142,7 @@ function PlayPage() {
                   ))}
                 </ol>
                 <div className="mt-5 flex gap-2">
-                  <Link to="/games" className="rounded-full bg-cyan px-4 py-3 font-display text-ink">
+                  <Link to="/paintball" className="rounded-full bg-cyan px-4 py-3 font-display text-ink">
                     Back to locker
                   </Link>
                   <button type="button" className="rounded-full border border-line px-4 py-3" onClick={() => window.location.reload()}>

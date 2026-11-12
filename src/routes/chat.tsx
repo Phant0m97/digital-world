@@ -400,7 +400,7 @@ function ChatApp() {
               </li>
             ))}
           </ul>
-          <Link to="/games" className="mt-6 block rounded-full bg-mag px-4 py-3 text-center font-display text-ink">
+          <Link to="/paintball" className="mt-6 block rounded-full bg-mag px-4 py-3 text-center font-display text-ink">
             Party up and play
           </Link>
         </aside>

@@ -13,8 +13,7 @@ function Home() {
           <Wordmark />
           <div className="mt-8 grid gap-3 sm:grid-cols-2">
             <Door to="/chat" kicker="Mode 01" title="Chat" />
-            <Door to="/games" kicker="Mode 02" title="Paintball" />
-            <Door to="/life" kicker="Mode 03" title="LifeSim" />
+            <Door to="/games" kicker="Mode 02" title="Games" />
           </div>
         </div>
       </section>
@@ -27,7 +26,7 @@ function Door({
   kicker,
   title,
 }: {
-  to: "/chat" | "/games" | "/life";
+  to: "/chat" | "/games";
   kicker: string;
   title: string;
 }) {
