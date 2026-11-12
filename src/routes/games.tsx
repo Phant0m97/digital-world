@@ -43,9 +43,6 @@ function Locker() {
         <div>
           <p className="font-display text-xs tracking-[0.28em] text-cyan uppercase">Game 01</p>
           <h1 className="font-display text-4xl font-bold">Paintball</h1>
-          <p className="mt-2 max-w-xl text-mute">
-            A color platformer. One shot to the head, two to the body. Wins pay credits. Credits buy the locker.
-          </p>
         </div>
         <p className="font-display text-2xl text-cyan">{credits} cr</p>
       </div>
@@ -59,7 +56,6 @@ function Locker() {
             className={`rounded-card border p-4 text-left ${mode === item.id ? "border-cyan bg-panel-2" : "border-line bg-panel"}`}
           >
             <p className="font-display text-xl">{item.name}</p>
-            <p className="mt-1 text-sm text-mute">{item.blurb}</p>
           </button>
         ))}
       </section>
@@ -108,9 +104,6 @@ function Locker() {
             </Link>
           ) : null}
         </div>
-        <p className="mt-3 text-xs text-mute">
-          Two-player yards pay 20 credits to first. Bigger yards pay 50 / 25 / 10. Friends you invite jump in with you — the rest of the roster is filled so the match stays full and instant.
-        </p>
       </section>
 
       <section>
@@ -135,7 +128,6 @@ function Locker() {
               key={item.id}
               id={item.id}
               name={item.name}
-              blurb={item.blurb}
               cost={item.cost}
               owned={ownedSkins.includes(item.id)}
               equipped={skin === item.id}
@@ -160,7 +152,6 @@ function Locker() {
                   <h3 className="font-display text-xl">{item.name}</h3>
                   <p className="text-sm text-cyan">{item.cost === 0 ? "Owned" : `${item.cost} cr`}</p>
                 </div>
-                <p className="mt-1 text-sm text-mute">{item.blurb}</p>
                 <p className="mt-2 text-sm">
                   <span className="text-cyan">Strong:</span> {item.strength}
                 </p>
@@ -199,7 +190,6 @@ function Locker() {
 function SkinCard({
   id,
   name,
-  blurb,
   cost,
   owned,
   equipped,
@@ -210,7 +200,6 @@ function SkinCard({
 }: {
   id: string;
   name: string;
-  blurb: string;
   cost: number;
   owned: boolean;
   equipped: boolean;
@@ -231,7 +220,6 @@ function SkinCard({
     <article className="rounded-card border border-line bg-paper p-3 text-paper-ink">
       <canvas ref={ref} className="h-36 w-full rounded-xl" />
       <h3 className="mt-2 font-display text-lg">{name}</h3>
-      <p className="text-sm opacity-70">{blurb}</p>
       <p className="mt-1 text-sm">{cost} cr</p>
       {owned ? (
         <button type="button" onClick={onEquip} className="mt-2 w-full rounded-full bg-paper-ink py-2 text-sm text-cream">

@@ -36,9 +36,7 @@ function ProfileGate() {
   return (
     <Shell>
       <div className="mx-auto max-w-3xl">
-        <p className="font-display text-xs tracking-[0.28em] text-cyan uppercase">First time in chat</p>
-        <h1 className="mt-2 font-display text-4xl font-bold">Pick a face</h1>
-        <p className="mt-2 text-mute">Twenty low-poly portraits. This name is how the yard knows you on this device.</p>
+        <h1 className="font-display text-4xl font-bold">Pick a face</h1>
         <label className="mt-6 block text-sm text-mute">
           Username
           <input
@@ -203,12 +201,11 @@ function ChatApp() {
                   if (id) void navigate({ search: { room: id } });
                 }}
               >
-                <p className="text-sm text-mute">Private rooms need a code.</p>
                 <input
                   value={code}
                   onChange={(event) => setCode(event.target.value)}
                   placeholder="Invite code"
-                  className="mt-2 w-full rounded-xl border border-line bg-ink px-3 py-2"
+                  className="w-full rounded-xl border border-line bg-ink px-3 py-2"
                 />
                 <button type="submit" className="mt-2 text-sm text-cyan">
                   Join with code
@@ -258,9 +255,7 @@ function ChatApp() {
               <header className="flex flex-wrap items-center gap-2 border-b border-line/60 bg-ink/55 px-4 py-3 backdrop-blur">
                 <div className="mr-auto">
                   <p className="font-display text-lg font-bold">{active.title}</p>
-                  <p className="text-xs text-cream/80">
-                    {canTalk ? `Code ${active.inviteCode}` : "Join before you can speak"}
-                  </p>
+                  {canTalk ? <p className="text-xs text-cream/80">Code {active.inviteCode}</p> : null}
                 </div>
                 <label className="text-xs text-cream">
                   Look
@@ -332,14 +327,11 @@ function ChatApp() {
                     </div>
                   ) : null}
                 </form>
-              ) : (
-                <p className="bg-ink/70 p-4 text-sm text-mute">Join this room to talk. Private rooms stay locked without a code.</p>
-              )}
+              ) : null}
             </>
           ) : (
             <div className="m-auto max-w-md p-6 text-center">
               <p className="font-display text-2xl">No room open</p>
-              <p className="mt-2 text-mute">Join a public plaza or punch in an invite. Your face is {profile.username}.</p>
             </div>
           )}
         </section>

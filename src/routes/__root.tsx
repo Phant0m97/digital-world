@@ -12,7 +12,6 @@ export const Route = createRootRoute({
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: APP_NAME },
-      { name: "description", content: "Chat in themed rooms, then drop into paintball with the people you invited." },
       { name: "theme-color", content: "#07070b" },
     ],
     links: [
