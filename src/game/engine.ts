@@ -31,6 +31,7 @@ export type HudSnap = {
   alive: number;
   feed: string[];
   ended: boolean;
+  zoom: number;
 };
 
 export type Placement = {
@@ -135,6 +136,18 @@ const SPAWNS = [
 ];
 const LEFT_SPAWNS = [SPAWNS[0]!, SPAWNS[2]!, SPAWNS[3]!];
 const RIGHT_SPAWNS = [SPAWNS[1]!, SPAWNS[5]!, SPAWNS[4]!];
+
+const ZOOMS = [1.9, 1.55, 1.25, 1, 0.8, 0.6];
+const ZOOM_KEY = "dw-paintball-zoom";
+
+function readZoom() {
+  try {
+    const saved = Number(localStorage.getItem(ZOOM_KEY));
+    return ZOOMS.find((step) => Math.abs(step - saved) < 0.02) ?? 1;
+  } catch {
+    return 1;
+  }
+}
 
 const INK = "#1a1a1a";
 const CREAM = "#f3f0e8";
@@ -333,6 +346,7 @@ export function createMatch(
   let camY = 160;
   let viewW = 980;
   let viewH = 640;
+  let zoom = readZoom();
   let raf = 0;
   let audio: AudioContext | null = null;
   let prevJump = false;
@@ -848,7 +862,8 @@ export function createMatch(
     canvas.width = Math.max(1, Math.floor(rect.width * dpr));
     canvas.height = Math.max(1, Math.floor(rect.height * dpr));
     const width = rect.width;
-    viewW = width < 700 ? 500 : 640;
+    const base = width < 700 ? 500 : 640;
+    viewW = base * zoom;
     viewH = viewW * (rect.height / Math.max(1, width));
   }
 
@@ -1037,10 +1052,27 @@ export function createMatch(
     }
   }
 
+  function onWheel(event: WheelEvent) {
+    event.preventDefault();
+    setZoom(event.deltaY < 0 ? 1 : -1);
+  }
+
+  function setZoom(dir: number) {
+    const index = ZOOMS.findIndex((step) => Math.abs(step - zoom) < 0.02);
+    zoom = ZOOMS[clamp(index + dir, 0, ZOOMS.length - 1)] ?? 1;
+    try {
+      localStorage.setItem(ZOOM_KEY, String(zoom));
+    } catch {
+      /* private mode */
+    }
+    return zoom;
+  }
+
   canvas.addEventListener("pointerdown", onPointer);
   canvas.addEventListener("pointermove", onPointer);
   window.addEventListener("pointerup", onPointerUp);
   canvas.addEventListener("pointerleave", onLeave);
+  canvas.addEventListener("wheel", onWheel, { passive: false });
   window.addEventListener("keydown", onKeyDown);
   window.addEventListener("keyup", onKeyUp);
   window.addEventListener("blur", onBlur);
@@ -1076,6 +1108,7 @@ export function createMatch(
       canvas.removeEventListener("pointermove", onPointer);
       window.removeEventListener("pointerup", onPointerUp);
       canvas.removeEventListener("pointerleave", onLeave);
+      canvas.removeEventListener("wheel", onWheel);
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
       window.removeEventListener("blur", onBlur);
@@ -1085,6 +1118,7 @@ export function createMatch(
       Object.assign(touch, next);
       if (next.jump || next.fire || next.moveX) unlock();
     },
+    setZoom,
     getHud(): HudSnap {
       const self = you();
       const leader = [...fighters].sort((a, b) => b.score - a.score)[0];
@@ -1105,6 +1139,7 @@ export function createMatch(
         alive: fighters.filter((fighter) => fighter.alive).length,
         feed: [...feed],
         ended,
+        zoom,
       };
     },
   };

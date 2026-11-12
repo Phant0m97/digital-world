@@ -16,6 +16,7 @@ const emptyHud: HudSnap = {
   alive: 0,
   feed: [],
   ended: false,
+  zoom: 1,
 };
 
 export function MatchView({
@@ -54,6 +55,25 @@ export function MatchView({
   return (
     <div className="arena-shell relative h-full min-h-[70dvh]">
       <canvas ref={canvasRef} className="arena-canvas h-full w-full" />
+      <div className="absolute top-3 left-3 z-10 flex items-center gap-1 rounded-2xl border-2 border-ink bg-[#f3f0e8] p-1 text-ink">
+        <button
+          type="button"
+          aria-label="Zoom out"
+          className="grid size-8 place-items-center rounded-full bg-cream text-lg"
+          onClick={() => api.current?.setZoom(-1)}
+        >
+          −
+        </button>
+        <span className="min-w-10 text-center text-xs">{(1 / hud.zoom).toFixed(1)}×</span>
+        <button
+          type="button"
+          aria-label="Zoom in"
+          className="grid size-8 place-items-center rounded-full bg-cream text-lg"
+          onClick={() => api.current?.setZoom(1)}
+        >
+          +
+        </button>
+      </div>
       <div className="pointer-events-none absolute top-3 right-3 left-3 flex justify-end">
         <div className="rounded-2xl border-2 border-ink bg-[#f3f0e8] px-3 py-2 text-right text-xs text-ink">
           <p>{hud.weapon}</p>
