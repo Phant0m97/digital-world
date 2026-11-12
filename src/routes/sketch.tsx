@@ -38,6 +38,7 @@ function SketchPage() {
   const credits = useWorld((state) => state.credits);
   const ownedPens = useWorld((state) => state.ownedPens) ?? [];
   const buyPen = useWorld((state) => state.buyPen);
+  const award = useWorld((state) => state.award);
   const [wall, setWall] = useState<WallSnapshot>(EMPTY);
   const [title, setTitle] = useState("");
   const [guest, setGuest] = useState("");
@@ -73,6 +74,25 @@ function SketchPage() {
     return () => window.removeEventListener("keydown", onKey);
   }, [openId]);
 
+  useEffect(() => {
+    if (!wall.me) return;
+    const paid = readPaidHearts();
+    let fresh = 0;
+    for (const post of wall.posts) {
+      if (post.author !== wall.me) continue;
+      for (const liker of wall.hearts[post.id] ?? []) {
+        if (liker === wall.me) continue;
+        const key = `${post.id}:${liker}`;
+        if (paid.has(key)) continue;
+        paid.add(key);
+        fresh += 1;
+      }
+    }
+    if (!fresh) return;
+    writePaidHearts(paid);
+    award(fresh * 5);
+  }, [wall, award]);
+
   const open = wall.posts.find((post) => post.id === openId) ?? null;
   const name = profile?.username || guest.trim() || "Guest";
 
@@ -106,7 +126,7 @@ function SketchPage() {
         setNote(result.reason);
         return;
       }
-      setNote(result.shared ? "Posted on the wall." : "Posted here. The wall will catch up when it can.");
+      setNote(result.shared ? "Posted." : "Posted here. Others will see it when the connection catches up.");
     });
   }
 
@@ -316,12 +336,12 @@ function SketchPage() {
           {note ? <p className="mt-3 text-sm text-mute">{note}</p> : null}
         </section>
         <section>
-          <h2 className="font-display text-2xl font-bold">The wall</h2>
+          <h2 className="font-display text-2xl font-bold">Posts</h2>
           <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
             {!hydrated || !seen ? <p className="col-span-full text-mute">Looking for drawings…</p> : null}
             {hydrated && seen && wall.posts.length === 0 ? (
               <p className="col-span-full rounded-card border border-line bg-panel-2 px-4 py-6 text-mute">
-                Nothing on the wall yet. Post the first picture.
+                Nothing posted yet. Post the first picture.
               </p>
             ) : null}
             {wall.posts.map((post, index) => {
@@ -423,6 +443,21 @@ function PaintingDialog({
       </div>
     </div>
   );
+}
+
+const PAID_HEARTS = "dw-sketch-paid-hearts-v1";
+
+function readPaidHearts() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(PAID_HEARTS) || "[]") as unknown;
+    return new Set(Array.isArray(parsed) ? parsed.filter((item) => typeof item === "string") : []);
+  } catch {
+    return new Set<string>();
+  }
+}
+
+function writePaidHearts(paid: Set<string>) {
+  localStorage.setItem(PAID_HEARTS, JSON.stringify([...paid].slice(-500)));
 }
 
 function ColorWheel({ hue, onHue }: { hue: number; onHue: (hue: number) => void }) {

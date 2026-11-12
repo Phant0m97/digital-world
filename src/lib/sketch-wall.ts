@@ -418,7 +418,7 @@ export async function postSketch(input: {
   const strokes = normalizeStrokes(input.strokes);
   if (!strokes) return { ok: false, reason: "Draw something first." };
   const pk = await ensureIdentity();
-  if (!pk) return { ok: false, reason: "Couldn't open the wall." };
+  if (!pk) return { ok: false, reason: "Couldn't open posts." };
   me = pk;
   const post: SketchPost = {
     id: `sk-${Math.random().toString(36).slice(2, 10)}`,
