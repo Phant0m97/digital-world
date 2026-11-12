@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Avatar } from "@/components/avatar";
 import { Shell, useHydrated } from "@/components/shell";
 import { AVATARS, GIFS, THEMES, type ThemeId } from "@/data/catalog";
@@ -105,6 +105,7 @@ function ChatApp() {
   const [panel, setPanel] = useState<"rooms" | "people">("rooms");
   const [selfId, setSelfId] = useState("");
   const scroller = useRef<HTMLDivElement>(null);
+  const pinned = useRef(true);
 
   const openRooms = rooms.filter((room) => room.visibility === "public" || joined.includes(room.id));
   const active = rooms.find((room) => room.id === search.room) ?? null;
@@ -125,9 +126,18 @@ function ChatApp() {
     return subscribeRoom(activeId, pushMessage, removeMessage);
   }, [activeId, canTalk, pushMessage, removeMessage]);
 
-  useEffect(() => {
-    scroller.current?.scrollTo({ top: scroller.current.scrollHeight });
-  }, [thread.length, active?.id]);
+  useLayoutEffect(() => {
+    pinned.current = true;
+    const node = scroller.current;
+    if (!node) return;
+    node.scrollTop = node.scrollHeight;
+  }, [activeId]);
+
+  useLayoutEffect(() => {
+    const node = scroller.current;
+    if (!node || !pinned.current) return;
+    node.scrollTop = node.scrollHeight;
+  }, [thread.length, activeId]);
 
   const speakers = useMemo(() => {
     const seen = new Map<string, { id: string; name: string; avatarId: string }>();
@@ -158,8 +168,8 @@ function ChatApp() {
 
   return (
     <Shell bare>
-      <div className="grid min-h-[calc(100dvh-4.5rem)] lg:grid-cols-[280px_1fr_280px]">
-        <aside className="border-b border-line lg:border-r lg:border-b-0">
+      <div className="grid h-[calc(100dvh-4.25rem)] overflow-hidden lg:grid-cols-[280px_1fr_280px]">
+        <aside className={`${active ? "hidden" : "flex"} min-h-0 flex-col overflow-y-auto border-b border-line lg:flex lg:border-r lg:border-b-0`}>
           <div className="flex gap-2 p-3">
             <button type="button" className={tab(panel === "rooms")} onClick={() => setPanel("rooms")}>
               Rooms
@@ -267,10 +277,17 @@ function ChatApp() {
           )}
         </aside>
 
-        <section className="flex min-h-[70dvh] flex-col" data-theme={theme} style={themeStyle(theme)}>
+        <section className={`${active ? "flex" : "hidden"} min-h-0 flex-col lg:flex`} data-theme={theme} style={themeStyle(theme)}>
           {active ? (
             <>
-              <header className="flex flex-wrap items-center gap-2 border-b border-line/60 bg-ink/55 px-4 py-3 backdrop-blur">
+              <header className="flex shrink-0 flex-wrap items-center gap-2 border-b border-line/60 bg-ink/55 px-4 py-3 backdrop-blur">
+                <button
+                  type="button"
+                  className="rounded-full border border-line px-3 py-2 text-sm lg:hidden"
+                  onClick={() => void navigate({ search: { room: "" } })}
+                >
+                  Rooms
+                </button>
                 <div className="mr-auto">
                   <p className="font-display text-lg font-bold">{active.title}</p>
                   {canTalk ? <p className="text-xs text-cream/80">Code {active.inviteCode}</p> : null}
@@ -290,7 +307,18 @@ function ChatApp() {
                   </select>
                 </label>
               </header>
-              <div ref={scroller} className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
+              <div
+                ref={scroller}
+                onScroll={(event) => {
+                  const node = event.currentTarget;
+                  pinned.current = node.scrollHeight - node.scrollTop - node.clientHeight < 80;
+                }}
+                onLoadCapture={() => {
+                  const node = scroller.current;
+                  if (node && pinned.current) node.scrollTop = node.scrollHeight;
+                }}
+                className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-4"
+              >
                 {thread.map((message) => (
                   <MessageRow
                     key={message.id}
@@ -307,7 +335,7 @@ function ChatApp() {
               </div>
               {canTalk ? (
                 <form
-                  className="border-t border-line/60 bg-ink/70 p-3"
+                  className="shrink-0 border-t border-line/60 bg-ink/70 p-3"
                   onSubmit={(event) => {
                     event.preventDefault();
                     onSend();
@@ -358,7 +386,7 @@ function ChatApp() {
           )}
         </section>
 
-        <aside className="hidden border-l border-line p-4 lg:block">
+        <aside className="hidden min-h-0 overflow-y-auto border-l border-line p-4 lg:block">
           <p className="font-display text-xs tracking-[0.22em] text-mute uppercase">In this room</p>
           <ul className="mt-3 space-y-2">
             <li className="flex items-center gap-2">
