@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useRef, useState } from "react";
 import { Shell, useHydrated } from "@/components/shell";
-import { AVATARS, MODES, PAINTS, SKIN_HEX, SKINS, paintHex, weaponById, type Dyes, type Loadout, type ModeId } from "@/data/catalog";
+import { AVATARS, MODES, PAINTS, SKIN_HEX, SKINS, paintHex, weaponById, wornList, type Dyes, type Loadout, type ModeId } from "@/data/catalog";
 import { MatchView } from "@/game/match-view";
 import type { MatchFighterSetup, MatchResult, MatchSetup } from "@/game/engine";
 import { useWorld } from "@/lib/store";
@@ -44,8 +44,9 @@ function PlayPage() {
     const youName = profile?.username || "You";
     const others: MatchFighterSetup[] = [];
     const colors = PAINTS.map((item) => item.hex).filter((hex) => hex !== paintHex(paint));
+    const worn = wornList(loadout);
     const youDyes: Dyes = Object.fromEntries(
-      loadout.map((id) => [id, cosmeticColors[id] ? paintHex(cosmeticColors[id]) : (SKIN_HEX[id] ?? paintHex(paint))]),
+      worn.map((id) => [id, cosmeticColors[id] ? paintHex(cosmeticColors[id]) : (SKIN_HEX[id] ?? paintHex(paint))]),
     );
     party.forEach((member, index) => {
       others.push({
@@ -79,7 +80,7 @@ function PlayPage() {
       you: {
         name: youName,
         color: paintHex(paint),
-        loadout,
+        loadout: worn,
         dyes: youDyes,
         weapon,
         bot: false,

@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { AVATARS, EMPTY_LOADOUT, skinById, type Loadout, type ModeId, type ThemeId } from "@/data/catalog";
+import { AVATARS, EMPTY_LOADOUT, skinById, wornList, type Loadout, type ModeId, type ThemeId } from "@/data/catalog";
 
 export type Profile = { username: string; avatarId: string };
 
@@ -268,7 +268,7 @@ export const useWorld = create<World>()(
         set({
           credits: state.credits - cost,
           ownedSkins: [...state.ownedSkins, id],
-          equipped: state.equipped.includes(id) ? state.equipped : [...state.equipped, id],
+          equipped: wornList(state.equipped).includes(id) ? wornList(state.equipped) : [...wornList(state.equipped), id],
         });
         return true;
       },
@@ -284,7 +284,7 @@ export const useWorld = create<World>()(
       },
       equipSkin: (id) => {
         if (!skinById(id) || !get().ownedSkins.includes(id)) return;
-        const equipped = get().equipped;
+        const equipped = wornList(get().equipped);
         set({ equipped: equipped.includes(id) ? equipped.filter((worn) => worn !== id) : [...equipped, id] });
       },
       setWeapon: (id) => {
@@ -300,7 +300,11 @@ export const useWorld = create<World>()(
     }),
     {
       name: "digitalworld-v1",
-      version: 5,
+      version: 6,
+      merge: (persisted, current) => {
+        const saved = (persisted ?? {}) as Partial<World>;
+        return { ...current, ...saved, equipped: wornList(saved.equipped) };
+      },
       migrate: (persisted, version) => {
         if (!persisted || typeof persisted !== "object") return persisted;
         const state = persisted as {
@@ -326,19 +330,7 @@ export const useWorld = create<World>()(
           state.joinedRoomIds = (state.joinedRoomIds ?? []).filter((id) => roomIds.has(id));
         }
         if ((version ?? 0) < 4) state.cosmeticColors = state.cosmeticColors ?? {};
-        if ((version ?? 0) < 5) {
-          const alias: Record<string, string> = { gasmask: "gas", camo: "swat" };
-          const keep = new Set(["bandana", "hoodie", "beanie", "mohawk", "visor", "cape", "gas", "swat"]);
-          const raw = state.equipped;
-          const ids = Array.isArray(raw)
-            ? raw
-            : raw && typeof raw === "object"
-              ? [raw.head, raw.body, raw.legs, state.equippedSkin]
-              : [];
-          state.equipped = [...new Set(ids.filter((id): id is string => typeof id === "string").map((id) => alias[id] ?? id))].filter(
-            (id) => keep.has(id),
-          );
-        }
+        state.equipped = wornList(state.equipped ?? state.equippedSkin);
         return state;
       },
     },

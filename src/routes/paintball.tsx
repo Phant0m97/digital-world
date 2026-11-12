@@ -9,6 +9,7 @@ import {
   SKINS,
   WEAPONS,
   paintHex,
+  wornList,
   type Dyes,
   type Loadout,
   type ModeId,
@@ -48,8 +49,9 @@ function Locker() {
   const setWeapon = useWorld((state) => state.setWeapon);
   const toggleParty = useWorld((state) => state.toggleParty);
   const profile = useWorld((state) => state.profile);
+  const worn = wornList(equipped);
   const [looking, setLooking] = useState<string | null>(null);
-  const preview = looking && !equipped.includes(looking) ? [...equipped, looking] : equipped;
+  const preview = looking && !worn.includes(looking) ? [...worn, looking] : worn;
   const dyes: Dyes = Object.fromEntries(
     preview.map((id) => [id, cosmeticColors[id] ? paintHex(cosmeticColors[id]) : (SKIN_HEX[id] ?? paintHex(paint))]),
   );
@@ -132,7 +134,7 @@ function Locker() {
           <div className="grid gap-4 sm:grid-cols-2">
             {SKINS.map((item) => {
               const owned = ownedSkins.includes(item.id);
-              const on = equipped.includes(item.id);
+              const on = worn.includes(item.id);
               return (
                 <article
                   key={item.id}

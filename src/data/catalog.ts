@@ -235,6 +235,20 @@ export type Dyes = Record<string, string>;
 
 export const EMPTY_LOADOUT: Loadout = [];
 
+const SKIN_ALIAS: Record<string, string> = { gasmask: "gas", camo: "swat" };
+
+export function wornList(value: unknown): string[] {
+  const ids = Array.isArray(value)
+    ? value
+    : value && typeof value === "object"
+      ? Object.values(value as Record<string, unknown>)
+      : [];
+  const keep = new Set(SKINS.map((skin) => skin.id));
+  return [...new Set(ids.filter((id): id is string => typeof id === "string").map((id) => SKIN_ALIAS[id] ?? id))].filter((id) =>
+    keep.has(id as (typeof SKINS)[number]["id"]),
+  );
+}
+
 export const SKINS = [
   { id: "bandana", name: "Bandana", cost: 30 },
   { id: "hoodie", name: "Hoodie", cost: 55 },
