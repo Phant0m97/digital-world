@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useRef, useState } from "react";
 import { Shell, useHydrated } from "@/components/shell";
-import { AVATARS, MODES, PAINTS, SKINS, paintHex, weaponById, type CosmeticSlot, type Dyes, type Loadout, type ModeId } from "@/data/catalog";
+import { AVATARS, MODES, PAINTS, SKIN_HEX, SKINS, paintHex, weaponById, type Dyes, type Loadout, type ModeId } from "@/data/catalog";
 import { MatchView } from "@/game/match-view";
 import type { MatchFighterSetup, MatchResult, MatchSetup } from "@/game/engine";
 import { useWorld } from "@/lib/store";
@@ -20,16 +20,11 @@ function clampPlayers(value: number) {
 }
 
 function botLoadout(n: number): Loadout {
-  const pick = (slot: CosmeticSlot, salt: number) => {
-    const options = [null, ...SKINS.filter((item) => item.slot === slot).map((item) => item.id)];
-    return options[(n + salt) % options.length] ?? null;
-  };
-  return { head: pick("head", 1), body: pick("body", 3), legs: pick("legs", 5) };
+  return SKINS.filter((_, index) => (n + index) % 3 === 0).map((skin) => skin.id);
 }
 
 function botDyes(n: number): Dyes {
-  const hex = (salt: number) => PAINTS[(n + salt) % PAINTS.length]!.hex;
-  return { head: hex(1), body: hex(3), legs: hex(5) };
+  return Object.fromEntries(SKINS.map((skin, index) => [skin.id, PAINTS[(n + index) % PAINTS.length]!.hex]));
 }
 
 function PlayPage() {
@@ -49,11 +44,9 @@ function PlayPage() {
     const youName = profile?.username || "You";
     const others: MatchFighterSetup[] = [];
     const colors = PAINTS.map((item) => item.hex).filter((hex) => hex !== paintHex(paint));
-    const youDyes: Dyes = {
-      head: paintHex(loadout.head ? (cosmeticColors[loadout.head] ?? paint) : paint),
-      body: paintHex(loadout.body ? (cosmeticColors[loadout.body] ?? paint) : paint),
-      legs: paintHex(loadout.legs ? (cosmeticColors[loadout.legs] ?? paint) : paint),
-    };
+    const youDyes: Dyes = Object.fromEntries(
+      loadout.map((id) => [id, cosmeticColors[id] ? paintHex(cosmeticColors[id]) : (SKIN_HEX[id] ?? paintHex(paint))]),
+    );
     party.forEach((member, index) => {
       others.push({
         name: member.name,

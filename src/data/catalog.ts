@@ -229,59 +229,33 @@ export const WEAPONS: WeaponDef[] = [
   },
 ];
 
-export type CosmeticSlot = "head" | "body" | "legs";
+export type Loadout = string[];
 
-export type Loadout = {
-  head: string | null;
-  body: string | null;
-  legs: string | null;
+export type Dyes = Record<string, string>;
+
+export const EMPTY_LOADOUT: Loadout = [];
+
+export const SKINS = [
+  { id: "bandana", name: "Bandana", cost: 30 },
+  { id: "hoodie", name: "Hoodie", cost: 55 },
+  { id: "beanie", name: "Beanie", cost: 40 },
+  { id: "mohawk", name: "Mohawk", cost: 50 },
+  { id: "visor", name: "Visor", cost: 65 },
+  { id: "cape", name: "Cape", cost: 80 },
+  { id: "gas", name: "Gas Mask", cost: 90 },
+  { id: "swat", name: "Camo", cost: 140 },
+] as const;
+
+export const SKIN_HEX: Record<string, string> = {
+  bandana: "#ff3d6e",
+  hoodie: "#12c7a8",
+  beanie: "#ff8a3d",
+  mohawk: "#f2c14e",
+  visor: "#22252e",
+  cape: "#9b6bff",
+  gas: "#22252e",
+  swat: "#7ed957",
 };
-
-export type Dyes = {
-  head: string;
-  body: string;
-  legs: string;
-};
-
-export const EMPTY_LOADOUT: Loadout = { head: null, body: null, legs: null };
-
-export type SkinId =
-  | "bandana"
-  | "beanie"
-  | "mohawk"
-  | "visor"
-  | "gasmask"
-  | "camo"
-  | "shirt"
-  | "hoodie"
-  | "cape"
-  | "vest"
-  | "shorts"
-  | "pants"
-  | "boots";
-
-export type SkinDef = {
-  id: SkinId;
-  name: string;
-  cost: number;
-  slot: CosmeticSlot;
-};
-
-export const SKINS: SkinDef[] = [
-  { id: "bandana", name: "Bandana", cost: 30, slot: "head" },
-  { id: "beanie", name: "Beanie", cost: 40, slot: "head" },
-  { id: "mohawk", name: "Mohawk", cost: 50, slot: "head" },
-  { id: "visor", name: "Visor", cost: 65, slot: "head" },
-  { id: "gasmask", name: "Gas Mask", cost: 90, slot: "head" },
-  { id: "camo", name: "Helmet", cost: 80, slot: "head" },
-  { id: "shirt", name: "Shirt", cost: 20, slot: "body" },
-  { id: "hoodie", name: "Hoodie", cost: 55, slot: "body" },
-  { id: "cape", name: "Cape", cost: 80, slot: "body" },
-  { id: "vest", name: "Vest", cost: 45, slot: "body" },
-  { id: "shorts", name: "Shorts", cost: 25, slot: "legs" },
-  { id: "pants", name: "Pants", cost: 40, slot: "legs" },
-  { id: "boots", name: "Boots", cost: 35, slot: "legs" },
-];
 
 export const MODES = [
   {
@@ -322,8 +296,8 @@ export function weaponById(id: string): WeaponDef {
   return WEAPONS.find((w) => w.id === id) ?? WEAPONS[0]!;
 }
 
-export function skinById(id: string | null): SkinDef | undefined {
-  return SKINS.find((s) => s.id === id);
+export function skinById(id: string | null) {
+  return SKINS.find((skin) => skin.id === id);
 }
 
 export function avatarById(id: string): AvatarDef {

@@ -111,7 +111,7 @@ export const useWorld = create<World>()(
       credits: 45,
       ownedSkins: [],
       ownedWeapons: ["marker"],
-      equipped: { ...EMPTY_LOADOUT },
+      equipped: [...EMPTY_LOADOUT],
       equippedWeapon: "marker",
       paint: "cyan",
       cosmeticColors: {},
@@ -268,7 +268,7 @@ export const useWorld = create<World>()(
         set({
           credits: state.credits - cost,
           ownedSkins: [...state.ownedSkins, id],
-          equipped: { ...state.equipped, [item.slot]: id },
+          equipped: state.equipped.includes(id) ? state.equipped : [...state.equipped, id],
         });
         return true;
       },
@@ -283,11 +283,9 @@ export const useWorld = create<World>()(
         return true;
       },
       equipSkin: (id) => {
-        const item = skinById(id);
-        if (!item || !get().ownedSkins.includes(id)) return;
-        const equipped = { ...get().equipped };
-        equipped[item.slot] = equipped[item.slot] === id ? null : id;
-        set({ equipped });
+        if (!skinById(id) || !get().ownedSkins.includes(id)) return;
+        const equipped = get().equipped;
+        set({ equipped: equipped.includes(id) ? equipped.filter((worn) => worn !== id) : [...equipped, id] });
       },
       setWeapon: (id) => {
         if (!get().ownedWeapons.includes(id)) return;
@@ -302,7 +300,7 @@ export const useWorld = create<World>()(
     }),
     {
       name: "digitalworld-v1",
-      version: 4,
+      version: 5,
       migrate: (persisted, version) => {
         if (!persisted || typeof persisted !== "object") return persisted;
         const state = persisted as {
@@ -311,7 +309,7 @@ export const useWorld = create<World>()(
           friends?: Friend[];
           party?: PartyMember[];
           joinedRoomIds?: string[];
-          equipped?: Loadout;
+          equipped?: Loadout | { head?: string | null; body?: string | null; legs?: string | null };
           equippedSkin?: string | null;
           cosmeticColors?: Record<string, string>;
         };
@@ -327,13 +325,20 @@ export const useWorld = create<World>()(
           state.party = (state.party ?? []).filter((member) => !regulars.has(member.id));
           state.joinedRoomIds = (state.joinedRoomIds ?? []).filter((id) => roomIds.has(id));
         }
-        if ((version ?? 0) < 3) {
-          const equipped = { ...EMPTY_LOADOUT, ...(state.equipped ?? {}) };
-          const previous = skinById(state.equippedSkin ?? null);
-          if (previous) equipped[previous.slot] = previous.id;
-          state.equipped = equipped;
-        }
         if ((version ?? 0) < 4) state.cosmeticColors = state.cosmeticColors ?? {};
+        if ((version ?? 0) < 5) {
+          const alias: Record<string, string> = { gasmask: "gas", camo: "swat" };
+          const keep = new Set(["bandana", "hoodie", "beanie", "mohawk", "visor", "cape", "gas", "swat"]);
+          const raw = state.equipped;
+          const ids = Array.isArray(raw)
+            ? raw
+            : raw && typeof raw === "object"
+              ? [raw.head, raw.body, raw.legs, state.equippedSkin]
+              : [];
+          state.equipped = [...new Set(ids.filter((id): id is string => typeof id === "string").map((id) => alias[id] ?? id))].filter(
+            (id) => keep.has(id),
+          );
+        }
         return state;
       },
     },

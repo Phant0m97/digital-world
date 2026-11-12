@@ -5,11 +5,10 @@ import { Shell, useHydrated } from "@/components/shell";
 import {
   MODES,
   PAINTS,
+  SKIN_HEX,
   SKINS,
   WEAPONS,
   paintHex,
-  skinById,
-  type CosmeticSlot,
   type Dyes,
   type Loadout,
   type ModeId,
@@ -49,18 +48,11 @@ function Locker() {
   const setWeapon = useWorld((state) => state.setWeapon);
   const toggleParty = useWorld((state) => state.toggleParty);
   const profile = useWorld((state) => state.profile);
-  const [slot, setSlot] = useState<CosmeticSlot>("head");
   const [looking, setLooking] = useState<string | null>(null);
-  const preview: Loadout = { ...equipped };
-  const peeked = skinById(looking);
-  if (peeked && peeked.slot === slot) preview[peeked.slot] = peeked.id;
-  const dye = (id: string | null) => paintHex(id ? (cosmeticColors[id] ?? paint) : paint);
-  const dyes: Dyes = { head: dye(preview.head), body: dye(preview.body), legs: dye(preview.legs) };
-  const slots: { id: CosmeticSlot; label: string }[] = [
-    { id: "head", label: "Head" },
-    { id: "body", label: "Body" },
-    { id: "legs", label: "Legs" },
-  ];
+  const preview = looking && !equipped.includes(looking) ? [...equipped, looking] : equipped;
+  const dyes: Dyes = Object.fromEntries(
+    preview.map((id) => [id, cosmeticColors[id] ? paintHex(cosmeticColors[id]) : (SKIN_HEX[id] ?? paintHex(paint))]),
+  );
 
   return (
     <div className="flex flex-col gap-4">
@@ -133,29 +125,14 @@ function Locker() {
 
       <section className="grid items-start gap-6 lg:grid-cols-[7.5rem_1fr]">
         <div className="rounded-card border border-line bg-paper p-2 text-paper-ink">
-          <StickPreview loadout={preview} dyes={dyes} />
+          <StickPreview loadout={preview} dyes={dyes} paint={paintHex(paint)} />
           <p className="mt-1 text-center font-display text-sm">{profile?.username ?? "You"}</p>
         </div>
         <div>
-          <div className="mb-4 flex gap-2">
-            {slots.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => {
-                  setSlot(item.id);
-                  setLooking(null);
-                }}
-                className={`rounded-full px-4 py-2 text-sm ${slot === item.id ? "bg-cream text-ink" : "border border-line text-mute"}`}
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
           <div className="grid gap-4 sm:grid-cols-2">
-            {SKINS.filter((item) => item.slot === slot).map((item) => {
+            {SKINS.map((item) => {
               const owned = ownedSkins.includes(item.id);
-              const on = equipped[item.slot] === item.id;
+              const on = equipped.includes(item.id);
               return (
                 <article
                   key={item.id}
@@ -167,7 +144,7 @@ function Locker() {
                   </button>
                   <div className="mt-3 flex flex-wrap gap-1.5">
                     {PAINTS.map((swatch) => {
-                      const chosen = (cosmeticColors[item.id] ?? paint) === swatch.id;
+                      const chosen = cosmeticColors[item.id] === swatch.id;
                       return (
                         <button
                           key={swatch.id}
@@ -255,14 +232,16 @@ function Locker() {
   );
 }
 
-function StickPreview({ loadout, dyes }: { loadout: Loadout; dyes: Dyes }) {
+function StickPreview({ loadout, dyes, paint }: { loadout: Loadout; dyes: Dyes; paint: string }) {
   const ref = useRef<HTMLCanvasElement>(null);
+  const worn = loadout.join(",");
+  const colors = Object.values(dyes).join(",");
   useEffect(() => {
     const canvas = ref.current;
     if (!canvas) return;
-    canvas.width = 280;
-    canvas.height = 420;
-    paintPreview(canvas, loadout, dyes);
-  }, [loadout.head, loadout.body, loadout.legs, dyes.head, dyes.body, dyes.legs]);
-  return <canvas ref={ref} width={280} height={420} className="mx-auto block h-36 w-auto rounded-xl" />;
+    canvas.width = 180;
+    canvas.height = 220;
+    paintPreview(canvas, loadout, dyes, paint);
+  }, [worn, colors, paint, loadout, dyes]);
+  return <canvas ref={ref} width={180} height={220} className="mx-auto block h-40 w-auto rounded-xl" />;
 }
