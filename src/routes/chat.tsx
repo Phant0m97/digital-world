@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Avatar } from "@/components/avatar";
+import { AvatarPicker } from "@/components/avatar-picker";
 import { Shell, useHydrated } from "@/components/shell";
 import { AVATARS, GIFS, THEMES, type ThemeId } from "@/data/catalog";
 import { asset } from "@/lib/asset";
@@ -89,18 +90,8 @@ function ProfileGate() {
           />
         </label>
         {mode === "create" ? (
-          <div className="mt-5 grid grid-cols-4 gap-2 sm:grid-cols-5">
-            {AVATARS.map((avatar) => (
-              <button
-                key={avatar.id}
-                type="button"
-                onClick={() => setAvatarId(avatar.id)}
-                className={`rounded-2xl border p-1 text-left ${avatarId === avatar.id ? "border-cyan" : "border-transparent"}`}
-              >
-                <Avatar id={avatar.id} className="w-full" />
-                <span className="mt-1 block truncate px-1 text-xs">{avatar.name}</span>
-              </button>
-            ))}
+          <div className="mt-5">
+            <AvatarPicker value={avatarId} onChange={setAvatarId} />
           </div>
         ) : null}
         {note ? <p className="mt-4 text-sm text-mute">{note}</p> : null}
@@ -671,20 +662,7 @@ function ProfilePanel() {
           className="mt-2 w-full rounded-xl border border-line bg-ink px-3 py-2 text-cream"
         />
       </label>
-      <div className="grid grid-cols-4 gap-2">
-        {AVATARS.map((avatar) => (
-          <button
-            key={avatar.id}
-            type="button"
-            onClick={() => setAvatarId(avatar.id)}
-            className={`rounded-2xl border p-1 text-center ${avatarId === avatar.id ? "border-cyan" : "border-transparent"}`}
-            aria-label={avatar.name}
-          >
-            <Avatar id={avatar.id} className="w-full" />
-            <span className="mt-1 block px-0.5 text-[11px] leading-tight">{avatar.name}</span>
-          </button>
-        ))}
-      </div>
+      <AvatarPicker value={avatarId} onChange={setAvatarId} />
       {note ? <p className="text-xs text-mute">{note}</p> : null}
       <button
         type="button"
