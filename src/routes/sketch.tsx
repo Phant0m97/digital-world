@@ -179,6 +179,18 @@ function SketchPage() {
     setNote("Opened. You can keep drawing.");
   }
 
+  function moveLayer(direction: -1 | 1) {
+    setLayers((list) => {
+      const index = list.findIndex((layer) => layer.id === active.id);
+      const nextIndex = index + direction;
+      if (index < 0 || nextIndex < 0 || nextIndex >= list.length) return list;
+      const next = [...list];
+      const [item] = next.splice(index, 1);
+      next.splice(nextIndex, 0, item!);
+      return next;
+    });
+  }
+
   function remove(id: string) {
     void deleteSketch(id).then((ok) => {
       if (!ok) {
@@ -315,17 +327,16 @@ function SketchPage() {
             </button>
             <button
               type="button"
+              disabled={layers[0]?.id === active.id}
+              onClick={() => moveLayer(-1)}
+              className="rounded-full border border-line px-3 py-2 text-sm disabled:opacity-40"
+            >
+              Lower
+            </button>
+            <button
+              type="button"
               disabled={layers[layers.length - 1]?.id === active.id}
-              onClick={() =>
-                setLayers((list) => {
-                  const index = list.findIndex((layer) => layer.id === active.id);
-                  if (index < 0 || index === list.length - 1) return list;
-                  const next = [...list];
-                  const [item] = next.splice(index, 1);
-                  next.splice(index + 1, 0, item!);
-                  return next;
-                })
-              }
+              onClick={() => moveLayer(1)}
               className="rounded-full border border-line px-3 py-2 text-sm disabled:opacity-40"
             >
               Raise
@@ -699,10 +710,7 @@ function DrawBoard({
   onStroke: (stroke: SketchStroke) => void;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const stageRef = useRef<HTMLDivElement>(null);
-  const [full, setFull] = useState(false);
   const [cover, setCover] = useState(false);
-  const big = full || cover;
   const layersRef = useRef(layers);
   const activeRef = useRef(activeId);
   const colorRef = useRef(color);
@@ -718,18 +726,17 @@ function DrawBoard({
   lockedRef.current = locked;
 
   useEffect(() => {
-    const onChange = () => setFull(document.fullscreenElement === stageRef.current);
-    document.addEventListener("fullscreenchange", onChange);
-    return () => document.removeEventListener("fullscreenchange", onChange);
-  }, []);
-
-  useEffect(() => {
     if (!cover) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") setCover(false);
     };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = previous;
+      window.removeEventListener("keydown", onKey);
+    };
   }, [cover]);
 
   useEffect(() => {
@@ -758,10 +765,10 @@ function DrawBoard({
   }
 
   return (
-    <div ref={stageRef} className={`relative mt-4 bg-cream ${big ? "flex items-center justify-center" : ""} ${cover ? "fixed inset-0 z-40 m-0 h-dvh w-dvw" : ""} ${full ? "h-full w-full" : ""}`}>
+    <div className={cover ? "fixed inset-0 z-50 m-0 flex h-dvh w-dvw items-center justify-center bg-ink" : "relative mt-4 bg-cream"}>
       <canvas
         ref={canvasRef}
-        className={`touch-none bg-cream ${big ? "h-[min(100dvh,75dvw)] w-auto max-w-full" : "aspect-[4/3] w-full rounded-2xl"}`}
+        className={`touch-none bg-cream ${cover ? "h-[min(100dvh,75dvw)] w-auto max-w-full" : "aspect-[4/3] w-full rounded-2xl"}`}
         onPointerDown={(event) => {
         if (event.button !== 0 || lockedRef.current) return;
         event.currentTarget.setPointerCapture(event.pointerId);
@@ -782,22 +789,10 @@ function DrawBoard({
       />
       <button
         type="button"
-        onClick={() => {
-          const stage = stageRef.current;
-          if (!stage) return;
-          if (document.fullscreenElement) {
-            void document.exitFullscreen();
-            return;
-          }
-          if (cover) {
-            setCover(false);
-            return;
-          }
-          void stage.requestFullscreen().catch(() => setCover(true));
-        }}
+        onClick={() => setCover((open) => !open)}
         className="absolute top-3 right-3 z-10 min-h-11 rounded-full border border-line bg-ink/80 px-3 py-2 text-sm text-cream"
       >
-        {big ? "Exit" : "Fullscreen"}
+        {cover ? "Exit" : "Fullscreen"}
       </button>
     </div>
   );
