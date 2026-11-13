@@ -1,4 +1,4 @@
-export type Job = "none" | "cadet" | "officer" | "gang" | "president";
+export type Job = "none" | "cadet" | "officer" | "gang" | "cook" | "reporter" | "doctor" | "firefighter" | "teacher" | "lawyer" | "mayor" | "president";
 
 export type LifeState = {
   day: number;
@@ -38,9 +38,9 @@ const PAGES: Record<string, Page> = {
     b: { label: "Look for a day's pay first", next: "diner" },
   },
   diner: {
-    text: "Marco at the diner needs a closer. One shift, cash tonight, and he talks while he pours.",
-    a: { label: "Work the shift, then find Ruiz", next: "academy" },
-    b: { label: "Ask who runs the block after dark", next: "shop" },
+    text: "Marco needs a closer, then a cook. One shift pays tonight. The kitchen could be a life.",
+    a: { label: "Work one shift", next: "shift" },
+    b: { label: "Ask who else is hiring", next: "hiring" },
   },
   note: {
     text: "The note is short. Vale. After dark. Closed shoe shop. Come alone if you want the block to know your name.",
@@ -48,9 +48,130 @@ const PAGES: Record<string, Page> = {
     b: { label: "Ignore it and go downstairs", next: "stoop" },
   },
   stoop: {
-    text: "June is on the stoop with a coffee. \"Ruiz wants walkers. Vale wants hands. The block is picking sides.\"",
-    a: { label: "Ask where Ruiz is", next: "academy" },
-    b: { label: "Ask where Vale is", next: "shop" },
+    text: "June is on the stoop with a coffee. \"You can pick a side on this block, or you can pick a trade.\"",
+    a: { label: "Ask who is picking sides", next: "sides" },
+    b: { label: "Ask who is hiring", next: "hiring" },
+  },
+  sides: {
+    text: "Ruiz wants walkers. Vale wants hands. Both of them are close enough to shout.",
+    a: { label: "Go to Ruiz", next: "academy" },
+    b: { label: "Go to Vale", next: "shop" },
+  },
+  hiring: {
+    text: "Marco needs a cook. The free paper needs a writer. The rest of the block hires too.",
+    a: { label: "Go to the diner", next: "diner" },
+    b: { label: "Ask about the rest", next: "trades" },
+  },
+  trades: {
+    text: "The clinic and the firehouse share a wall. The school and a small law office share a stair.",
+    a: { label: "Clinic or firehouse", next: "aid" },
+    b: { label: "School or law office", next: "desk" },
+  },
+  aid: {
+    text: "Sam is taping a wrist in the clinic. Through the window, the firehouse doors are up.",
+    a: { label: "Ask Sam to teach you", next: "clinic" },
+    b: { label: "Walk into the firehouse", next: "firehouse" },
+  },
+  desk: {
+    text: "The school door is open. Upstairs, a lawyer's name is painted on the glass.",
+    a: { label: "Talk to the school", next: "school" },
+    b: { label: "Climb to the law office", next: "law" },
+  },
+  shift: {
+    text: "You close the diner. Marco slides cash over. \"Stay and I teach you the grill. Or go pick a side.\"",
+    a: { label: "Learn the grill", next: "grill" },
+    b: { label: "Go pick a side", next: "sides" },
+  },
+  grill: {
+    text: "A month of burns and breakfast. Marco holds out the morning keys.",
+    a: { label: "Take the keys", next: "cook" },
+    b: { label: "Write about the block instead", next: "paper" },
+  },
+  cook: {
+    job: "cook",
+    text: "You are a cook. The diner is yours from five until the street gets loud.",
+    a: { label: "Keep the kitchen", next: "cookend" },
+    b: { label: "Feed people, then call Ruth", next: "civic" },
+  },
+  paper: {
+    text: "The free paper is one room. Nia slides you a notebook. \"Write what the block will say out loud.\"",
+    a: { label: "Take the notebook", next: "notebook" },
+    b: { label: "This is not your trade", next: "hiring" },
+  },
+  notebook: {
+    text: "Your first piece names the shoe shop and the academy poster. People leave it on diner tables.",
+    a: { label: "Stay on the paper", next: "reporter" },
+    b: { label: "Use the piece to meet Ruth", next: "civic" },
+  },
+  reporter: {
+    job: "reporter",
+    text: "You are a reporter. The city reads your name in small type.",
+    a: { label: "Keep the notebook", next: "reportend" },
+    b: { label: "Run, and write less", next: "civic" },
+  },
+  clinic: {
+    text: "Sam says the ward will take you if you study at the counter between fevers.",
+    a: { label: "Study", next: "rounds" },
+    b: { label: "The firehouse is closer", next: "firehouse" },
+  },
+  rounds: {
+    text: "You study until the sentences blur. Sam lets you close a chart without hovering.",
+    a: { label: "Take the coat", next: "doctor" },
+    b: { label: "Stop and go back outside", next: "stoop" },
+  },
+  doctor: {
+    job: "doctor",
+    text: "You are a doctor. The clinic knows your footsteps.",
+    a: { label: "Stay on the ward", next: "docend" },
+    b: { label: "Take what you know to city hall", next: "civic" },
+  },
+  firehouse: {
+    text: "The captain points at a coat that is almost your size. \"We do not have a speech. We have stairs.\"",
+    a: { label: "Climb the stairs", next: "fires" },
+    b: { label: "Back out", next: "aid" },
+  },
+  fires: {
+    text: "A kitchen fire two blocks over. You carry the line and do not drop it.",
+    a: { label: "Take the coat for good", next: "firefighter" },
+    b: { label: "One fire was enough", next: "stoop" },
+  },
+  firefighter: {
+    job: "firefighter",
+    text: "You are a firefighter. The bell knows you.",
+    a: { label: "Keep answering it", next: "fireend" },
+    b: { label: "Ask Ruth what a city owes a firehouse", next: "civic" },
+  },
+  school: {
+    text: "The school is short one adult. A class looks up like you already decided.",
+    a: { label: "Stay for the day", next: "classday" },
+    b: { label: "Leave it to someone else", next: "desk" },
+  },
+  classday: {
+    text: "You get them quiet enough to hear the street. One of them asks if you will be here tomorrow.",
+    a: { label: "Say yes", next: "teacher" },
+    b: { label: "Say you have another life", next: "stoop" },
+  },
+  teacher: {
+    job: "teacher",
+    text: "You are a teacher. The classroom is small and it is yours.",
+    a: { label: "Keep the room", next: "teachend" },
+    b: { label: "Run so the school gets more than one room", next: "civic" },
+  },
+  law: {
+    text: "The lawyer is leaving. Rent cases are stacked on the desk, and the glass still has someone else's name.",
+    a: { label: "Read the stack", next: "cases" },
+    b: { label: "This is not your fight", next: "desk" },
+  },
+  cases: {
+    text: "You learn the block's leases by heart. A judge starts to nod when you stand.",
+    a: { label: "Take the office", next: "lawyer" },
+    b: { label: "Take the cases to Ruth", next: "civic" },
+  },
+  lawyer: {
+    job: "lawyer",
+    text: "You are a lawyer. People knock here before they knock on Vale's door.",
+    a: { label: "Keep the office", next: "lawend" },
+    b: { label: "Run for the city you argue in", next: "civic" },
   },
   corner: {
     text: "On the corner, Officer Ruiz stands by an academy poster. Vale watches from the shoe shop doorway.",
@@ -238,7 +359,13 @@ const PAGES: Record<string, Page> = {
   homebill: {
     text: "The block gets the lights back. The papers use your name in a headline that is almost kind.",
     a: { label: "Ride that into the race", next: "trail" },
-    b: { label: "Stay in the seat", next: "seatend" },
+    b: { label: "Let them call you mayor", next: "mayor" },
+  },
+  mayor: {
+    job: "mayor",
+    text: "You are mayor. The city is one building bigger than the district, and the block still calls.",
+    a: { label: "Stay the mayor", next: "mayorend" },
+    b: { label: "Climb toward President", next: "trail" },
   },
   trail: {
     text: "A year of rooms and buses. Two stories get told about you. A debate hall is next, and they will ask which one is true.",
@@ -317,6 +444,48 @@ const PAGES: Record<string, Page> = {
     a: { label: "Stay", next: "seatend" },
     b: { label: "Stay", next: "seatend" },
   },
+  cookend: {
+    ending: "The kitchen",
+    text: "You keep the diner. The block eats, argues, and comes back tomorrow. You were a cook, and the grill stayed lit. This is the end of this life.",
+    a: { label: "Stay", next: "cookend" },
+    b: { label: "Stay", next: "cookend" },
+  },
+  reportend: {
+    ending: "The paper",
+    text: "You keep the notebook. The city still reads your name in small type. You were a reporter, and the block stayed on the record. This is the end of this life.",
+    a: { label: "Stay", next: "reportend" },
+    b: { label: "Stay", next: "reportend" },
+  },
+  docend: {
+    ending: "The ward",
+    text: "You keep the clinic. Fevers come and go, and people leave standing. You were a doctor, and the ward held. This is the end of this life.",
+    a: { label: "Stay", next: "docend" },
+    b: { label: "Stay", next: "docend" },
+  },
+  fireend: {
+    ending: "The bell",
+    text: "You keep answering the bell. Kitchens, stairs, and nights. You were a firefighter, and the coat was yours. This is the end of this life.",
+    a: { label: "Stay", next: "fireend" },
+    b: { label: "Stay", next: "fireend" },
+  },
+  teachend: {
+    ending: "The classroom",
+    text: "You keep the room. The kids grow, and some of them come back. You were a teacher, and the street could wait. This is the end of this life.",
+    a: { label: "Stay", next: "teachend" },
+    b: { label: "Stay", next: "teachend" },
+  },
+  lawend: {
+    ending: "The office",
+    text: "You keep the law office. Leases get fairer, slowly. You were a lawyer, and the glass finally has your name. This is the end of this life.",
+    a: { label: "Stay", next: "lawend" },
+    b: { label: "Stay", next: "lawend" },
+  },
+  mayorend: {
+    ending: "The city",
+    text: "You stay mayor. The lights stay on, the block still knocks, and the bigger office can wait. This is the end of this life.",
+    a: { label: "Stay", next: "mayorend" },
+    b: { label: "Stay", next: "mayorend" },
+  },
 };
 
 export function freshLife(): LifeState {
@@ -335,6 +504,13 @@ export function roleName(job: Job) {
   if (job === "gang") return "Gang member";
   if (job === "president") return "President";
   if (job === "cadet") return "Cadet";
+  if (job === "cook") return "Cook";
+  if (job === "reporter") return "Reporter";
+  if (job === "doctor") return "Doctor";
+  if (job === "firefighter") return "Firefighter";
+  if (job === "teacher") return "Teacher";
+  if (job === "lawyer") return "Lawyer";
+  if (job === "mayor") return "Mayor";
   return "Neighbor";
 }
 
@@ -348,6 +524,14 @@ function goBack(job: Job) {
   if (job === "gang") return "gang";
   if (job === "officer") return "officer";
   if (job === "cadet") return "cadet";
+  if (job === "cook") return "cook";
+  if (job === "reporter") return "reporter";
+  if (job === "doctor") return "doctor";
+  if (job === "firefighter") return "firefighter";
+  if (job === "teacher") return "teacher";
+  if (job === "lawyer") return "lawyer";
+  if (job === "mayor") return "mayor";
+  if (job === "president") return "president";
   return "stoop";
 }
 
