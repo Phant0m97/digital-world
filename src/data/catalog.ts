@@ -164,6 +164,22 @@ export const GIFS: { id: string; label: string }[] = [
   { id: "skull", label: "Skull" },
   { id: "robot", label: "Robot" },
   { id: "glitch", label: "Glitch" },
+  { id: "flame", label: "Flame" },
+  { id: "bolt", label: "Bolt" },
+  { id: "moon", label: "Moon" },
+  { id: "cat", label: "Cat" },
+  { id: "boom", label: "Boom" },
+  { id: "rain", label: "Rain" },
+  { id: "eye", label: "Eye" },
+  { id: "ghost", label: "Ghost" },
+  { id: "coin", label: "Coin" },
+  { id: "note", label: "Note" },
+  { id: "comet", label: "Comet" },
+  { id: "spark", label: "Spark" },
+  { id: "fish", label: "Fish" },
+  { id: "crown", label: "Crown" },
+  { id: "potion", label: "Potion" },
+  { id: "alien", label: "Alien" },
 ];
 
 export const PAINTS = [
