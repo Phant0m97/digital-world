@@ -60,6 +60,7 @@ function SketchPage() {
   const [openId, setOpenId] = useState<string | null>(null);
   const [projectId, setProjectId] = useState<string | null>(null);
   const [projects, setProjects] = useState<SketchProject[]>([]);
+  const [confirm, setConfirm] = useState<{ kind: "post" | "save"; id: string } | null>(null);
   const color = hsvToHex(hue, 0.92, shade / 100);
   const pen = PENS.find((item) => item.id === penId) ?? PENS[0];
   const owned = pen.cost === 0 || ownedPens.includes(pen.id);
@@ -77,13 +78,15 @@ function SketchPage() {
   }, []);
 
   useEffect(() => {
-    if (!openId) return;
+    if (!openId && !confirm) return;
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpenId(null);
+      if (event.key !== "Escape") return;
+      if (confirm) setConfirm(null);
+      else setOpenId(null);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [openId]);
+  }, [openId, confirm]);
 
   useEffect(() => {
     if (!wall.me) return;
@@ -185,6 +188,19 @@ function SketchPage() {
       if (openId === id) setOpenId(null);
       setNote("Deleted.");
     });
+  }
+
+  function confirmDelete() {
+    if (!confirm) return;
+    const pending = confirm;
+    setConfirm(null);
+    if (pending.kind === "post") {
+      remove(pending.id);
+      return;
+    }
+    removeProject(pending.id);
+    if (projectId === pending.id) setProjectId(null);
+    setProjects(readProjects());
   }
 
   return (
@@ -399,11 +415,7 @@ function SketchPage() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => {
-                        removeProject(project.id);
-                        if (projectId === project.id) setProjectId(null);
-                        setProjects(readProjects());
-                      }}
+                      onClick={() => setConfirm({ kind: "save", id: project.id })}
                       className="min-h-11 rounded-full border border-line px-3 py-2 text-sm"
                     >
                       Delete
@@ -457,7 +469,7 @@ function SketchPage() {
                   {post.author === wall.me ? (
                     <button
                       type="button"
-                      onClick={() => remove(post.id)}
+                      onClick={() => setConfirm({ kind: "post", id: post.id })}
                       className="absolute bottom-2 left-2 min-h-11 rounded-full border border-line bg-ink/80 px-3 py-1 text-sm"
                     >
                       Delete
@@ -485,8 +497,32 @@ function SketchPage() {
               top={wall.posts[0]?.id === open.id && (wall.hearts[open.id]?.length ?? 0) > 0}
               onClose={() => setOpenId(null)}
               onHeart={() => void toggleHeart(open.id, !(wall.me && wall.hearts[open.id]?.includes(wall.me)))}
-              onDelete={open.author === wall.me ? () => remove(open.id) : undefined}
+              onDelete={open.author === wall.me ? () => setConfirm({ kind: "post", id: open.id }) : undefined}
             />
+          ) : null}
+          {confirm ? (
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-label="Are you sure?"
+              className="fixed inset-0 z-40 grid place-items-center bg-ink/80 p-4"
+              onClick={() => setConfirm(null)}
+            >
+              <div
+                className="w-full max-w-sm rounded-card border border-line bg-panel p-4"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <p className="font-display text-2xl font-bold">Are you sure?</p>
+                <div className="mt-4 flex gap-2">
+                  <button type="button" onClick={confirmDelete} className="min-h-11 flex-1 rounded-full bg-cyan py-2 font-display text-ink">
+                    Delete
+                  </button>
+                  <button type="button" onClick={() => setConfirm(null)} className="min-h-11 flex-1 rounded-full border border-line py-2">
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
           ) : null}
         </section>
       </div>
