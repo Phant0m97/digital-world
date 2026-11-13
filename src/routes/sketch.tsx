@@ -205,7 +205,7 @@ function SketchPage() {
 
   return (
     <Shell>
-      <p className="font-display text-xs tracking-[0.22em] text-cyan uppercase">Mode 03</p>
+      <p className="font-display text-xs tracking-[0.22em] text-cyan uppercase">Game 03</p>
       <h1 className="font-display text-4xl font-bold">Sketch</h1>
       <p className="mt-2 max-w-xl text-mute">
         Draw a picture and post it. Heart the ones you like. The drawings with the most hearts stay at the top.
