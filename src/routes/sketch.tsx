@@ -53,6 +53,7 @@ function SketchPage() {
   const [width, setWidth] = useState(18);
   const [hue, setHue] = useState(188);
   const [shade, setShade] = useState(30);
+  const [opacity, setOpacity] = useState(100);
   const [erase, setErase] = useState(false);
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
@@ -293,7 +294,21 @@ function SketchPage() {
                   className="mt-2 w-full"
                 />
               </label>
-              <span className="mt-2 inline-block rounded-full border border-line" style={{ width: 36, height: Math.max(4, width / 4), background: erase ? PAPER : color }} />
+              <label className="mt-3 block text-sm text-mute">
+                Opacity
+                <input
+                  type="range"
+                  min={10}
+                  max={100}
+                  value={opacity}
+                  onChange={(event) => {
+                    setOpacity(Number(event.target.value));
+                    setErase(false);
+                  }}
+                  className="mt-2 w-full"
+                />
+              </label>
+              <span className="mt-2 inline-block rounded-full border border-line" style={{ width: 36, height: Math.max(4, width / 4), background: erase ? PAPER : color, opacity: opacity / 100 }} />
             </div>
           </div>
           <div className="mt-4 flex flex-wrap items-center gap-2">
@@ -375,6 +390,7 @@ function SketchPage() {
             activeId={active.id}
             color={color}
             width={width}
+            opacity={opacity / 100}
             pen={tool}
             locked={!erase && !owned}
             onStroke={(stroke) => {
@@ -697,6 +713,7 @@ function DrawBoard({
   activeId,
   color,
   width,
+  opacity,
   pen,
   locked,
   onStroke,
@@ -705,6 +722,7 @@ function DrawBoard({
   activeId: string;
   color: string;
   width: number;
+  opacity: number;
   pen: StrokePen;
   locked: boolean;
   onStroke: (stroke: SketchStroke) => void;
@@ -715,6 +733,7 @@ function DrawBoard({
   const activeRef = useRef(activeId);
   const colorRef = useRef(color);
   const widthRef = useRef(width);
+  const opacityRef = useRef(opacity);
   const penRef = useRef(pen);
   const lockedRef = useRef(locked);
   const current = useRef<SketchStroke | null>(null);
@@ -722,6 +741,7 @@ function DrawBoard({
   activeRef.current = activeId;
   colorRef.current = color;
   widthRef.current = width;
+  opacityRef.current = opacity;
   penRef.current = pen;
   lockedRef.current = locked;
 
@@ -772,7 +792,7 @@ function DrawBoard({
         onPointerDown={(event) => {
         if (event.button !== 0 || lockedRef.current) return;
         event.currentTarget.setPointerCapture(event.pointerId);
-        current.current = { c: colorRef.current, w: widthRef.current, pen: penRef.current, p: [point(event)] };
+        current.current = { c: colorRef.current, w: widthRef.current, a: opacityRef.current, pen: penRef.current, p: [point(event)] };
         paintLayers(event.currentTarget, layersRef.current, current.current, activeRef.current);
       }}
       onPointerMove={(event) => {
@@ -847,12 +867,13 @@ function paintLayers(canvas: HTMLCanvasElement, layers: Layer[], ghost?: SketchS
 
 function drawStroke(ctx: CanvasRenderingContext2D, stroke: SketchStroke, width: number, height: number) {
   const line = Math.max(1, (stroke.w / 1000) * width);
+  const fade = stroke.a ?? 1;
   ctx.save();
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
   ctx.strokeStyle = stroke.c;
   ctx.fillStyle = stroke.c;
-  ctx.globalAlpha = 1;
+  ctx.globalAlpha = fade;
   ctx.shadowBlur = 0;
   ctx.lineWidth = line;
   if (stroke.pen === "erase") {
@@ -860,14 +881,14 @@ function drawStroke(ctx: CanvasRenderingContext2D, stroke: SketchStroke, width: 
     ctx.strokeStyle = "#000000";
     ctx.fillStyle = "#000000";
   } else if (stroke.pen === "pencil") {
-    ctx.globalAlpha = 0.45;
+    ctx.globalAlpha = 0.45 * fade;
     ctx.lineWidth = Math.max(1, line * 0.55);
   } else if (stroke.pen === "marker") {
-    ctx.globalAlpha = 0.88;
+    ctx.globalAlpha = 0.88 * fade;
     ctx.lineCap = "butt";
     ctx.lineWidth = line * 1.2;
   } else if (stroke.pen === "highlighter") {
-    ctx.globalAlpha = 0.35;
+    ctx.globalAlpha = 0.35 * fade;
     ctx.lineCap = "butt";
     ctx.lineWidth = line * 2.4;
   } else if (stroke.pen === "neon") {
@@ -883,7 +904,7 @@ function drawStroke(ctx: CanvasRenderingContext2D, stroke: SketchStroke, width: 
       for (let dot = 0; dot < 6; dot += 1) {
         const angle = (((index * 17 + dot * 53) % 360) * Math.PI) / 180;
         const dist = (((index * 13 + dot * 29) % 100) / 100) * reach;
-        ctx.globalAlpha = 0.28;
+        ctx.globalAlpha = 0.28 * fade;
         ctx.beginPath();
         ctx.arc(px + Math.cos(angle) * dist, py + Math.sin(angle) * dist, Math.max(0.7, line * 0.08), 0, Math.PI * 2);
         ctx.fill();

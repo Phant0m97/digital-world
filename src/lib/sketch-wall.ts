@@ -17,6 +17,7 @@ export type SketchStroke = {
   c: string;
   w: number;
   pen: StrokePen;
+  a: number;
   p: [number, number][];
 };
 
@@ -90,13 +91,20 @@ function normalizePen(value: unknown): StrokePen {
   return PEN_IDS.includes(value as StrokePen) ? (value as StrokePen) : "ink";
 }
 
+function normalizeAlpha(value: unknown) {
+  if (value == null || value === "") return 1;
+  const alpha = Number(value);
+  if (!Number.isFinite(alpha)) return 1;
+  return Math.max(0.05, Math.min(1, Math.round(alpha * 100) / 100));
+}
+
 export function normalizeStrokes(value: unknown): SketchStroke[] | null {
   if (!Array.isArray(value) || value.length === 0 || value.length > 80) return null;
   const strokes: SketchStroke[] = [];
   let count = 0;
   for (const raw of value) {
     if (!raw || typeof raw !== "object") return null;
-    const stroke = raw as { c?: unknown; w?: unknown; pen?: unknown; p?: unknown };
+    const stroke = raw as { c?: unknown; w?: unknown; pen?: unknown; a?: unknown; p?: unknown };
     const color = normalizeColor(stroke.c);
     const width = normalizeWidth(stroke.w);
     if (!color || width == null || !Array.isArray(stroke.p)) return null;
@@ -110,7 +118,7 @@ export function normalizeStrokes(value: unknown): SketchStroke[] | null {
       count += 1;
       if (p.length >= 280 || count >= 1800) break;
     }
-    if (p.length) strokes.push({ c: color, w: width, pen: normalizePen(stroke.pen), p });
+    if (p.length) strokes.push({ c: color, w: width, pen: normalizePen(stroke.pen), a: normalizeAlpha(stroke.a), p });
     if (count >= 1800) break;
   }
   return strokes.length ? strokes : null;
