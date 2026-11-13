@@ -699,6 +699,10 @@ function DrawBoard({
   onStroke: (stroke: SketchStroke) => void;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
+  const [full, setFull] = useState(false);
+  const [cover, setCover] = useState(false);
+  const big = full || cover;
   const layersRef = useRef(layers);
   const activeRef = useRef(activeId);
   const colorRef = useRef(color);
@@ -712,6 +716,21 @@ function DrawBoard({
   widthRef.current = width;
   penRef.current = pen;
   lockedRef.current = locked;
+
+  useEffect(() => {
+    const onChange = () => setFull(document.fullscreenElement === stageRef.current);
+    document.addEventListener("fullscreenchange", onChange);
+    return () => document.removeEventListener("fullscreenchange", onChange);
+  }, []);
+
+  useEffect(() => {
+    if (!cover) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setCover(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [cover]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -739,10 +758,11 @@ function DrawBoard({
   }
 
   return (
-    <canvas
-      ref={canvasRef}
-      className="mt-4 aspect-[4/3] w-full touch-none rounded-2xl bg-cream"
-      onPointerDown={(event) => {
+    <div ref={stageRef} className={`relative mt-4 bg-cream ${big ? "flex items-center justify-center" : ""} ${cover ? "fixed inset-0 z-40 m-0 h-dvh w-dvw" : ""} ${full ? "h-full w-full" : ""}`}>
+      <canvas
+        ref={canvasRef}
+        className={`touch-none bg-cream ${big ? "h-[min(100dvh,75dvw)] w-auto max-w-full" : "aspect-[4/3] w-full rounded-2xl"}`}
+        onPointerDown={(event) => {
         if (event.button !== 0 || lockedRef.current) return;
         event.currentTarget.setPointerCapture(event.pointerId);
         current.current = { c: colorRef.current, w: widthRef.current, pen: penRef.current, p: [point(event)] };
@@ -759,7 +779,27 @@ function DrawBoard({
       }}
       onPointerUp={(event) => finish(event.currentTarget)}
       onPointerCancel={(event) => finish(event.currentTarget)}
-    />
+      />
+      <button
+        type="button"
+        onClick={() => {
+          const stage = stageRef.current;
+          if (!stage) return;
+          if (document.fullscreenElement) {
+            void document.exitFullscreen();
+            return;
+          }
+          if (cover) {
+            setCover(false);
+            return;
+          }
+          void stage.requestFullscreen().catch(() => setCover(true));
+        }}
+        className="absolute top-3 right-3 z-10 min-h-11 rounded-full border border-line bg-ink/80 px-3 py-2 text-sm text-cream"
+      >
+        {big ? "Exit" : "Fullscreen"}
+      </button>
+    </div>
   );
 }
 
