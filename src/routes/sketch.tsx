@@ -48,12 +48,13 @@ function SketchPage() {
   const [title, setTitle] = useState("");
   const [guest, setGuest] = useState("");
   const [layers, setLayers] = useState<Layer[]>(freshLayers);
+  const pictureRef = useRef<Layer[]>(layers);
   const [activeId, setActiveId] = useState("layer-1");
   const [penId, setPenId] = useState<PenId>("ink");
   const [width, setWidth] = useState(18);
   const [hue, setHue] = useState(188);
   const [shade, setShade] = useState(30);
-  const [opacity, setOpacity] = useState(100);
+  const [colorAmt, setColorAmt] = useState(100);
   const [erase, setErase] = useState(false);
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
@@ -62,7 +63,10 @@ function SketchPage() {
   const [projectId, setProjectId] = useState<string | null>(null);
   const [projects, setProjects] = useState<SketchProject[]>([]);
   const [confirm, setConfirm] = useState<{ kind: "post" | "save"; id: string } | null>(null);
-  const color = hsvToHex(hue, 0.92, shade / 100);
+  const [sheet, setSheet] = useState<"posts" | "saved" | null>(null);
+  const [cover, setCover] = useState(false);
+  const commitRef = useRef<(() => void) | null>(null);
+  const color = hsvToHex(hue, colorAmt / 100, shade / 100);
   const pen = PENS.find((item) => item.id === penId) ?? PENS[0];
   const owned = pen.cost === 0 || ownedPens.includes(pen.id);
   const tool: StrokePen = erase ? "erase" : pen.id;
@@ -79,15 +83,17 @@ function SketchPage() {
   }, []);
 
   useEffect(() => {
-    if (!openId && !confirm) return;
+    if (!openId && !confirm && !sheet && !cover) return;
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
       if (confirm) setConfirm(null);
-      else setOpenId(null);
+      else if (openId) setOpenId(null);
+      else if (sheet) setSheet(null);
+      else setCover(false);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [openId, confirm]);
+  }, [openId, confirm, sheet, cover]);
 
   useEffect(() => {
     if (!wall.me) return;
@@ -111,9 +117,14 @@ function SketchPage() {
   const open = wall.posts.find((post) => post.id === openId) ?? null;
   const name = profile?.username || guest.trim() || "Guest";
 
+  function replaceLayers(next: Layer[]) {
+    pictureRef.current = next;
+    setLayers(next);
+  }
+
   function patchActive(next: (strokes: SketchStroke[]) => SketchStroke[], reveal = false) {
-    setLayers((list) =>
-      list.map((layer) =>
+    replaceLayers(
+      pictureRef.current.map((layer) =>
         layer.id === active.id ? { ...layer, hidden: reveal ? false : layer.hidden, strokes: next(layer.strokes) } : layer,
       ),
     );
@@ -122,15 +133,16 @@ function SketchPage() {
   function addLayer() {
     if (layers.length >= 4) return;
     const id = `layer-${Date.now().toString(36)}`;
-    setLayers((list) => [...list, { id, name: String(list.length + 1), hidden: false, strokes: [] }]);
+    replaceLayers([...pictureRef.current, { id, name: String(pictureRef.current.length + 1), hidden: false, strokes: [] }]);
     setActiveId(id);
   }
 
   function publish() {
-    if (!visible.length || busy) return;
-    const drawing = visible;
+    commitRef.current?.();
+    const drawing = pictureRef.current.filter((layer) => !layer.hidden).flatMap((layer) => layer.strokes);
+    if (!drawing.length || busy) return;
     const caption = title;
-    setLayers(freshLayers());
+    replaceLayers(freshLayers());
     setActiveId("layer-1");
     setTitle("");
     setProjectId(null);
@@ -147,10 +159,15 @@ function SketchPage() {
   }
 
   function save() {
+    commitRef.current?.();
     const stored = saveProject({
       id: projectId,
       title,
-      layers: layers.map((layer) => ({ id: layer.id, hidden: layer.hidden, strokes: layer.strokes })),
+      layers: pictureRef.current.map((layer) => ({
+        id: layer.id,
+        hidden: layer.hidden,
+        strokes: layer.strokes.map((stroke) => ({ ...stroke, p: stroke.p.map((pt) => [pt[0], pt[1]] as [number, number]) })),
+      })),
     });
     if (!stored) {
       setNote("Draw something before saving.");
@@ -162,7 +179,7 @@ function SketchPage() {
   }
 
   function startNew() {
-    setLayers(freshLayers());
+    replaceLayers(freshLayers());
     setActiveId("layer-1");
     setTitle("");
     setProjectId(null);
@@ -173,23 +190,23 @@ function SketchPage() {
     const next = project.layers.length
       ? project.layers.map((layer) => ({ ...layer, name: layer.id }))
       : freshLayers();
-    setLayers(next);
+    replaceLayers(next);
     setActiveId(next[0]!.id);
     setTitle(project.title);
     setProjectId(project.id);
+    setSheet(null);
     setNote("Opened. You can keep drawing.");
   }
 
   function moveLayer(direction: -1 | 1) {
-    setLayers((list) => {
-      const index = list.findIndex((layer) => layer.id === active.id);
-      const nextIndex = index + direction;
-      if (index < 0 || nextIndex < 0 || nextIndex >= list.length) return list;
-      const next = [...list];
-      const [item] = next.splice(index, 1);
-      next.splice(nextIndex, 0, item!);
-      return next;
-    });
+    const list = pictureRef.current;
+    const index = list.findIndex((layer) => layer.id === active.id);
+    const nextIndex = index + direction;
+    if (index < 0 || nextIndex < 0 || nextIndex >= list.length) return;
+    const next = [...list];
+    const [item] = next.splice(index, 1);
+    next.splice(nextIndex, 0, item!);
+    replaceLayers(next);
   }
 
   function remove(id: string) {
@@ -218,14 +235,44 @@ function SketchPage() {
 
   return (
     <Shell>
-      <p className="font-display text-xs tracking-[0.22em] text-cyan uppercase">Game 03</p>
-      <h1 className="font-display text-4xl font-bold">Sketch</h1>
-      <p className="mt-2 max-w-xl text-mute">
-        Draw a picture and post it. Heart the ones you like. The drawings with the most hearts stay at the top.
-      </p>
-      <div className="mt-6 grid items-start gap-6 lg:grid-cols-2">
-        <section className="rounded-card border border-line bg-panel p-4">
-          <div className="flex flex-wrap items-center gap-2">
+      <div className="flex items-end justify-between gap-3">
+        <div>
+          <p className="font-display text-xs tracking-[0.22em] text-cyan uppercase">Game 03</p>
+          <h1 className="font-display text-3xl font-bold">Sketch</h1>
+        </div>
+        <div className="flex flex-wrap justify-end gap-2">
+          <button type="button" onClick={() => setSheet((open) => (open === "saved" ? null : "saved"))} className="min-h-11 rounded-full border border-line px-3 text-sm">
+            Saved
+          </button>
+          <button type="button" onClick={() => setSheet((open) => (open === "posts" ? null : "posts"))} className="min-h-11 rounded-full border border-line px-3 text-sm">
+            Posts
+          </button>
+          <button type="button" onClick={() => setCover((on) => !on)} className="min-h-11 rounded-full border border-line px-3 text-sm">
+            {cover ? "Exit" : "Fullscreen"}
+          </button>
+        </div>
+      </div>
+      <div className={cover ? "fixed inset-0 z-30 bg-ink" : "relative mt-3 h-[calc(100dvh-8.75rem)] min-h-[32rem] overflow-hidden rounded-card border border-line"}>
+        <DrawBoard
+          layers={layers}
+          activeId={active.id}
+          color={color}
+          width={width}
+          pen={tool}
+          locked={!erase && !owned}
+          commitRef={commitRef}
+          onStroke={(stroke) => {
+            const total = pictureRef.current.reduce((sum, layer) => sum + layer.strokes.length, 0);
+            if (total >= 240) {
+              setNote("This picture is full.");
+              return false;
+            }
+            patchActive((strokes) => [...strokes, stroke], true);
+            return true;
+          }}
+        />
+        <section className="pointer-events-none absolute inset-0 z-10 flex flex-col p-3">
+          <div className="pointer-events-auto flex max-h-28 flex-wrap items-center gap-2 overflow-auto rounded-2xl bg-ink/75 p-2">
             {PENS.map((item) => {
               const has = item.cost === 0 || ownedPens.includes(item.id);
               const on = !erase && penId === item.id;
@@ -261,12 +308,12 @@ function SketchPage() {
                 const bought = buyPen(pen.id, pen.cost);
                 setNote(bought ? `${pen.name} is yours.` : `You need ${pen.cost} cr for ${pen.name}.`);
               }}
-              className="mt-3 rounded-full bg-cyan px-4 py-2 font-display text-ink disabled:opacity-40"
+              className="pointer-events-auto mt-2 w-fit rounded-full bg-cyan px-4 py-2 font-display text-ink disabled:opacity-40"
             >
               {credits < pen.cost ? `Need ${pen.cost} cr` : `Buy ${pen.name} · ${pen.cost} cr`}
             </button>
           ) : null}
-          <div className="mt-4 flex flex-wrap items-center gap-4">
+          <div className="pointer-events-auto mt-2 flex max-w-xl flex-wrap items-center gap-3 rounded-2xl bg-ink/75 p-2">
             <ColorWheel hue={hue} onHue={setHue} />
             <div className="min-w-40 flex-1">
               <label className="block text-sm text-mute">
@@ -295,23 +342,23 @@ function SketchPage() {
                 />
               </label>
               <label className="mt-3 block text-sm text-mute">
-                Opacity
+                Color
                 <input
                   type="range"
-                  min={10}
+                  min={0}
                   max={100}
-                  value={opacity}
+                  value={colorAmt}
                   onChange={(event) => {
-                    setOpacity(Number(event.target.value));
+                    setColorAmt(Number(event.target.value));
                     setErase(false);
                   }}
                   className="mt-2 w-full"
                 />
               </label>
-              <span className="mt-2 inline-block rounded-full border border-line" style={{ width: 36, height: Math.max(4, width / 4), background: erase ? PAPER : color, opacity: opacity / 100 }} />
+              <span className="mt-2 inline-block rounded-full border border-line" style={{ width: 36, height: Math.max(4, width / 4), background: erase ? PAPER : color }} />
             </div>
           </div>
-          <div className="mt-4 flex flex-wrap items-center gap-2">
+          <div className="pointer-events-auto mt-2 flex max-h-24 flex-wrap items-center gap-2 overflow-auto rounded-2xl bg-ink/75 p-2">
             {layers.map((layer, index) => (
               <button
                 key={layer.id}
@@ -334,7 +381,9 @@ function SketchPage() {
             <button
               type="button"
               onClick={() =>
-                setLayers((list) => list.map((layer) => (layer.id === active.id ? { ...layer, hidden: !layer.hidden } : layer)))
+                replaceLayers(
+                  pictureRef.current.map((layer) => (layer.id === active.id ? { ...layer, hidden: !layer.hidden } : layer)),
+                )
               }
               className="rounded-full border border-line px-3 py-2 text-sm"
             >
@@ -360,8 +409,8 @@ function SketchPage() {
               type="button"
               disabled={layers.length < 2}
               onClick={() => {
-                const next = layers.filter((layer) => layer.id !== active.id);
-                setLayers(next);
+                const next = pictureRef.current.filter((layer) => layer.id !== active.id);
+                replaceLayers(next);
                 setActiveId(next[0]!.id);
               }}
               className="rounded-full border border-line px-3 py-2 text-sm disabled:opacity-40"
@@ -385,24 +434,7 @@ function SketchPage() {
               Clear layer
             </button>
           </div>
-          <DrawBoard
-            layers={layers}
-            activeId={active.id}
-            color={color}
-            width={width}
-            opacity={opacity / 100}
-            pen={tool}
-            locked={!erase && !owned}
-            onStroke={(stroke) => {
-              const total = layers.reduce((sum, layer) => sum + layer.strokes.length, 0);
-              if (total >= 80) {
-                setNote("This picture is full.");
-                return;
-              }
-              patchActive((strokes) => [...strokes, stroke], true);
-            }}
-          />
-          <div className="mt-4 flex flex-wrap gap-2">
+          <div className="pointer-events-auto mt-auto flex max-w-3xl flex-wrap gap-2 rounded-2xl bg-ink/75 p-2" style={{ marginRight: "9rem" }}>
             <input
               value={title}
               onChange={(event) => setTitle(event.target.value)}
@@ -410,6 +442,15 @@ function SketchPage() {
               placeholder="Title, if you want one"
               className="min-w-0 flex-1 rounded-xl border border-line bg-ink px-3 py-3 text-cream outline-none focus:border-cyan"
             />
+            {!profile ? (
+              <input
+                value={guest}
+                onChange={(event) => setGuest(event.target.value)}
+                maxLength={16}
+                placeholder="Your name"
+                className="w-32 rounded-xl border border-line bg-ink px-3 py-3 text-cream outline-none focus:border-cyan"
+              />
+            ) : null}
             <button
               type="button"
               onClick={save}
@@ -429,8 +470,16 @@ function SketchPage() {
               Post
             </button>
           </div>
-          <div className="mt-4">
-            <h2 className="font-display text-xl font-bold">Saved</h2>
+          {note ? <p className="pointer-events-none mt-2 text-sm text-cream">{note}</p> : null}
+        </section>
+        {sheet === "saved" ? (
+          <section className="absolute inset-3 z-20 overflow-auto rounded-card border border-line bg-ink/95 p-4">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="font-display text-2xl font-bold">Saved</h2>
+              <button type="button" onClick={() => setSheet(null)} className="min-h-11 rounded-full border border-line px-3 text-sm">
+                Close
+              </button>
+            </div>
             {projects.length === 0 ? (
               <p className="mt-2 text-sm text-mute">Nothing saved yet. Save keeps a project here without posting it.</p>
             ) : (
@@ -451,25 +500,30 @@ function SketchPage() {
                 ))}
               </ul>
             )}
+            {profile ? (
+              <p className="mt-3 text-sm text-mute">Posting as {profile.username}</p>
+            ) : (
+              <label className="mt-3 block text-sm text-mute">
+                Your name
+                <input
+                  value={guest}
+                  onChange={(event) => setGuest(event.target.value)}
+                  maxLength={16}
+                  placeholder="Guest"
+                  className="mt-2 w-full rounded-xl border border-line bg-ink px-3 py-3 text-cream outline-none focus:border-cyan"
+                />
+              </label>
+            )}
+          </section>
+        ) : null}
+        {sheet === "posts" ? (
+        <section className="absolute inset-3 z-20 overflow-auto rounded-card border border-line bg-ink/95 p-4">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="font-display text-2xl font-bold">Posts</h2>
+            <button type="button" onClick={() => setSheet(null)} className="min-h-11 rounded-full border border-line px-3 text-sm">
+              Close
+            </button>
           </div>
-          {profile ? (
-            <p className="mt-3 text-sm text-mute">Posting as {profile.username}</p>
-          ) : (
-            <label className="mt-3 block text-sm text-mute">
-              Your name
-              <input
-                value={guest}
-                onChange={(event) => setGuest(event.target.value)}
-                maxLength={16}
-                placeholder="Guest"
-                className="mt-2 w-full rounded-xl border border-line bg-ink px-3 py-3 text-cream outline-none focus:border-cyan"
-              />
-            </label>
-          )}
-          {note ? <p className="mt-3 text-sm text-mute">{note}</p> : null}
-        </section>
-        <section>
-          <h2 className="font-display text-2xl font-bold">Posts</h2>
           <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
             {!hydrated || !seen ? <p className="col-span-full text-mute">Looking for drawings…</p> : null}
             {hydrated && seen && wall.posts.length === 0 ? (
@@ -527,31 +581,32 @@ function SketchPage() {
               onDelete={open.author === wall.me ? () => setConfirm({ kind: "post", id: open.id }) : undefined}
             />
           ) : null}
-          {confirm ? (
+        </section>
+        ) : null}
+        {confirm ? (
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Are you sure?"
+            className="fixed inset-0 z-40 grid place-items-center bg-ink/80 p-4"
+            onClick={() => setConfirm(null)}
+          >
             <div
-              role="dialog"
-              aria-modal="true"
-              aria-label="Are you sure?"
-              className="fixed inset-0 z-40 grid place-items-center bg-ink/80 p-4"
-              onClick={() => setConfirm(null)}
+              className="w-full max-w-sm rounded-card border border-line bg-panel p-4"
+              onClick={(event) => event.stopPropagation()}
             >
-              <div
-                className="w-full max-w-sm rounded-card border border-line bg-panel p-4"
-                onClick={(event) => event.stopPropagation()}
-              >
-                <p className="font-display text-2xl font-bold">Are you sure?</p>
-                <div className="mt-4 flex gap-2">
-                  <button type="button" onClick={confirmDelete} className="min-h-11 flex-1 rounded-full bg-cyan py-2 font-display text-ink">
-                    Delete
-                  </button>
-                  <button type="button" onClick={() => setConfirm(null)} className="min-h-11 flex-1 rounded-full border border-line py-2">
-                    Cancel
-                  </button>
-                </div>
+              <p className="font-display text-2xl font-bold">Are you sure?</p>
+              <div className="mt-4 flex gap-2">
+                <button type="button" onClick={confirmDelete} className="min-h-11 flex-1 rounded-full bg-cyan py-2 font-display text-ink">
+                  Delete
+                </button>
+                <button type="button" onClick={() => setConfirm(null)} className="min-h-11 flex-1 rounded-full border border-line py-2">
+                  Cancel
+                </button>
               </div>
             </div>
-          ) : null}
-        </section>
+          </div>
+        ) : null}
       </div>
     </Shell>
   );
@@ -713,55 +768,47 @@ function DrawBoard({
   activeId,
   color,
   width,
-  opacity,
   pen,
   locked,
+  commitRef,
   onStroke,
 }: {
   layers: Layer[];
   activeId: string;
   color: string;
   width: number;
-  opacity: number;
   pen: StrokePen;
   locked: boolean;
-  onStroke: (stroke: SketchStroke) => void;
+  commitRef: { current: (() => void) | null };
+  onStroke: (stroke: SketchStroke) => boolean;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [cover, setCover] = useState(false);
+  const stageRef = useRef<HTMLDivElement>(null);
+  const [view, setView] = useState({ x: 0, y: 0, z: 1 });
+  const [pan, setPan] = useState(false);
   const layersRef = useRef(layers);
   const activeRef = useRef(activeId);
   const colorRef = useRef(color);
   const widthRef = useRef(width);
-  const opacityRef = useRef(opacity);
   const penRef = useRef(pen);
   const lockedRef = useRef(locked);
+  const panRef = useRef(false);
   const current = useRef<SketchStroke | null>(null);
+  const lastPoint = useRef<[number, number] | null>(null);
+  const pointers = useRef(new Map<number, { x: number; y: number }>());
+  const pinch = useRef<{ dist: number; midX: number; midY: number } | null>(null);
   layersRef.current = layers;
   activeRef.current = activeId;
   colorRef.current = color;
   widthRef.current = width;
-  opacityRef.current = opacity;
   penRef.current = pen;
   lockedRef.current = locked;
-
-  useEffect(() => {
-    if (!cover) return;
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setCover(false);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => {
-      document.body.style.overflow = previous;
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [cover]);
+  panRef.current = pan;
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
+    if (current.current && layers.some((layer) => layer.strokes.includes(current.current!))) current.current = null;
     const draw = () => paintLayers(canvas, layersRef.current, current.current, activeRef.current);
     draw();
     const observer = new ResizeObserver(draw);
@@ -769,51 +816,148 @@ function DrawBoard({
     return () => observer.disconnect();
   }, [layers]);
 
-  function point(event: React.PointerEvent<HTMLCanvasElement>): [number, number] {
-    const rect = event.currentTarget.getBoundingClientRect();
-    const x = Math.round(((event.clientX - rect.left) / rect.width) * 1000);
-    const y = Math.round(((event.clientY - rect.top) / rect.height) * 1000);
+  useEffect(() => {
+    const stage = stageRef.current;
+    if (!stage) return;
+    const onWheel = (event: WheelEvent) => {
+      event.preventDefault();
+      const factor = event.deltaY > 0 ? 0.9 : 1.1;
+      setView((next) => ({ ...next, z: Math.min(8, Math.max(0.35, next.z * factor)) }));
+    };
+    stage.addEventListener("wheel", onWheel, { passive: false });
+    return () => stage.removeEventListener("wheel", onWheel);
+  }, []);
+
+  function paperPoint(clientX: number, clientY: number): [number, number] | null {
+    const canvas = canvasRef.current;
+    if (!canvas) return null;
+    const rect = canvas.getBoundingClientRect();
+    if (clientX < rect.left || clientX > rect.right || clientY < rect.top || clientY > rect.bottom) return null;
+    const x = Math.round(((clientX - rect.left) / rect.width) * 1000);
+    const y = Math.round(((clientY - rect.top) / rect.height) * 1000);
     return [Math.max(0, Math.min(1000, x)), Math.max(0, Math.min(1000, y))];
   }
 
-  function finish(canvas: HTMLCanvasElement) {
+  function paint() {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    paintLayers(canvas, layersRef.current, current.current, activeRef.current);
+  }
+
+  function finish(keepUntilStored: boolean) {
     const stroke = current.current;
-    current.current = null;
-    if (!stroke || stroke.p.length === 0) return;
-    onStroke(stroke);
-    paintLayers(canvas, layersRef.current, stroke, activeRef.current);
+    if (!stroke || stroke.p.length === 0) {
+      current.current = null;
+      return;
+    }
+    const end = lastPoint.current;
+    const tail = stroke.p[stroke.p.length - 1];
+    if (end && tail && (tail[0] !== end[0] || tail[1] !== end[1])) stroke.p.push(end);
+    const stored = onStroke(stroke);
+    if (!stored || !keepUntilStored) current.current = null;
+    paint();
+  }
+
+  commitRef.current = () => finish(true);
+
+  function pinchOf() {
+    const pts = [...pointers.current.values()];
+    if (pts.length < 2) return null;
+    const [a, b] = pts;
+    return { dist: Math.hypot(a!.x - b!.x, a!.y - b!.y), midX: (a!.x + b!.x) / 2, midY: (a!.y + b!.y) / 2 };
   }
 
   return (
-    <div className={cover ? "fixed inset-0 z-50 m-0 flex h-dvh w-dvw items-center justify-center bg-ink" : "relative mt-4 bg-cream"}>
-      <canvas
-        ref={canvasRef}
-        className={`touch-none bg-cream ${cover ? "h-[min(100dvh,75dvw)] w-auto max-w-full" : "aspect-[4/3] w-full rounded-2xl"}`}
-        onPointerDown={(event) => {
-        if (event.button !== 0 || lockedRef.current) return;
+    <div
+      ref={stageRef}
+      className="absolute inset-0 overflow-hidden bg-[#12121a] touch-none"
+      onPointerDown={(event) => {
+        pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
         event.currentTarget.setPointerCapture(event.pointerId);
-        current.current = { c: colorRef.current, w: widthRef.current, a: opacityRef.current, pen: penRef.current, p: [point(event)] };
-        paintLayers(event.currentTarget, layersRef.current, current.current, activeRef.current);
+        if (pointers.current.size > 1) {
+          current.current = null;
+          pinch.current = pinchOf();
+          paint();
+          return;
+        }
+        if (panRef.current || event.button === 1) return;
+        if (event.button !== 0 || lockedRef.current) return;
+        const start = paperPoint(event.clientX, event.clientY);
+        if (!start) return;
+        lastPoint.current = start;
+        current.current = { c: colorRef.current, w: widthRef.current, a: 1, pen: penRef.current, p: [start] };
+        paint();
       }}
       onPointerMove={(event) => {
+        const prev = pointers.current.get(event.pointerId);
+        pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+        if (pointers.current.size > 1) {
+          const next = pinchOf();
+          const last = pinch.current;
+          if (next && last && last.dist > 0) {
+            const scale = next.dist / last.dist;
+            setView((view) => ({
+              z: Math.min(8, Math.max(0.35, view.z * scale)),
+              x: view.x + (next.midX - last.midX),
+              y: view.y + (next.midY - last.midY),
+            }));
+          }
+          pinch.current = next;
+          return;
+        }
+        if (panRef.current || event.buttons === 4) {
+          if (!prev) return;
+          const dx = event.clientX - prev.x;
+          const dy = event.clientY - prev.y;
+          setView((view) => ({ ...view, x: view.x + dx, y: view.y + dy }));
+          return;
+        }
         const stroke = current.current;
         if (!stroke) return;
-        const next = point(event);
+        const next = paperPoint(event.clientX, event.clientY);
+        if (!next) return;
+        lastPoint.current = next;
         const last = stroke.p[stroke.p.length - 1]!;
-        if (Math.hypot(next[0] - last[0], next[1] - last[1]) < 6) return;
+        if (Math.hypot(next[0] - last[0], next[1] - last[1]) < 2) return;
         stroke.p.push(next);
-        paintLayers(event.currentTarget, layersRef.current, stroke, activeRef.current);
+        paint();
       }}
-      onPointerUp={(event) => finish(event.currentTarget)}
-      onPointerCancel={(event) => finish(event.currentTarget)}
-      />
-      <button
-        type="button"
-        onClick={() => setCover((open) => !open)}
-        className="absolute top-3 right-3 z-10 min-h-11 rounded-full border border-line bg-ink/80 px-3 py-2 text-sm text-cream"
+      onPointerUp={(event) => {
+        pointers.current.delete(event.pointerId);
+        pinch.current = null;
+        if (pointers.current.size === 0) finish(true);
+      }}
+      onPointerCancel={(event) => {
+        pointers.current.delete(event.pointerId);
+        pinch.current = null;
+        if (pointers.current.size === 0) finish(true);
+      }}
+    >
+      <div
+        className="absolute left-1/2 top-1/2 w-[min(92%,880px)]"
+        style={{ transform: `translate(calc(-50% + ${view.x}px), calc(-50% + ${view.y}px)) scale(${view.z})` }}
       >
-        {cover ? "Exit" : "Fullscreen"}
-      </button>
+        <canvas ref={canvasRef} className="aspect-[4/3] w-full bg-cream shadow-[0_12px_40px_rgba(0,0,0,0.45)]" />
+      </div>
+      <div className="absolute right-3 bottom-3 z-20 flex gap-2" onPointerDown={(event) => event.stopPropagation()}>
+        <button type="button" onClick={() => setView((next) => ({ ...next, z: Math.max(0.35, next.z / 1.2) }))} className="min-h-11 rounded-full border border-line bg-ink/80 px-3 text-sm">
+          −
+        </button>
+        <button type="button" onClick={() => setView({ x: 0, y: 0, z: 1 })} className="min-h-11 rounded-full border border-line bg-ink/80 px-3 text-sm">
+          Fit
+        </button>
+        <button type="button" onClick={() => setView((next) => ({ ...next, z: Math.min(8, next.z * 1.2) }))} className="min-h-11 rounded-full border border-line bg-ink/80 px-3 text-sm">
+          +
+        </button>
+        <button
+          type="button"
+          aria-pressed={pan}
+          onClick={() => setPan((on) => !on)}
+          className={`min-h-11 rounded-full border px-3 text-sm ${pan ? "border-cyan bg-ink/80 text-cyan" : "border-line bg-ink/80"}`}
+        >
+          Move
+        </button>
+      </div>
     </div>
   );
 }
