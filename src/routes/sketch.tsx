@@ -21,16 +21,41 @@ import { useWorld } from "@/lib/store";
 export const Route = createFileRoute("/sketch")({ component: SketchPage });
 
 const EMPTY: WallSnapshot = { posts: [], hearts: {}, me: "" };
-const PENS = [
-  { id: "ink", name: "Ink", cost: 0 },
-  { id: "marker", name: "Marker", cost: 0 },
-  { id: "pencil", name: "Pencil", cost: 0 },
-  { id: "highlighter", name: "Highlighter", cost: 12 },
-  { id: "spray", name: "Spray", cost: 18 },
-  { id: "neon", name: "Neon", cost: 24 },
-] as const;
+type PenId = Exclude<StrokePen, "erase">;
+const BRUSHES: { group: string; items: { id: PenId; name: string; cost: number }[] }[] = [
+  {
+    group: "Sketching",
+    items: [
+      { id: "pencil", name: "Pencil", cost: 0 },
+      { id: "charcoal", name: "Charcoal", cost: 0 },
+    ],
+  },
+  {
+    group: "Inking",
+    items: [
+      { id: "pen", name: "Pen", cost: 0 },
+      { id: "ink", name: "Ink", cost: 0 },
+      { id: "marker", name: "Marker", cost: 0 },
+    ],
+  },
+  {
+    group: "Painting",
+    items: [
+      { id: "watercolor", name: "Watercolor", cost: 0 },
+      { id: "neon", name: "Neon", cost: 24 },
+    ],
+  },
+  {
+    group: "Airbrush",
+    items: [
+      { id: "spray", name: "Spray", cost: 18 },
+      { id: "highlighter", name: "Highlighter", cost: 12 },
+      { id: "smudge", name: "Smudge", cost: 0 },
+    ],
+  },
+];
+const PENS = BRUSHES.flatMap((group) => group.items);
 
-type PenId = (typeof PENS)[number]["id"];
 type Layer = { id: string; name: string; hidden: boolean; strokes: SketchStroke[] };
 
 function freshLayers(): Layer[] {
@@ -56,6 +81,12 @@ function SketchPage() {
   const [shade, setShade] = useState(30);
   const [colorAmt, setColorAmt] = useState(100);
   const [erase, setErase] = useState(false);
+  const [panel, setPanel] = useState<"brush" | "color" | "layers" | null>(null);
+  const [pick, setPick] = useState(false);
+  const [mirror, setMirror] = useState(false);
+  const pastRef = useRef<Layer[][]>([]);
+  const futureRef = useRef<Layer[][]>([]);
+  const [steps, setSteps] = useState({ undo: 0, redo: 0 });
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [seen, setSeen] = useState(false);
@@ -122,8 +153,44 @@ function SketchPage() {
     setLayers(next);
   }
 
+  function cloneLayers(list: Layer[]): Layer[] {
+    return list.map((layer) => ({
+      ...layer,
+      strokes: layer.strokes.map((stroke) => ({ ...stroke, p: stroke.p.map((pt) => [pt[0], pt[1]] as [number, number]) })),
+    }));
+  }
+
+  function editLayers(next: Layer[]) {
+    pastRef.current = [...pastRef.current, cloneLayers(pictureRef.current)].slice(-40);
+    futureRef.current = [];
+    replaceLayers(next);
+    setSteps({ undo: pastRef.current.length, redo: 0 });
+  }
+
+  function clearHistory() {
+    pastRef.current = [];
+    futureRef.current = [];
+    setSteps({ undo: 0, redo: 0 });
+  }
+
+  function undo() {
+    const prev = pastRef.current.pop();
+    if (!prev) return;
+    futureRef.current.push(cloneLayers(pictureRef.current));
+    replaceLayers(prev);
+    setSteps({ undo: pastRef.current.length, redo: futureRef.current.length });
+  }
+
+  function redo() {
+    const next = futureRef.current.pop();
+    if (!next) return;
+    pastRef.current.push(cloneLayers(pictureRef.current));
+    replaceLayers(next);
+    setSteps({ undo: pastRef.current.length, redo: futureRef.current.length });
+  }
+
   function patchActive(next: (strokes: SketchStroke[]) => SketchStroke[], reveal = false) {
-    replaceLayers(
+    editLayers(
       pictureRef.current.map((layer) =>
         layer.id === active.id ? { ...layer, hidden: reveal ? false : layer.hidden, strokes: next(layer.strokes) } : layer,
       ),
@@ -133,7 +200,7 @@ function SketchPage() {
   function addLayer() {
     if (layers.length >= 4) return;
     const id = `layer-${Date.now().toString(36)}`;
-    replaceLayers([...pictureRef.current, { id, name: String(pictureRef.current.length + 1), hidden: false, strokes: [] }]);
+    editLayers([...pictureRef.current, { id, name: String(pictureRef.current.length + 1), hidden: false, strokes: [] }]);
     setActiveId(id);
   }
 
@@ -148,6 +215,7 @@ function SketchPage() {
     setProjectId(null);
     setBusy(true);
     setNote("Posting…");
+    clearHistory();
     void postSketch({ name, avatarId: profile?.avatarId || "", title: caption, strokes: drawing }).then((result) => {
       setBusy(false);
       if (!result.ok) {
@@ -184,6 +252,7 @@ function SketchPage() {
     setTitle("");
     setProjectId(null);
     setNote("");
+    clearHistory();
   }
 
   function openProject(project: SketchProject) {
@@ -196,6 +265,7 @@ function SketchPage() {
     setProjectId(project.id);
     setSheet(null);
     setNote("Opened. You can keep drawing.");
+    clearHistory();
   }
 
   function moveLayer(direction: -1 | 1) {
@@ -206,7 +276,7 @@ function SketchPage() {
     const next = [...list];
     const [item] = next.splice(index, 1);
     next.splice(nextIndex, 0, item!);
-    replaceLayers(next);
+    editLayers(next);
   }
 
   function remove(id: string) {
@@ -252,171 +322,7 @@ function SketchPage() {
           </button>
         </div>
       </div>
-      <div className={cover ? "fixed inset-0 z-30 flex flex-col bg-ink" : "relative mt-3 flex h-[calc(100dvh-8.75rem)] min-h-[28rem] flex-col overflow-hidden rounded-card border border-line"}>
-        <section className="flex max-h-36 shrink-0 flex-wrap items-center gap-2 overflow-auto border-b border-line bg-ink p-2">
-          <div className="flex flex-wrap items-center gap-2">
-            {PENS.map((item) => {
-              const has = item.cost === 0 || ownedPens.includes(item.id);
-              const on = !erase && penId === item.id;
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  aria-pressed={on}
-                  onClick={() => {
-                    setPenId(item.id);
-                    setErase(false);
-                  }}
-                  className={`rounded-full border px-3 py-2 text-sm ${on ? "border-cyan text-cyan" : "border-line text-cream"}`}
-                >
-                  {item.name}
-                  {has ? "" : ` · ${item.cost} cr`}
-                </button>
-              );
-            })}
-            <button
-              type="button"
-              onClick={() => setErase(true)}
-              className={`rounded-full border px-3 py-2 text-sm ${erase ? "border-cyan text-cyan" : "border-line text-cream"}`}
-            >
-              Eraser
-            </button>
-          </div>
-          {!erase && !owned ? (
-            <button
-              type="button"
-              disabled={credits < pen.cost}
-              onClick={() => {
-                const bought = buyPen(pen.id, pen.cost);
-                setNote(bought ? `${pen.name} is yours.` : `You need ${pen.cost} cr for ${pen.name}.`);
-              }}
-              className="mt-2 w-fit rounded-full bg-cyan px-4 py-2 font-display text-ink disabled:opacity-40"
-            >
-              {credits < pen.cost ? `Need ${pen.cost} cr` : `Buy ${pen.name} · ${pen.cost} cr`}
-            </button>
-          ) : null}
-          <div className="flex flex-wrap items-center gap-3">
-            <ColorWheel hue={hue} onHue={setHue} />
-            <div className="min-w-40 flex-1">
-              <label className="block text-sm text-mute">
-                Shade
-                <input
-                  type="range"
-                  min={12}
-                  max={100}
-                  value={shade}
-                  onChange={(event) => {
-                    setShade(Number(event.target.value));
-                    setErase(false);
-                  }}
-                  className="mt-2 w-full"
-                />
-              </label>
-              <label className="mt-3 block text-sm text-mute">
-                Thickness
-                <input
-                  type="range"
-                  min={4}
-                  max={64}
-                  value={width}
-                  onChange={(event) => setWidth(Number(event.target.value))}
-                  className="mt-2 w-full"
-                />
-              </label>
-              <label className="mt-3 block text-sm text-mute">
-                Color
-                <input
-                  type="range"
-                  min={0}
-                  max={100}
-                  value={colorAmt}
-                  onChange={(event) => {
-                    setColorAmt(Number(event.target.value));
-                    setErase(false);
-                  }}
-                  className="mt-2 w-full"
-                />
-              </label>
-              <span className="mt-2 inline-block rounded-full border border-line" style={{ width: 36, height: Math.max(4, width / 4), background: erase ? PAPER : color }} />
-            </div>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            {layers.map((layer, index) => (
-              <button
-                key={layer.id}
-                type="button"
-                aria-pressed={layer.id === active.id}
-                onClick={() => setActiveId(layer.id)}
-                className={`rounded-full border px-3 py-2 text-sm ${layer.id === active.id ? "border-cyan text-cyan" : "border-line text-cream"} ${layer.hidden ? "opacity-50" : ""}`}
-              >
-                Layer {index + 1}
-              </button>
-            ))}
-            <button
-              type="button"
-              onClick={addLayer}
-              disabled={layers.length >= 4}
-              className="rounded-full border border-line px-3 py-2 text-sm disabled:opacity-40"
-            >
-              Add layer
-            </button>
-            <button
-              type="button"
-              onClick={() =>
-                replaceLayers(
-                  pictureRef.current.map((layer) => (layer.id === active.id ? { ...layer, hidden: !layer.hidden } : layer)),
-                )
-              }
-              className="rounded-full border border-line px-3 py-2 text-sm"
-            >
-              {active.hidden ? "Show" : "Hide"}
-            </button>
-            <button
-              type="button"
-              disabled={layers[0]?.id === active.id}
-              onClick={() => moveLayer(-1)}
-              className="rounded-full border border-line px-3 py-2 text-sm disabled:opacity-40"
-            >
-              Lower
-            </button>
-            <button
-              type="button"
-              disabled={layers[layers.length - 1]?.id === active.id}
-              onClick={() => moveLayer(1)}
-              className="rounded-full border border-line px-3 py-2 text-sm disabled:opacity-40"
-            >
-              Raise
-            </button>
-            <button
-              type="button"
-              disabled={layers.length < 2}
-              onClick={() => {
-                const next = pictureRef.current.filter((layer) => layer.id !== active.id);
-                replaceLayers(next);
-                setActiveId(next[0]!.id);
-              }}
-              className="rounded-full border border-line px-3 py-2 text-sm disabled:opacity-40"
-            >
-              Delete
-            </button>
-            <button
-              type="button"
-              onClick={() => patchActive((strokes) => strokes.slice(0, -1))}
-              disabled={!active.strokes.length}
-              className="rounded-full border border-line px-3 py-2 text-sm disabled:opacity-40"
-            >
-              Undo
-            </button>
-            <button
-              type="button"
-              onClick={() => patchActive(() => [])}
-              disabled={!active.strokes.length}
-              className="rounded-full border border-line px-3 py-2 text-sm disabled:opacity-40"
-            >
-              Clear layer
-            </button>
-          </div>
-        </section>
+      <div className={cover ? "fixed inset-0 z-30 flex flex-col bg-ink" : "relative mt-3 flex h-[calc(100dvh-7.25rem)] min-h-[28rem] flex-col overflow-hidden rounded-card border border-line"}>
         <div className="relative min-h-0 flex-1">
           <DrawBoard
             layers={layers}
@@ -426,16 +332,90 @@ function SketchPage() {
             pen={tool}
             locked={!erase && !owned}
             commitRef={commitRef}
+            picking={pick}
+            onPick={(hex) => {
+              const next = hexToHsv(hex);
+              setHue(next.h);
+              setColorAmt(next.s);
+              setShade(Math.max(12, Math.min(100, next.v)));
+              setErase(false);
+              setPick(false);
+              setPanel("color");
+            }}
             onStroke={(stroke) => {
               const total = pictureRef.current.reduce((sum, layer) => sum + layer.strokes.length, 0);
               if (total >= 240) {
                 setNote("This picture is full.");
                 return false;
               }
-              patchActive((strokes) => [...strokes, stroke], true);
+              patchActive((strokes) => {
+              const flipped = mirror
+                ? { ...stroke, p: stroke.p.map((pt) => [1000 - pt[0], pt[1]] as [number, number]) }
+                : null;
+              return flipped ? [...strokes, stroke, flipped] : [...strokes, stroke];
+            }, true);
               return true;
             }}
           />
+          <div className="pointer-events-auto absolute top-3 left-3 z-20 flex flex-col gap-1 rounded-2xl bg-ink/85 p-1">
+            <Rail label="Brush" on={panel === "brush" && !erase && !pick} press={() => { setErase(false); setPick(false); setPanel((open) => (open === "brush" ? null : "brush")); }} />
+            <Rail label="Erase" on={erase} press={() => { setErase(true); setPick(false); setPanel(null); }} />
+            <Rail label="Smudge" on={!erase && !pick && penId === "smudge"} press={() => { setPenId("smudge"); setErase(false); setPick(false); setPanel(null); }} />
+            <Rail label="Pick" on={pick} press={() => { setPick((on) => !on); setErase(false); setPanel(null); }} />
+            <button type="button" aria-label="Color" onClick={() => { setErase(false); setPick(false); setPanel((open) => (open === "color" ? null : "color")); }} className={`size-11 rounded-full border-2 ${panel === "color" ? "border-cyan" : "border-cream"}`} style={{ background: color }} />
+            <Rail label="Layers" on={panel === "layers"} press={() => setPanel((open) => (open === "layers" ? null : "layers"))} />
+            <Rail label="Undo" on={false} press={undo} disabled={steps.undo === 0} />
+            <Rail label="Redo" on={false} press={redo} disabled={steps.redo === 0} />
+          </div>
+          {panel === "brush" ? (
+            <div className="pointer-events-auto absolute top-3 bottom-16 left-20 z-20 w-64 overflow-auto rounded-2xl border border-line bg-ink/95 p-3">
+              {BRUSHES.map((group) => (
+                <div key={group.group} className="mb-3">
+                  <p className="text-xs tracking-wide text-mute uppercase">{group.group}</p>
+                  <div className="mt-1 grid gap-1">
+                    {group.items.map((item) => {
+                      const has = item.cost === 0 || ownedPens.includes(item.id);
+                      const on = !erase && penId === item.id;
+                      return (
+                        <button key={item.id} type="button" onClick={() => { setPenId(item.id); setErase(false); setPick(false); }} className={`rounded-xl border px-3 py-2 text-left text-sm ${on ? "border-cyan text-cyan" : "border-line"}`}>
+                          {item.name}{has ? "" : ` · ${item.cost} cr`}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+              {!erase && !owned ? (
+                <button type="button" disabled={credits < pen.cost} onClick={() => { const bought = buyPen(pen.id, pen.cost); setNote(bought ? `${pen.name} is yours.` : `You need ${pen.cost} cr for ${pen.name}.`); }} className="mb-3 w-full rounded-full bg-cyan py-2 font-display text-ink disabled:opacity-40">
+                  {credits < pen.cost ? `Need ${pen.cost} cr` : `Buy ${pen.name}`}
+                </button>
+              ) : null}
+              <label className="block text-sm text-mute">Size<input type="range" min={4} max={64} value={width} onChange={(event) => setWidth(Number(event.target.value))} className="mt-1 w-full" /></label>
+              <button type="button" aria-pressed={mirror} onClick={() => setMirror((on) => !on)} className={`mt-3 w-full rounded-full border px-3 py-2 text-sm ${mirror ? "border-cyan text-cyan" : "border-line"}`}>Symmetry</button>
+            </div>
+          ) : null}
+          {panel === "color" ? (
+            <div className="pointer-events-auto absolute top-3 left-20 z-20 w-64 rounded-2xl border border-line bg-ink/95 p-3">
+              <ColorWheel hue={hue} onHue={(next) => { setHue(next); setErase(false); }} />
+              <label className="mt-3 block text-sm text-mute">Shade<input type="range" min={12} max={100} value={shade} onChange={(event) => { setShade(Number(event.target.value)); setErase(false); }} className="mt-1 w-full" /></label>
+              <label className="mt-3 block text-sm text-mute">Color<input type="range" min={0} max={100} value={colorAmt} onChange={(event) => { setColorAmt(Number(event.target.value)); setErase(false); }} className="mt-1 w-full" /></label>
+            </div>
+          ) : null}
+          {panel === "layers" ? (
+            <div className="pointer-events-auto absolute top-3 left-20 z-20 w-56 rounded-2xl border border-line bg-ink/95 p-3">
+              {layers.map((layer, index) => (
+                <button key={layer.id} type="button" onClick={() => setActiveId(layer.id)} className={`mb-1 w-full rounded-xl border px-3 py-2 text-left text-sm ${layer.id === active.id ? "border-cyan text-cyan" : "border-line"} ${layer.hidden ? "opacity-50" : ""}`}>Layer {index + 1}</button>
+              ))}
+              <div className="mt-2 flex flex-wrap gap-1">
+                <button type="button" onClick={addLayer} disabled={layers.length >= 4} className="rounded-full border border-line px-3 py-2 text-sm disabled:opacity-40">Add</button>
+                <button type="button" onClick={() => editLayers(pictureRef.current.map((layer) => layer.id === active.id ? { ...layer, hidden: !layer.hidden } : layer))} className="rounded-full border border-line px-3 py-2 text-sm">{active.hidden ? "Show" : "Hide"}</button>
+                <button type="button" disabled={layers[0]?.id === active.id} onClick={() => moveLayer(-1)} className="rounded-full border border-line px-3 py-2 text-sm disabled:opacity-40">Down</button>
+                <button type="button" disabled={layers[layers.length - 1]?.id === active.id} onClick={() => moveLayer(1)} className="rounded-full border border-line px-3 py-2 text-sm disabled:opacity-40">Up</button>
+                <button type="button" disabled={layers.length < 2} onClick={() => { const next = pictureRef.current.filter((layer) => layer.id !== active.id); editLayers(next); setActiveId(next[0]!.id); }} className="rounded-full border border-line px-3 py-2 text-sm disabled:opacity-40">Delete</button>
+                <button type="button" disabled={!active.strokes.length} onClick={() => patchActive(() => [])} className="rounded-full border border-line px-3 py-2 text-sm disabled:opacity-40">Clear</button>
+              </div>
+            </div>
+          ) : null}
         </div>
         <div className="flex shrink-0 flex-wrap gap-2 border-t border-line bg-ink p-2">
             <input
@@ -691,6 +671,14 @@ function writePaidHearts(paid: Set<string>) {
   localStorage.setItem(PAID_HEARTS, JSON.stringify([...paid].slice(-500)));
 }
 
+function Rail({ label, on, press, disabled = false }: { label: string; on: boolean; press: () => void; disabled?: boolean }) {
+  return (
+    <button type="button" disabled={disabled} aria-pressed={on} onClick={press} className={`min-h-11 rounded-xl px-2 py-2 text-xs disabled:opacity-40 ${on ? "bg-cream text-ink" : "text-cream"}`}>
+      {label}
+    </button>
+  );
+}
+
 function ColorWheel({ hue, onHue }: { hue: number; onHue: (hue: number) => void }) {
   const ref = useRef<HTMLCanvasElement>(null);
 
@@ -747,6 +735,25 @@ function ColorWheel({ hue, onHue }: { hue: number; onHue: (hue: number) => void 
   );
 }
 
+function hexToHsv(hex: string) {
+  const value = Number.parseInt(hex.slice(1), 16);
+  const red = ((value >> 16) & 255) / 255;
+  const green = ((value >> 8) & 255) / 255;
+  const blue = (value & 255) / 255;
+  const max = Math.max(red, green, blue);
+  const min = Math.min(red, green, blue);
+  const delta = max - min;
+  let hue = 0;
+  if (delta !== 0) {
+    if (max === red) hue = ((green - blue) / delta) % 6;
+    else if (max === green) hue = (blue - red) / delta + 2;
+    else hue = (red - green) / delta + 4;
+    hue *= 60;
+    if (hue < 0) hue += 360;
+  }
+  return { h: Math.round(hue), s: Math.round((max === 0 ? 0 : delta / max) * 100), v: Math.round(max * 100) };
+}
+
 function hsvToHex(h: number, s: number, v: number) {
   const chroma = v * s;
   const section = h / 60;
@@ -773,6 +780,8 @@ function DrawBoard({
   pen,
   locked,
   commitRef,
+  picking,
+  onPick,
   onStroke,
 }: {
   layers: Layer[];
@@ -782,6 +791,8 @@ function DrawBoard({
   pen: StrokePen;
   locked: boolean;
   commitRef: { current: (() => void) | null };
+  picking: boolean;
+  onPick: (hex: string) => void;
   onStroke: (stroke: SketchStroke) => boolean;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -794,6 +805,8 @@ function DrawBoard({
   const widthRef = useRef(width);
   const penRef = useRef(pen);
   const lockedRef = useRef(locked);
+  const pickingRef = useRef(picking);
+  const onPickRef = useRef(onPick);
   const panRef = useRef(false);
   const current = useRef<SketchStroke | null>(null);
   const lastPoint = useRef<[number, number] | null>(null);
@@ -805,6 +818,8 @@ function DrawBoard({
   widthRef.current = width;
   penRef.current = pen;
   lockedRef.current = locked;
+  pickingRef.current = picking;
+  onPickRef.current = onPick;
   panRef.current = pan;
 
   useEffect(() => {
@@ -884,6 +899,23 @@ function DrawBoard({
           return;
         }
         if (panRef.current || event.button === 1) return;
+        if (pickingRef.current) {
+          const canvas = canvasRef.current;
+          const ctx = canvas?.getContext("2d");
+          if (canvas && ctx) {
+            const rect = canvas.getBoundingClientRect();
+            const x = Math.floor(((event.clientX - rect.left) / rect.width) * canvas.width);
+            const y = Math.floor(((event.clientY - rect.top) / rect.height) * canvas.height);
+            if (x >= 0 && y >= 0 && x < canvas.width && y < canvas.height) {
+              const pixel = ctx.getImageData(x, y, 1, 1).data;
+              if (pixel[3]! > 8) {
+                const hex = `#${[pixel[0], pixel[1], pixel[2]].map((part) => part!.toString(16).padStart(2, "0")).join("")}`;
+                onPickRef.current(hex);
+              }
+            }
+          }
+          return;
+        }
         if (event.button !== 0 || lockedRef.current) return;
         const start = paperPoint(event.clientX, event.clientY);
         if (!start) return;
@@ -1045,6 +1077,19 @@ function drawStroke(ctx: CanvasRenderingContext2D, stroke: SketchStroke, width: 
     ctx.shadowColor = stroke.c;
     ctx.shadowBlur = line;
     ctx.lineWidth = Math.max(1, line * 0.55);
+  } else if (stroke.pen === "pen") {
+    ctx.lineWidth = Math.max(1, line * 0.34);
+  } else if (stroke.pen === "charcoal") {
+    ctx.globalAlpha = 0.55 * fade;
+    ctx.lineWidth = line * 0.9;
+  } else if (stroke.pen === "watercolor") {
+    ctx.globalAlpha = 0.28 * fade;
+    ctx.lineWidth = line * 2.1;
+  } else if (stroke.pen === "smudge") {
+    ctx.globalAlpha = 0.16 * fade;
+    ctx.shadowColor = stroke.c;
+    ctx.shadowBlur = line;
+    ctx.lineWidth = line * 2.6;
   }
   if (stroke.pen === "spray") {
     const reach = Math.max(2, line * 0.7);

@@ -9,7 +9,7 @@ const HEART_TAG = "dwheart";
 const HIDDEN_POSTS = new Set(["sk-h7cwi45r", "sk-mvsd7uzr"]);
 
 export const PAPER = "#f4f0e6";
-export const PEN_IDS = ["ink", "marker", "pencil", "highlighter", "spray", "neon", "erase"] as const;
+export const PEN_IDS = ["ink", "pen", "marker", "pencil", "charcoal", "watercolor", "highlighter", "spray", "neon", "smudge", "erase"] as const;
 
 export type StrokePen = (typeof PEN_IDS)[number];
 

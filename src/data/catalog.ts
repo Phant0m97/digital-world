@@ -365,6 +365,14 @@ export const SKINS = [
   { id: "cape", name: "Cape", cost: 80 },
   { id: "gas", name: "Gas Mask", cost: 90 },
   { id: "swat", name: "Camo", cost: 140 },
+  { id: "shades", name: "Shades", cost: 35 },
+  { id: "scarf", name: "Scarf", cost: 45 },
+  { id: "horns", name: "Horns", cost: 70 },
+  { id: "pack", name: "Backpack", cost: 60 },
+  { id: "vest", name: "Vest", cost: 75 },
+  { id: "boots", name: "Boots", cost: 50 },
+  { id: "halo", name: "Halo", cost: 85 },
+  { id: "wings", name: "Wings", cost: 110 },
 ] as const;
 
 export const SKIN_HEX: Record<string, string> = {
@@ -376,6 +384,14 @@ export const SKIN_HEX: Record<string, string> = {
   cape: "#9b6bff",
   gas: "#22252e",
   swat: "#7ed957",
+  shades: "#1a1c22",
+  scarf: "#ff4d6a",
+  horns: "#f4f0e6",
+  pack: "#3a6ea5",
+  vest: "#22252e",
+  boots: "#2a241c",
+  halo: "#ffe56b",
+  wings: "#d7e4ff",
 };
 
 export const MODES = [

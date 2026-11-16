@@ -278,6 +278,89 @@ function drawGun(ctx: CanvasRenderingContext2D, x: number, y: number, aim: numbe
   ctx.restore();
 }
 
+function drawBoots(ctx: CanvasRenderingContext2D, cx: number, feet: number, swing: number, color: string) {
+  ctx.fillStyle = color;
+  for (const x of [cx - 4.3 - swing * 0.85, cx + 4.3 + swing * 0.85]) {
+    ctx.beginPath();
+    ctx.ellipse(x, feet - 1, 5.4, 3.1, 0, 0, Math.PI * 2);
+    ctx.fill();
+    stroke(ctx, 2.2);
+  }
+}
+
+function drawWings(ctx: CanvasRenderingContext2D, x: number, y: number, color: string) {
+  ctx.save();
+  ctx.fillStyle = color;
+  for (const side of [-1, 1]) {
+    ctx.beginPath();
+    ctx.moveTo(x, y + 6);
+    ctx.quadraticCurveTo(x + side * 28, y - 6, x + side * 18, y + 28);
+    ctx.quadraticCurveTo(x + side * 8, y + 16, x, y + 12);
+    ctx.closePath();
+    ctx.fill();
+    stroke(ctx, 2.2);
+  }
+  ctx.restore();
+}
+
+function drawPack(ctx: CanvasRenderingContext2D, x: number, y: number, color: string) {
+  ctx.fillStyle = color;
+  roundRect(ctx, x - 7, y + 4, 14, 16, 3);
+  ctx.fill();
+  stroke(ctx, 2.2);
+  ctx.fillStyle = shade(color, 30);
+  ctx.fillRect(x - 2, y + 1, 4, 5);
+}
+
+function drawVest(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, color: string) {
+  ctx.fillStyle = color;
+  ctx.fillRect(x + 2, y + 4, w - 4, h * 0.62);
+  stroke(ctx, 2);
+  ctx.fillStyle = shade(color, 40);
+  ctx.fillRect(x + w * 0.42, y + 6, 2, h * 0.4);
+}
+
+function drawScarf(ctx: CanvasRenderingContext2D, x: number, y: number, color: string) {
+  ctx.fillStyle = color;
+  roundRect(ctx, x - 8, y, 16, 6, 2);
+  ctx.fill();
+  stroke(ctx, 2);
+  ctx.fillRect(x + 3, y + 4, 4, 12);
+  stroke(ctx, 2);
+}
+
+function drawShades(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, color: string) {
+  ctx.fillStyle = color;
+  roundRect(ctx, x - r * 0.85, y - r * 0.08, r * 0.7, r * 0.38, 2);
+  roundRect(ctx, x + r * 0.15, y - r * 0.08, r * 0.7, r * 0.38, 2);
+  ctx.fill();
+  stroke(ctx, 2);
+  ctx.beginPath();
+  ctx.moveTo(x - r * 0.15, y + r * 0.08);
+  ctx.lineTo(x + r * 0.15, y + r * 0.08);
+  ctx.stroke();
+}
+
+function drawHorns(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, color: string) {
+  ctx.fillStyle = color;
+  for (const side of [-1, 1]) {
+    ctx.beginPath();
+    ctx.moveTo(x + side * r * 0.45, y - r * 0.55);
+    ctx.quadraticCurveTo(x + side * r * 1.15, y - r * 1.35, x + side * r * 0.2, y - r * 0.95);
+    ctx.closePath();
+    ctx.fill();
+    stroke(ctx, 2);
+  }
+}
+
+function drawHalo(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, color: string) {
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2.4;
+  ctx.beginPath();
+  ctx.ellipse(x, y - r * 1.25, r * 0.7, r * 0.22, 0, 0, Math.PI * 2);
+  ctx.stroke();
+}
+
 function dye(figure: Figure, id: string) {
   return figure.dyes[id] ?? SKIN_HEX[id] ?? "#ff3d6e";
 }
@@ -329,6 +412,7 @@ export function drawDigiFigure(ctx: CanvasRenderingContext2D, figure: Figure, no
   };
   leg(-4.3, -swing);
   leg(4.3, swing);
+  if (worn.has("boots")) drawBoots(ctx, cx, feet, swing, dye(figure, "boots"));
   const shoulder = hip - 16.2;
   const handX = cx + figure.facing * (bodyW * 0.42);
   const muzzleX = handX + Math.cos(figure.aim) * 13;
@@ -338,6 +422,8 @@ export function drawDigiFigure(ctx: CanvasRenderingContext2D, figure: Figure, no
   ctx.lineTo(muzzleX, muzzleY);
   ctx.stroke();
   if (worn.has("cape")) drawCape(ctx, cx, bodyY, 30, figure.facing, dye(figure, "cape"));
+  if (worn.has("wings")) drawWings(ctx, cx, bodyY, dye(figure, "wings"));
+  if (worn.has("pack")) drawPack(ctx, cx, bodyY + 2, dye(figure, "pack"));
   const hoodie = worn.has("hoodie");
   const swat = worn.has("swat");
   ctx.save();
@@ -362,6 +448,8 @@ export function drawDigiFigure(ctx: CanvasRenderingContext2D, figure: Figure, no
   ctx.restore();
   roundRect(ctx, bodyX, bodyY, bodyW, 30, 1.5);
   stroke(ctx, 3.15);
+  if (worn.has("vest")) drawVest(ctx, bodyX, bodyY, bodyW, 30, dye(figure, "vest"));
+  if (worn.has("scarf")) drawScarf(ctx, cx, bodyY - 2, dye(figure, "scarf"));
   if (gas) {
     ctx.fillStyle = dye(figure, "gas");
     ctx.beginPath();
@@ -381,6 +469,9 @@ export function drawDigiFigure(ctx: CanvasRenderingContext2D, figure: Figure, no
     drawEyes(ctx, head.x, head.y, figure.facing);
     if (worn.has("bandana")) drawBandana(ctx, head.x, head.y, headR, dye(figure, "bandana"));
     if (worn.has("visor")) drawVisor(ctx, head.x, head.y, headR, dye(figure, "visor"));
+    if (worn.has("shades")) drawShades(ctx, head.x, head.y, headR, dye(figure, "shades"));
+    if (worn.has("horns")) drawHorns(ctx, head.x, head.y, headR, dye(figure, "horns"));
+    if (worn.has("halo")) drawHalo(ctx, head.x, head.y, headR, dye(figure, "halo"));
   }
   drawGun(ctx, muzzleX, muzzleY, figure.aim, figure.weapon, paint);
   ctx.restore();
