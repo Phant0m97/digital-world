@@ -252,27 +252,9 @@ function SketchPage() {
           </button>
         </div>
       </div>
-      <div className={cover ? "fixed inset-0 z-30 bg-ink" : "relative mt-3 h-[calc(100dvh-8.75rem)] min-h-[32rem] overflow-hidden rounded-card border border-line"}>
-        <DrawBoard
-          layers={layers}
-          activeId={active.id}
-          color={color}
-          width={width}
-          pen={tool}
-          locked={!erase && !owned}
-          commitRef={commitRef}
-          onStroke={(stroke) => {
-            const total = pictureRef.current.reduce((sum, layer) => sum + layer.strokes.length, 0);
-            if (total >= 240) {
-              setNote("This picture is full.");
-              return false;
-            }
-            patchActive((strokes) => [...strokes, stroke], true);
-            return true;
-          }}
-        />
-        <section className="pointer-events-none absolute inset-0 z-10 flex flex-col p-3">
-          <div className="pointer-events-auto flex max-h-28 flex-wrap items-center gap-2 overflow-auto rounded-2xl bg-ink/75 p-2">
+      <div className={cover ? "fixed inset-0 z-30 flex flex-col bg-ink" : "relative mt-3 flex h-[calc(100dvh-8.75rem)] min-h-[28rem] flex-col overflow-hidden rounded-card border border-line"}>
+        <section className="flex max-h-36 shrink-0 flex-wrap items-center gap-2 overflow-auto border-b border-line bg-ink p-2">
+          <div className="flex flex-wrap items-center gap-2">
             {PENS.map((item) => {
               const has = item.cost === 0 || ownedPens.includes(item.id);
               const on = !erase && penId === item.id;
@@ -308,12 +290,12 @@ function SketchPage() {
                 const bought = buyPen(pen.id, pen.cost);
                 setNote(bought ? `${pen.name} is yours.` : `You need ${pen.cost} cr for ${pen.name}.`);
               }}
-              className="pointer-events-auto mt-2 w-fit rounded-full bg-cyan px-4 py-2 font-display text-ink disabled:opacity-40"
+              className="mt-2 w-fit rounded-full bg-cyan px-4 py-2 font-display text-ink disabled:opacity-40"
             >
               {credits < pen.cost ? `Need ${pen.cost} cr` : `Buy ${pen.name} · ${pen.cost} cr`}
             </button>
           ) : null}
-          <div className="pointer-events-auto mt-2 flex max-w-xl flex-wrap items-center gap-3 rounded-2xl bg-ink/75 p-2">
+          <div className="flex flex-wrap items-center gap-3">
             <ColorWheel hue={hue} onHue={setHue} />
             <div className="min-w-40 flex-1">
               <label className="block text-sm text-mute">
@@ -358,7 +340,7 @@ function SketchPage() {
               <span className="mt-2 inline-block rounded-full border border-line" style={{ width: 36, height: Math.max(4, width / 4), background: erase ? PAPER : color }} />
             </div>
           </div>
-          <div className="pointer-events-auto mt-2 flex max-h-24 flex-wrap items-center gap-2 overflow-auto rounded-2xl bg-ink/75 p-2">
+          <div className="flex flex-wrap items-center gap-2">
             {layers.map((layer, index) => (
               <button
                 key={layer.id}
@@ -434,7 +416,28 @@ function SketchPage() {
               Clear layer
             </button>
           </div>
-          <div className="pointer-events-auto mt-auto flex max-w-3xl flex-wrap gap-2 rounded-2xl bg-ink/75 p-2" style={{ marginRight: "9rem" }}>
+        </section>
+        <div className="relative min-h-0 flex-1">
+          <DrawBoard
+            layers={layers}
+            activeId={active.id}
+            color={color}
+            width={width}
+            pen={tool}
+            locked={!erase && !owned}
+            commitRef={commitRef}
+            onStroke={(stroke) => {
+              const total = pictureRef.current.reduce((sum, layer) => sum + layer.strokes.length, 0);
+              if (total >= 240) {
+                setNote("This picture is full.");
+                return false;
+              }
+              patchActive((strokes) => [...strokes, stroke], true);
+              return true;
+            }}
+          />
+        </div>
+        <div className="flex shrink-0 flex-wrap gap-2 border-t border-line bg-ink p-2">
             <input
               value={title}
               onChange={(event) => setTitle(event.target.value)}
@@ -470,8 +473,7 @@ function SketchPage() {
               Post
             </button>
           </div>
-          {note ? <p className="pointer-events-none mt-2 text-sm text-cream">{note}</p> : null}
-        </section>
+          {note ? <p className="shrink-0 px-2 pb-2 text-sm text-mute">{note}</p> : null}
         {sheet === "saved" ? (
           <section className="absolute inset-3 z-20 overflow-auto rounded-card border border-line bg-ink/95 p-4">
             <div className="flex items-center justify-between gap-3">
@@ -733,7 +735,7 @@ function ColorWheel({ hue, onHue }: { hue: number; onHue: (hue: number) => void 
     <canvas
       ref={ref}
       aria-label="Color wheel"
-      className="size-36 touch-none rounded-full"
+      className="size-24 touch-none rounded-full"
       onPointerDown={(event) => {
         event.currentTarget.setPointerCapture(event.pointerId);
         pick(event);
@@ -871,6 +873,7 @@ function DrawBoard({
     <div
       ref={stageRef}
       className="absolute inset-0 overflow-hidden bg-[#12121a] touch-none"
+      style={{ containerType: "size" }}
       onPointerDown={(event) => {
         pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
         event.currentTarget.setPointerCapture(event.pointerId);
@@ -934,12 +937,15 @@ function DrawBoard({
       }}
     >
       <div
-        className="absolute left-1/2 top-1/2 w-[min(92%,880px)]"
-        style={{ transform: `translate(calc(-50% + ${view.x}px), calc(-50% + ${view.y}px)) scale(${view.z})` }}
+        className="absolute top-1/2 left-1/2 aspect-[4/3]"
+        style={{
+          width: "min(calc(100cqw - 1rem), calc((100cqh - 3.75rem) * 4 / 3))",
+          transform: `translate(calc(-50% + ${view.x}px), calc(-50% - 1.5rem + ${view.y}px)) scale(${view.z})`,
+        }}
       >
         <canvas ref={canvasRef} className="aspect-[4/3] w-full bg-cream shadow-[0_12px_40px_rgba(0,0,0,0.45)]" />
       </div>
-      <div className="absolute right-3 bottom-3 z-20 flex gap-2" onPointerDown={(event) => event.stopPropagation()}>
+      <div className="absolute inset-x-0 bottom-2 z-20 flex justify-center gap-2" onPointerDown={(event) => event.stopPropagation()}>
         <button type="button" onClick={() => setView((next) => ({ ...next, z: Math.max(0.35, next.z / 1.2) }))} className="min-h-11 rounded-full border border-line bg-ink/80 px-3 text-sm">
           −
         </button>
