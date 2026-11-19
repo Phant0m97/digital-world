@@ -15,6 +15,7 @@ import { Route as ChatRouteImport } from './routes/chat'
 import { Route as FarmRouteImport } from './routes/farm'
 import { Route as GamesRouteImport } from './routes/games'
 import { Route as HotelRouteImport } from './routes/hotel'
+import { Route as MagisRouteImport } from './routes/magis'
 import { Route as PaintballRouteImport } from './routes/paintball'
 import { Route as PlayRouteImport } from './routes/play'
 import { Route as SketchRouteImport } from './routes/sketch'
@@ -49,6 +50,11 @@ const HotelRoute = HotelRouteImport.update({
   path: '/hotel',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MagisRoute = MagisRouteImport.update({
+  id: '/magis',
+  path: '/magis',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PaintballRoute = PaintballRouteImport.update({
   id: '/paintball',
   path: '/paintball',
@@ -72,6 +78,7 @@ export interface FileRoutesByFullPath {
   '/farm': typeof FarmRoute
   '/games': typeof GamesRoute
   '/hotel': typeof HotelRoute
+  '/magis': typeof MagisRoute
   '/paintball': typeof PaintballRoute
   '/play': typeof PlayRoute
   '/sketch': typeof SketchRoute
@@ -83,6 +90,7 @@ export interface FileRoutesByTo {
   '/farm': typeof FarmRoute
   '/games': typeof GamesRoute
   '/hotel': typeof HotelRoute
+  '/magis': typeof MagisRoute
   '/paintball': typeof PaintballRoute
   '/play': typeof PlayRoute
   '/sketch': typeof SketchRoute
@@ -95,6 +103,7 @@ export interface FileRoutesById {
   '/farm': typeof FarmRoute
   '/games': typeof GamesRoute
   '/hotel': typeof HotelRoute
+  '/magis': typeof MagisRoute
   '/paintball': typeof PaintballRoute
   '/play': typeof PlayRoute
   '/sketch': typeof SketchRoute
@@ -108,6 +117,7 @@ export interface FileRouteTypes {
     | '/farm'
     | '/games'
     | '/hotel'
+    | '/magis'
     | '/paintball'
     | '/play'
     | '/sketch'
@@ -119,6 +129,7 @@ export interface FileRouteTypes {
     | '/farm'
     | '/games'
     | '/hotel'
+    | '/magis'
     | '/paintball'
     | '/play'
     | '/sketch'
@@ -130,6 +141,7 @@ export interface FileRouteTypes {
     | '/farm'
     | '/games'
     | '/hotel'
+    | '/magis'
     | '/paintball'
     | '/play'
     | '/sketch'
@@ -142,6 +154,7 @@ export interface RootRouteChildren {
   FarmRoute: typeof FarmRoute
   GamesRoute: typeof GamesRoute
   HotelRoute: typeof HotelRoute
+  MagisRoute: typeof MagisRoute
   PaintballRoute: typeof PaintballRoute
   PlayRoute: typeof PlayRoute
   SketchRoute: typeof SketchRoute
@@ -191,6 +204,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof HotelRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/magis': {
+      id: '/magis'
+      path: '/magis'
+      fullPath: '/magis'
+      preLoaderRoute: typeof MagisRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/paintball': {
       id: '/paintball'
       path: '/paintball'
@@ -222,6 +242,7 @@ const rootRouteChildren: RootRouteChildren = {
   FarmRoute: FarmRoute,
   GamesRoute: GamesRoute,
   HotelRoute: HotelRoute,
+  MagisRoute: MagisRoute,
   PaintballRoute: PaintballRoute,
   PlayRoute: PlayRoute,
   SketchRoute: SketchRoute,
