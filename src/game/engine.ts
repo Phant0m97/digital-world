@@ -962,7 +962,7 @@ export function createMatch(
         ctx.fillStyle = "#16161c";
         ctx.font = "700 12px Outfit, sans-serif";
         ctx.textAlign = "center";
-        ctx.fillText(`${crystal.hp}`, 0, 48);
+        ctx.fillText(`${crystal.hp}`, 0, -40);
         ctx.restore();
       }
     }

@@ -63,12 +63,18 @@ function Field() {
     <div className="relative h-[calc(100dvh-4.25rem)]">
       <canvas ref={canvasRef} className="h-full w-full" />
       <div className="pointer-events-none absolute top-3 right-3 left-3 flex justify-between gap-3">
-        <Link to="/games" className="pointer-events-auto rounded-full bg-[#f3f0e8] px-4 py-2 text-sm text-ink">
-          Games
-        </Link>
+        <div className="pointer-events-auto flex items-center gap-2">
+          <Link to="/games" className="rounded-full bg-[#f3f0e8] px-4 py-2 text-sm text-ink">
+            Games
+          </Link>
+          <div className="flex items-center gap-1.5 rounded-full border-2 border-ink bg-[#f3f0e8] py-1 pr-3 pl-1 text-ink">
+            <Coin />
+            <span className="font-display text-lg font-bold leading-none">{hud.coins}</span>
+          </div>
+        </div>
         <div className="rounded-2xl border-2 border-ink bg-[#f3f0e8] px-3 py-2 text-right text-xs text-ink">
           <p>
-            PolyFarm · Day {hud.day} · {hud.coins} coins{hud.inside ? " · Inside" : ""}{hud.driving ? " · Driving" : ""}
+            PolyFarm · Day {hud.day}{hud.inside ? " · Inside" : ""}{hud.driving ? " · Driving" : ""}
           </p>
           <p>{hud.seasonDone ? "Season won. Keep farming." : "Earn 200 to finish the season."}</p>
           <p className="mt-1">{hud.note}</p>
@@ -133,6 +139,15 @@ function Field() {
         </div>
       )}
     </div>
+  );
+}
+
+function Coin() {
+  return (
+    <svg viewBox="0 0 32 32" className="size-7" aria-hidden>
+      <polygon points="16,2 27,8 27,24 16,30 5,24 5,8" fill="#f2c14e" stroke="#16161c" strokeWidth="2" />
+      <polygon points="16,8 22,11.5 22,20.5 16,24 10,20.5 10,11.5" fill="#ffe7a3" stroke="#16161c" strokeWidth="1.5" />
+    </svg>
   );
 }
 
