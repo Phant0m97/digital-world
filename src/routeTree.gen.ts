@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as BreachRouteImport } from './routes/breach'
 import { Route as ChatRouteImport } from './routes/chat'
 import { Route as FarmRouteImport } from './routes/farm'
 import { Route as GamesRouteImport } from './routes/games'
@@ -22,6 +23,11 @@ import { Route as SketchRouteImport } from './routes/sketch'
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BreachRoute = BreachRouteImport.update({
+  id: '/breach',
+  path: '/breach',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ChatRoute = ChatRouteImport.update({
@@ -67,6 +73,7 @@ const SketchRoute = SketchRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/breach': typeof BreachRoute
   '/chat': typeof ChatRoute
   '/farm': typeof FarmRoute
   '/games': typeof GamesRoute
@@ -78,6 +85,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/breach': typeof BreachRoute
   '/chat': typeof ChatRoute
   '/farm': typeof FarmRoute
   '/games': typeof GamesRoute
@@ -90,6 +98,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/breach': typeof BreachRoute
   '/chat': typeof ChatRoute
   '/farm': typeof FarmRoute
   '/games': typeof GamesRoute
@@ -103,6 +112,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/breach'
     | '/chat'
     | '/farm'
     | '/games'
@@ -114,6 +124,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/breach'
     | '/chat'
     | '/farm'
     | '/games'
@@ -125,6 +136,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/breach'
     | '/chat'
     | '/farm'
     | '/games'
@@ -137,6 +149,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  BreachRoute: typeof BreachRoute
   ChatRoute: typeof ChatRoute
   FarmRoute: typeof FarmRoute
   GamesRoute: typeof GamesRoute
@@ -154,6 +167,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/breach': {
+      id: '/breach'
+      path: '/breach'
+      fullPath: '/breach'
+      preLoaderRoute: typeof BreachRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/chat': {
@@ -217,6 +237,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  BreachRoute: BreachRoute,
   ChatRoute: ChatRoute,
   FarmRoute: FarmRoute,
   GamesRoute: GamesRoute,

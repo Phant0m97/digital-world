@@ -10,6 +10,7 @@ const GAMES = [
   { to: "/farm", title: "PolyFarm", image: "games/acre.jpg" },
   { to: "/hotel", title: "Happy Hotel", image: "games/hotel.jpg" },
   { to: "/magis", title: "Magis", image: "games/magis.jpg" },
+  { to: "/breach", title: "Breach", image: "games/breach.jpg" },
 ] as const;
 
 function GamesPage() {
