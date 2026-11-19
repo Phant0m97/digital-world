@@ -25,7 +25,7 @@ export function Shell({ children, bare = false }: { children: ReactNode; bare?: 
           <TopLink to="/chat" active={path.startsWith("/chat")}>
             Chat
           </TopLink>
-          <TopLink to="/games" active={path.startsWith("/games") || path.startsWith("/play") || path.startsWith("/paintball") || path.startsWith("/sketch") || path.startsWith("/farm") || path.startsWith("/ruins") || path.startsWith("/harbor") || path.startsWith("/foundry")}>
+          <TopLink to="/games" active={path.startsWith("/games") || path.startsWith("/play") || path.startsWith("/paintball") || path.startsWith("/sketch") || path.startsWith("/farm") || path.startsWith("/hotel") || path.startsWith("/blackout")}>
             Games
           </TopLink>
           <span className="rounded-full border border-line px-3 py-2 font-display text-cyan">

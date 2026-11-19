@@ -10,20 +10,23 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as BlackoutRouteImport } from './routes/blackout'
 import { Route as ChatRouteImport } from './routes/chat'
 import { Route as FarmRouteImport } from './routes/farm'
-import { Route as FoundryRouteImport } from './routes/foundry'
 import { Route as GamesRouteImport } from './routes/games'
-import { Route as HarborRouteImport } from './routes/harbor'
 import { Route as HotelRouteImport } from './routes/hotel'
 import { Route as PaintballRouteImport } from './routes/paintball'
 import { Route as PlayRouteImport } from './routes/play'
-import { Route as RuinsRouteImport } from './routes/ruins'
 import { Route as SketchRouteImport } from './routes/sketch'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BlackoutRoute = BlackoutRouteImport.update({
+  id: '/blackout',
+  path: '/blackout',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ChatRoute = ChatRouteImport.update({
@@ -36,19 +39,9 @@ const FarmRoute = FarmRouteImport.update({
   path: '/farm',
   getParentRoute: () => rootRouteImport,
 } as any)
-const FoundryRoute = FoundryRouteImport.update({
-  id: '/foundry',
-  path: '/foundry',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const GamesRoute = GamesRouteImport.update({
   id: '/games',
   path: '/games',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const HarborRoute = HarborRouteImport.update({
-  id: '/harbor',
-  path: '/harbor',
   getParentRoute: () => rootRouteImport,
 } as any)
 const HotelRoute = HotelRouteImport.update({
@@ -66,11 +59,6 @@ const PlayRoute = PlayRouteImport.update({
   path: '/play',
   getParentRoute: () => rootRouteImport,
 } as any)
-const RuinsRoute = RuinsRouteImport.update({
-  id: '/ruins',
-  path: '/ruins',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const SketchRoute = SketchRouteImport.update({
   id: '/sketch',
   path: '/sketch',
@@ -79,97 +67,83 @@ const SketchRoute = SketchRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/blackout': typeof BlackoutRoute
   '/chat': typeof ChatRoute
   '/farm': typeof FarmRoute
-  '/foundry': typeof FoundryRoute
   '/games': typeof GamesRoute
-  '/harbor': typeof HarborRoute
   '/hotel': typeof HotelRoute
   '/paintball': typeof PaintballRoute
   '/play': typeof PlayRoute
-  '/ruins': typeof RuinsRoute
   '/sketch': typeof SketchRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/blackout': typeof BlackoutRoute
   '/chat': typeof ChatRoute
   '/farm': typeof FarmRoute
-  '/foundry': typeof FoundryRoute
   '/games': typeof GamesRoute
-  '/harbor': typeof HarborRoute
   '/hotel': typeof HotelRoute
   '/paintball': typeof PaintballRoute
   '/play': typeof PlayRoute
-  '/ruins': typeof RuinsRoute
   '/sketch': typeof SketchRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/blackout': typeof BlackoutRoute
   '/chat': typeof ChatRoute
   '/farm': typeof FarmRoute
-  '/foundry': typeof FoundryRoute
   '/games': typeof GamesRoute
-  '/harbor': typeof HarborRoute
   '/hotel': typeof HotelRoute
   '/paintball': typeof PaintballRoute
   '/play': typeof PlayRoute
-  '/ruins': typeof RuinsRoute
   '/sketch': typeof SketchRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/blackout'
     | '/chat'
     | '/farm'
-    | '/foundry'
     | '/games'
-    | '/harbor'
     | '/hotel'
     | '/paintball'
     | '/play'
-    | '/ruins'
     | '/sketch'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/blackout'
     | '/chat'
     | '/farm'
-    | '/foundry'
     | '/games'
-    | '/harbor'
     | '/hotel'
     | '/paintball'
     | '/play'
-    | '/ruins'
     | '/sketch'
   id:
     | '__root__'
     | '/'
+    | '/blackout'
     | '/chat'
     | '/farm'
-    | '/foundry'
     | '/games'
-    | '/harbor'
     | '/hotel'
     | '/paintball'
     | '/play'
-    | '/ruins'
     | '/sketch'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  BlackoutRoute: typeof BlackoutRoute
   ChatRoute: typeof ChatRoute
   FarmRoute: typeof FarmRoute
-  FoundryRoute: typeof FoundryRoute
   GamesRoute: typeof GamesRoute
-  HarborRoute: typeof HarborRoute
   HotelRoute: typeof HotelRoute
   PaintballRoute: typeof PaintballRoute
   PlayRoute: typeof PlayRoute
-  RuinsRoute: typeof RuinsRoute
   SketchRoute: typeof SketchRoute
 }
 
@@ -180,6 +154,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/blackout': {
+      id: '/blackout'
+      path: '/blackout'
+      fullPath: '/blackout'
+      preLoaderRoute: typeof BlackoutRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/chat': {
@@ -196,25 +177,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FarmRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/foundry': {
-      id: '/foundry'
-      path: '/foundry'
-      fullPath: '/foundry'
-      preLoaderRoute: typeof FoundryRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/games': {
       id: '/games'
       path: '/games'
       fullPath: '/games'
       preLoaderRoute: typeof GamesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/harbor': {
-      id: '/harbor'
-      path: '/harbor'
-      fullPath: '/harbor'
-      preLoaderRoute: typeof HarborRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/hotel': {
@@ -238,13 +205,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PlayRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/ruins': {
-      id: '/ruins'
-      path: '/ruins'
-      fullPath: '/ruins'
-      preLoaderRoute: typeof RuinsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/sketch': {
       id: '/sketch'
       path: '/sketch'
@@ -257,15 +217,13 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  BlackoutRoute: BlackoutRoute,
   ChatRoute: ChatRoute,
   FarmRoute: FarmRoute,
-  FoundryRoute: FoundryRoute,
   GamesRoute: GamesRoute,
-  HarborRoute: HarborRoute,
   HotelRoute: HotelRoute,
   PaintballRoute: PaintballRoute,
   PlayRoute: PlayRoute,
-  RuinsRoute: RuinsRoute,
   SketchRoute: SketchRoute,
 }
 export const routeTree = rootRouteImport

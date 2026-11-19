@@ -8,10 +8,8 @@ const GAMES = [
   { to: "/paintball", title: "Paintball", image: "games/paintball-yard2.jpg" },
   { to: "/sketch", title: "Sketch", image: "games/sketch-stick.jpg" },
   { to: "/farm", title: "PolyFarm", image: "games/acre.jpg" },
-  { to: "/ruins", title: "Ruins", image: "games/ruins.jpg" },
-  { to: "/harbor", title: "Harbor", image: "games/harbor.jpg" },
-  { to: "/foundry", title: "Foundry", image: "games/foundry.jpg" },
   { to: "/hotel", title: "Happy Hotel", image: "games/hotel.jpg" },
+  { to: "/blackout", title: "Blackout", image: "games/blackout.jpg" },
 ] as const;
 
 function GamesPage() {
