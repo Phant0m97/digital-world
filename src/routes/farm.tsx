@@ -22,6 +22,8 @@ const empty: FarmHud = {
   carOwned: false,
   driving: false,
   nearCar: false,
+  browsing: false,
+  carInCity: false,
 };
 
 function FarmPage() {
@@ -74,7 +76,7 @@ function Field() {
         </div>
         <div className="rounded-2xl border-2 border-ink bg-[#f3f0e8] px-3 py-2 text-right text-xs text-ink">
           <p>
-            PolyFarm · Day {hud.day}{hud.inside ? " · Inside" : ""}{hud.driving ? " · Driving" : ""}
+            PolyFarm · Day {hud.day}{hud.inside ? " · Inside" : ""}
           </p>
           <p>{hud.seasonDone ? "Season won. Keep farming." : "Earn 200 to finish the season."}</p>
           <p className="mt-1">{hud.note}</p>
@@ -87,10 +89,10 @@ function Field() {
           onStart={() => api.current?.confirmLook()}
         />
       ) : null}
-      {hud.near === "village" && !hud.creating && !hud.driving ? (
+      {hud.browsing && !hud.creating ? (
         <Stall hud={hud} onWear={(id) => api.current?.wear(id)} onLook={(look) => api.current?.previewLook(look)} />
       ) : null}
-      {biz && !hud.creating && !hud.driving ? (
+      {biz && !hud.creating && !hud.inside ? (
         <div className="absolute top-16 left-3 w-56 rounded-2xl border-2 border-ink bg-[#f3f0e8] p-3 text-sm text-ink">
           <p className="font-display text-xl font-bold capitalize">{biz}</p>
           <p className="mt-1 text-xs">{bizLevel === 0 ? "Nothing is built here yet." : `Level ${bizLevel} of 3. It pays out each day.`}</p>
@@ -103,14 +105,9 @@ function Field() {
           )}
         </div>
       ) : null}
-      {hud.driving ? (
-        <button type="button" className="absolute top-16 left-3 rounded-full bg-cyan px-4 py-3 text-sm text-ink" onClick={() => api.current?.act()}>
-          Get out
-        </button>
-      ) : null}
-      {hud.nearCar && !hud.driving && !hud.creating ? (
+      {hud.nearCar && !hud.inside && !hud.creating ? (
         <button type="button" className="absolute top-16 left-3 rounded-2xl border-2 border-ink bg-[#f3f0e8] px-4 py-3 text-sm text-ink" onClick={() => api.current?.act()}>
-          {hud.carOwned ? "Get in" : `Buy the car · ${CAR_PRICE}`}
+          {hud.carOwned ? (hud.carInCity ? "Back to the farm" : "Go to the city") : `Buy the car · ${CAR_PRICE}`}
         </button>
       ) : null}
       {hud.creating ? null : (

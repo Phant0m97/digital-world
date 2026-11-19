@@ -48,6 +48,8 @@ export type FarmHud = {
   carOwned: boolean;
   driving: boolean;
   nearCar: boolean;
+  browsing: boolean;
+  carInCity: boolean;
 };
 
 export const SKINS = ["#f3d2b3", "#e0b090", "#c68642", "#8d5524", "#4a3128"];
@@ -99,10 +101,15 @@ const KEY = "dw-acre-v1";
 const GOAL = 200;
 const HOUSE = { x: -6.4, z: -5.4 };
 const ROOM = { x: 80, z: 0 };
+const SHOP_ROOM = { x: 100, z: 0 };
+const HALL_ROOM = { x: 120, z: 0 };
+const OFFICE_ROOM = { x: 140, z: 0 };
+const CITY_PARK = { x: 13.2, z: 5.3 };
 const SHOP_AT = { x: 6.6, z: -3.4 };
 const REST_AT = { x: 6.6, z: 1.2 };
 const STALL_AT = { x: 20.2, z: 1.4 };
 
+type RoomId = "house" | "shop" | "hall" | "office";
 type Box = { minX: number; maxX: number; minZ: number; maxZ: number };
 
 type Save = {
@@ -261,26 +268,39 @@ export function mountFarm(canvas: HTMLCanvasElement, onHud: (hud: FarmHud) => vo
     { minX: ROOM.x - 2.2, maxX: ROOM.x - 0.7, minZ: ROOM.z - 1.7, maxZ: ROOM.z - 0.5 },
     { minX: ROOM.x + 0.55, maxX: ROOM.x + 1.7, minZ: ROOM.z + 0.15, maxZ: ROOM.z + 1.15 },
   ];
+  const shopBoxes = shellBoxes(SHOP_ROOM.x, SHOP_ROOM.z, [
+    { minX: SHOP_ROOM.x - 1.3, maxX: SHOP_ROOM.x + 1.3, minZ: SHOP_ROOM.z - 1.15, maxZ: SHOP_ROOM.z - 0.45 },
+  ]);
+  const hallBoxes = shellBoxes(HALL_ROOM.x, HALL_ROOM.z, [
+    { minX: HALL_ROOM.x - 1.1, maxX: HALL_ROOM.x + 1.1, minZ: HALL_ROOM.z - 1.5, maxZ: HALL_ROOM.z - 0.7 },
+  ]);
+  const officeBoxes = shellBoxes(OFFICE_ROOM.x, OFFICE_ROOM.z, [
+    { minX: OFFICE_ROOM.x - 0.8, maxX: OFFICE_ROOM.x + 0.8, minZ: OFFICE_ROOM.z - 0.4, maxZ: OFFICE_ROOM.z + 0.4 },
+  ]);
+  const shells: Record<RoomId, Box[]> = { house: insideBoxes, shop: shopBoxes, hall: hallBoxes, office: officeBoxes };
 
-  const room = new THREE.Group();
-  scene.add(room);
-  const floor = solid(new THREE.BoxGeometry(5.2, 0.08, 4.2), "#ece7e1", ROOM.x, 0.04, ROOM.z, room);
+  const houseRoom = new THREE.Group();
+  scene.add(houseRoom);
+  const floor = solid(new THREE.BoxGeometry(5.2, 0.08, 4.2), "#ece7e1", ROOM.x, 0.04, ROOM.z, houseRoom);
   floor.castShadow = false;
-  solid(new THREE.BoxGeometry(5.2, 2.4, 0.16), "#f7f7f5", ROOM.x, 1.2, ROOM.z - 1.95, room);
-  solid(new THREE.BoxGeometry(0.16, 2.4, 4.1), "#f7f7f5", ROOM.x - 2.5, 1.2, ROOM.z, room);
-  solid(new THREE.BoxGeometry(0.16, 2.4, 4.1), "#f7f7f5", ROOM.x + 2.5, 1.2, ROOM.z, room);
-  solid(new THREE.BoxGeometry(1.85, 2.4, 0.16), "#f7f7f5", ROOM.x - 1.55, 1.2, ROOM.z + 1.95, room);
-  solid(new THREE.BoxGeometry(1.85, 2.4, 0.16), "#f7f7f5", ROOM.x + 1.55, 1.2, ROOM.z + 1.95, room);
-  solid(new THREE.BoxGeometry(1.5, 0.5, 0.16), "#f7f7f5", ROOM.x, 2.15, ROOM.z + 1.95, room);
-  solid(new THREE.BoxGeometry(5.4, 0.1, 4.5), "#2a3138", ROOM.x, 2.45, ROOM.z, room);
-  solid(new THREE.BoxGeometry(2.1, 0.28, 1.15), "#f4f6f8", ROOM.x - 1.35, 0.28, ROOM.z - 1.05, room);
-  solid(new THREE.BoxGeometry(1.7, 0.12, 0.9), "#d9dee7", ROOM.x - 1.35, 0.46, ROOM.z - 1.05, room);
-  solid(new THREE.BoxGeometry(1.3, 0.32, 0.55), "#2a3138", ROOM.x + 1.15, 0.28, ROOM.z + 0.35, room);
-  solid(new THREE.BoxGeometry(0.9, 0.45, 0.4), "#f4f6f8", ROOM.x - 1.7, 0.32, ROOM.z + 0.9, room);
-  solid(new THREE.BoxGeometry(1.6, 0.02, 1.1), "#cfd5de", ROOM.x + 0.15, 0.06, ROOM.z - 0.15, room);
-  solid(new THREE.BoxGeometry(1.5, 1.15, 0.06), "#b9e3f5", ROOM.x + 2.4, 1.35, ROOM.z - 0.2, room);
-  solid(new THREE.CylinderGeometry(0.04, 0.04, 1.15, 6), "#2a3138", ROOM.x + 1.5, 0.7, ROOM.z - 1.2, room);
-  solid(new THREE.ConeGeometry(0.18, 0.16, 6), "#f3f0e8", ROOM.x + 1.5, 1.3, ROOM.z - 1.2, room);
+  solid(new THREE.BoxGeometry(5.2, 2.4, 0.16), "#f7f7f5", ROOM.x, 1.2, ROOM.z - 1.95, houseRoom);
+  solid(new THREE.BoxGeometry(0.16, 2.4, 4.1), "#f7f7f5", ROOM.x - 2.5, 1.2, ROOM.z, houseRoom);
+  solid(new THREE.BoxGeometry(0.16, 2.4, 4.1), "#f7f7f5", ROOM.x + 2.5, 1.2, ROOM.z, houseRoom);
+  solid(new THREE.BoxGeometry(1.85, 2.4, 0.16), "#f7f7f5", ROOM.x - 1.55, 1.2, ROOM.z + 1.95, houseRoom);
+  solid(new THREE.BoxGeometry(1.85, 2.4, 0.16), "#f7f7f5", ROOM.x + 1.55, 1.2, ROOM.z + 1.95, houseRoom);
+  solid(new THREE.BoxGeometry(1.5, 0.5, 0.16), "#f7f7f5", ROOM.x, 2.15, ROOM.z + 1.95, houseRoom);
+  solid(new THREE.BoxGeometry(5.4, 0.1, 4.5), "#2a3138", ROOM.x, 2.45, ROOM.z, houseRoom);
+  solid(new THREE.BoxGeometry(2.1, 0.28, 1.15), "#f4f6f8", ROOM.x - 1.35, 0.28, ROOM.z - 1.05, houseRoom);
+  solid(new THREE.BoxGeometry(1.7, 0.12, 0.9), "#d9dee7", ROOM.x - 1.35, 0.46, ROOM.z - 1.05, houseRoom);
+  solid(new THREE.BoxGeometry(1.3, 0.32, 0.55), "#2a3138", ROOM.x + 1.15, 0.28, ROOM.z + 0.35, houseRoom);
+  solid(new THREE.BoxGeometry(0.9, 0.45, 0.4), "#f4f6f8", ROOM.x - 1.7, 0.32, ROOM.z + 0.9, houseRoom);
+  solid(new THREE.BoxGeometry(1.6, 0.02, 1.1), "#cfd5de", ROOM.x + 0.15, 0.06, ROOM.z - 0.15, houseRoom);
+  solid(new THREE.BoxGeometry(1.5, 1.15, 0.06), "#b9e3f5", ROOM.x + 2.4, 1.35, ROOM.z - 0.2, houseRoom);
+  solid(new THREE.CylinderGeometry(0.04, 0.04, 1.15, 6), "#2a3138", ROOM.x + 1.5, 0.7, ROOM.z - 1.2, houseRoom);
+  solid(new THREE.ConeGeometry(0.18, 0.16, 6), "#f3f0e8", ROOM.x + 1.5, 1.3, ROOM.z - 1.2, houseRoom);
+  scene.add(dressRoom(solid, SHOP_ROOM.x, SHOP_ROOM.z, "shop"));
+  scene.add(dressRoom(solid, HALL_ROOM.x, HALL_ROOM.z, "hall"));
+  scene.add(dressRoom(solid, OFFICE_ROOM.x, OFFICE_ROOM.z, "office"));
 
   for (let i = 0; i < 7; i += 1) {
     const tree = new THREE.Group();
@@ -292,6 +312,13 @@ export function mountFarm(canvas: HTMLCanvasElement, onHud: (hud: FarmHud) => vo
     scene.add(tree);
   }
   scene.add(buildCity(solid, outsideBoxes));
+  const shopDoor = solid(new THREE.PlaneGeometry(0.9, 1.7), "#1c2126", STALL_AT.x, 0.95, STALL_AT.z + 1.46);
+  shopDoor.castShadow = false;
+  const hallDoor = solid(new THREE.PlaneGeometry(0.9, 1.7), "#1c2126", 16.5, 0.95, -3.52);
+  hallDoor.castShadow = false;
+  const officeDoor = solid(new THREE.PlaneGeometry(0.9, 1.7), "#1c2126", 18.2, 0.95, 7.62);
+  officeDoor.rotation.y = Math.PI;
+  officeDoor.castShadow = false;
 
   const shopGroups = [0, 1, 2, 3].map((level) => business(solid, "shop", level, SHOP_AT.x, SHOP_AT.z));
   const restGroups = [0, 1, 2, 3].map((level) => business(solid, "restaurant", level, REST_AT.x, REST_AT.z));
@@ -348,7 +375,7 @@ export function mountFarm(canvas: HTMLCanvasElement, onHud: (hud: FarmHud) => vo
   let day = save.day;
   let chestDay = save.chestDay;
   let clock = 0.32;
-  let inside = false;
+  let room: RoomId | null = null;
   let doorLock = 0;
   let creating = !save.customized;
   let look = { ...save.look };
@@ -356,7 +383,7 @@ export function mountFarm(canvas: HTMLCanvasElement, onHud: (hud: FarmHud) => vo
   let shopLevel = save.shopLevel;
   let restLevel = save.restLevel;
   let carOwned = save.carOwned;
-  let driving = false;
+  let browsing = false;
   let nearCar = false;
   let near: FarmHud["near"] = null;
   let note = creating ? "Pick a look, then start." : "The car by the road goes to the city.";
@@ -428,7 +455,7 @@ export function mountFarm(canvas: HTMLCanvasElement, onHud: (hud: FarmHud) => vo
       note,
       day,
       seasonDone: coins >= GOAL,
-      inside,
+      inside: room !== null,
       creating,
       look: { ...look },
       owned: [...owned],
@@ -436,8 +463,10 @@ export function mountFarm(canvas: HTMLCanvasElement, onHud: (hud: FarmHud) => vo
       restLevel,
       near,
       carOwned,
-      driving,
+      driving: false,
       nearCar,
+      browsing,
+      carInCity: car.position.x > 10,
     });
   }
 
@@ -532,34 +561,27 @@ export function mountFarm(canvas: HTMLCanvasElement, onHud: (hud: FarmHud) => vo
 
   function act() {
     if (creating) return;
-    if (driving) {
-      driving = false;
-      farmer.visible = true;
-      farmer.position.z += 1.6;
-      note = "Parked.";
-      hud();
-      return;
-    }
-    if (!inside && nearCar) {
+    if (!room && nearCar) {
       if (!carOwned) {
         if (coins < CAR_PRICE) note = `The car costs ${CAR_PRICE} coins.`;
         else {
           coins -= CAR_PRICE;
           carOwned = true;
-          note = "It's yours. Get in and drive east.";
+          note = "It's yours. Use it again to go to the city.";
         }
+      } else if (car.position.x > 10) {
+        car.position.set(CAR_PARK.x, 0, CAR_PARK.z);
+        farmer.position.set(CAR_PARK.x, 0, CAR_PARK.z + 3.2);
+        note = "Back at the farm.";
       } else {
-        driving = true;
-        farmer.visible = false;
-        farmer.position.set(car.position.x, 0, car.position.z);
-        yaw = car.rotation.y;
-        farmer.rotation.y = yaw;
-        note = "Driving. The city is east.";
+        car.position.set(CITY_PARK.x, 0, CITY_PARK.z);
+        farmer.position.set(CITY_PARK.x + 3.2, 0, CITY_PARK.z);
+        note = "You're in the city. Walk into a door.";
       }
       hud();
       return;
     }
-    if (inside) {
+    if (room === "house") {
       const nearChest = Math.hypot(farmer.position.x - (ROOM.x - 1.7), farmer.position.z - (ROOM.z + 0.9)) < 1.25;
       if (!nearChest) {
         note = "The chest is against the wall.";
@@ -575,18 +597,31 @@ export function mountFarm(canvas: HTMLCanvasElement, onHud: (hud: FarmHud) => vo
       hud();
       return;
     }
+    if (room === "shop") {
+      const nearCounter = Math.hypot(farmer.position.x - SHOP_ROOM.x, farmer.position.z - (SHOP_ROOM.z - 0.2)) < 1.45;
+      if (!nearCounter) {
+        browsing = false;
+        note = "Use the counter along the back wall.";
+        hud();
+        return;
+      }
+      browsing = !browsing;
+      note = browsing ? "The counter is open." : "You step back.";
+      hud();
+      return;
+    }
+    if (room === "hall" || room === "office") {
+      note = room === "hall" ? "The lobby is quiet." : "Nobody is at the desks.";
+      hud();
+      return;
+    }
     if (near === "shop" || near === "restaurant") {
       upgrade(near);
       return;
     }
-    if (near === "village") {
-      note = driving ? "Park to go into the shop." : "The city shop sells clothes and hats.";
-      hud();
-      return;
-    }
     const index = nearestPlot();
     if (index < 0) {
-      note = "Get closer to a plot, a lot, the car, or the city shop.";
+      note = "Get closer to a plot, a lot, the car, or a door.";
       hud();
       return;
     }
@@ -630,7 +665,7 @@ export function mountFarm(canvas: HTMLCanvasElement, onHud: (hud: FarmHud) => vo
   }
 
   function onPointer(event: PointerEvent) {
-    if (inside || creating) return;
+    if (room || creating) return;
     const rect = canvas.getBoundingClientRect();
     pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
@@ -654,6 +689,19 @@ export function mountFarm(canvas: HTMLCanvasElement, onHud: (hud: FarmHud) => vo
   canvas.addEventListener("pointermove", onDrag);
   canvas.addEventListener("contextmenu", (event) => event.preventDefault());
 
+  const doors: { id: RoomId; x: number; z: number; outZ: number; note: string }[] = [
+    { id: "house", x: hx, z: hz + 1.85, outZ: hz + 2.7, note: "Inside. The chest is by the bed." },
+    { id: "shop", x: STALL_AT.x, z: STALL_AT.z + 2.15, outZ: STALL_AT.z + 3.3, note: "Inside the shop. Use the counter." },
+    { id: "hall", x: 16.5, z: -3.15, outZ: -2.7, note: "A tower lobby." },
+    { id: "office", x: 18.2, z: 7.25, outZ: 6.85, note: "A small office." },
+  ];
+  function roomAt(id: RoomId) {
+    if (id === "shop") return SHOP_ROOM;
+    if (id === "hall") return HALL_ROOM;
+    if (id === "office") return OFFICE_ROOM;
+    return ROOM;
+  }
+
   let raf = 0;
   let last = performance.now();
   let saveTimer = 0;
@@ -671,37 +719,48 @@ export function mountFarm(canvas: HTMLCanvasElement, onHud: (hud: FarmHud) => vo
     if (!creating) {
       const forward = (keys.has("KeyW") || keys.has("ArrowUp") ? 1 : 0) - (keys.has("KeyS") || keys.has("ArrowDown") ? 1 : 0);
       const strafe = (keys.has("KeyD") || keys.has("ArrowRight") ? 1 : 0) - (keys.has("KeyA") || keys.has("ArrowLeft") ? 1 : 0);
-      const speed = driving ? 11 : 4.1;
+      const speed = 4.1;
       const sin = Math.sin(yaw);
       const cos = Math.cos(yaw);
       const vx = (-strafe * cos + forward * sin) * speed * dt + move.x * speed * dt;
       const vz = (strafe * sin + forward * cos) * speed * dt + move.z * speed * dt;
-      const boxes = inside ? insideBoxes : [...outsideBoxes, ...bizBoxes, ...(driving ? [] : [carBounds()])];
+      const here = room ? shells[room] : [...outsideBoxes, ...bizBoxes, carBounds()];
       const nx = farmer.position.x + vx;
       const nz = farmer.position.z + vz;
-      if (!hits(nx, farmer.position.z, boxes)) farmer.position.x = nx;
-      if (!hits(farmer.position.x, nz, boxes)) farmer.position.z = nz;
-      if (inside) {
-        farmer.position.x = Math.max(ROOM.x - 2.2, Math.min(ROOM.x + 2.2, farmer.position.x));
-        farmer.position.z = Math.max(ROOM.z - 1.7, Math.min(ROOM.z + 2.5, farmer.position.z));
+      if (!hits(nx, farmer.position.z, here)) farmer.position.x = nx;
+      if (!hits(farmer.position.x, nz, here)) farmer.position.z = nz;
+      if (room) {
+        const spot = roomAt(room);
+        farmer.position.x = Math.max(spot.x - 2.2, Math.min(spot.x + 2.2, farmer.position.x));
+        farmer.position.z = Math.max(spot.z - 1.7, Math.min(spot.z + 2.5, farmer.position.z));
       } else {
         farmer.position.x = Math.max(-15, Math.min(46, farmer.position.x));
         farmer.position.z = Math.max(-14, Math.min(13, farmer.position.z));
       }
       if (forward || strafe || move.x || move.z) farmer.rotation.y = Math.atan2(vx, vz);
       doorLock = Math.max(0, doorLock - dt);
-      if (doorLock <= 0 && !driving && !inside && Math.abs(farmer.position.x - hx) < 0.55 && Math.abs(farmer.position.z - (hz + 1.85)) < 0.45) {
-        inside = true;
-        doorLock = 0.7;
-        farmer.position.set(ROOM.x, 0, ROOM.z + 1.35);
-        note = "Inside. The chest is by the bed.";
-        hud();
-      } else if (doorLock <= 0 && inside && Math.abs(farmer.position.x - ROOM.x) < 0.55 && farmer.position.z > ROOM.z + 1.85) {
-        inside = false;
-        doorLock = 0.7;
-        farmer.position.set(hx, 0, hz + 2.7);
-        note = "Back in the yard.";
-        hud();
+      if (doorLock <= 0 && !room) {
+        const door = doors.find((entry) => Math.hypot(farmer.position.x - entry.x, farmer.position.z - entry.z) < 0.7);
+        if (door) {
+          const spot = roomAt(door.id);
+          room = door.id;
+          browsing = false;
+          doorLock = 0.7;
+          farmer.position.set(spot.x, 0, spot.z + 1.35);
+          note = door.note;
+          hud();
+        }
+      } else if (doorLock <= 0 && room) {
+        const spot = roomAt(room);
+        if (Math.abs(farmer.position.x - spot.x) < 0.55 && farmer.position.z > spot.z + 1.85) {
+          const back = doors.find((entry) => entry.id === room)!;
+          room = null;
+          browsing = false;
+          doorLock = 0.7;
+          farmer.position.set(back.x, 0, back.outZ);
+          note = "Outside.";
+          hud();
+        }
       }
       clock = (clock + dt / 90) % 1;
       if (clock < dt / 90) {
@@ -717,11 +776,10 @@ export function mountFarm(canvas: HTMLCanvasElement, onHud: (hud: FarmHud) => vo
     const spots: { id: FarmHud["near"]; x: number; z: number }[] = [
       { id: "shop", x: SHOP_AT.x, z: SHOP_AT.z + 2.1 },
       { id: "restaurant", x: REST_AT.x, z: REST_AT.z + 2.3 },
-      { id: "village", x: STALL_AT.x, z: STALL_AT.z + 2.5 },
     ];
     let nextNear: FarmHud["near"] = null;
     let best = 2.3;
-    if (!inside && !creating) {
+    if (!room && !creating) {
       for (const spot of spots) {
         const dist = Math.hypot(farmer.position.x - spot.x, farmer.position.z - spot.z);
         if (dist < best) {
@@ -734,19 +792,18 @@ export function mountFarm(canvas: HTMLCanvasElement, onHud: (hud: FarmHud) => vo
       near = nextNear;
       if (near === "shop") note = shopLevel === 0 ? "Empty lot. Set up a shop." : `Shop level ${shopLevel}. Upgrade it here.`;
       if (near === "restaurant") note = restLevel === 0 ? "Empty lot. Set up a restaurant." : `Restaurant level ${restLevel}. Upgrade it here.`;
-      if (near === "village") note = "The city shop sells clothes and hats.";
       hud();
     }
-    const closeToCar = Math.hypot(farmer.position.x - car.position.x, farmer.position.z - car.position.z) < 2.6;
+    const closeToCar = !room && Math.hypot(farmer.position.x - car.position.x, farmer.position.z - car.position.z) < 2.6;
     if (closeToCar !== nearCar) {
       nearCar = closeToCar;
-      if (nearCar && !driving && !carOwned) note = `A car is for sale. ${CAR_PRICE} coins.`;
-      if (nearCar && !driving && carOwned) note = "Get in and drive to the city.";
+      if (nearCar && !carOwned) note = `A car is for sale. ${CAR_PRICE} coins.`;
+      if (nearCar && carOwned) note = car.position.x > 10 ? "Use the car to go back to the farm." : "Use the car to go to the city.";
       hud();
     }
-    if (driving) {
-      car.position.copy(farmer.position);
-      car.rotation.y = farmer.rotation.y;
+    if (browsing && (room !== "shop" || Math.hypot(farmer.position.x - SHOP_ROOM.x, farmer.position.z - (SHOP_ROOM.z - 0.2)) > 1.7)) {
+      browsing = false;
+      hud();
     }
     const sunAngle = clock * Math.PI * 2;
     sun.position.set(farmer.position.x + Math.cos(sunAngle) * 14, 5 + Math.max(0.4, Math.sin(sunAngle)) * 12, farmer.position.z + 7);
@@ -755,7 +812,11 @@ export function mountFarm(canvas: HTMLCanvasElement, onHud: (hud: FarmHud) => vo
     sun.intensity = 0.25 + dayness * 1.45;
     scene.background = new THREE.Color(dayness > 0.15 ? "#9fd0ea" : "#1c2740");
     scene.fog = new THREE.Fog(dayness > 0.15 ? "#b7d7ea" : "#1c2740", 24, 70);
-    lamp.intensity = inside ? 7 : 1.5;
+    if (room) {
+      const spot = roomAt(room);
+      lamp.position.set(spot.x, 1.8, spot.z);
+      lamp.intensity = 8;
+    } else lamp.intensity = 1.5;
     plots.forEach((plot) => {
       if (!plot.crop || plot.growth >= 1) return;
       if (plot.water > 0) {
@@ -768,11 +829,16 @@ export function mountFarm(canvas: HTMLCanvasElement, onHud: (hud: FarmHud) => vo
     if (creating) {
       camera.position.lerp(new THREE.Vector3(lookAt.x + 0.2, 1.7, lookAt.z + 3.4), 0.18);
       camera.lookAt(lookAt.x, 1.15, lookAt.z);
+    } else if (room) {
+      const spot = roomAt(room);
+      const camX = Math.max(spot.x - 1.85, Math.min(spot.x + 1.85, lookAt.x - Math.sin(yaw) * 2.35));
+      const camZ = Math.max(spot.z - 1.35, Math.min(spot.z + 1.45, lookAt.z - Math.cos(yaw) * 2.35));
+      camera.position.lerp(new THREE.Vector3(camX, 1.65, camZ), 0.18);
+      camera.lookAt(lookAt.x, 1.05, lookAt.z);
     } else {
-      const dist = inside ? 4.6 : driving ? 10 : 7.2;
-      const camX = lookAt.x - Math.sin(yaw) * dist;
-      const camZ = lookAt.z - Math.cos(yaw) * dist;
-      camera.position.lerp(new THREE.Vector3(camX, inside ? 3.3 : driving ? 6.4 : 5.2, camZ), 0.12);
+      const camX = lookAt.x - Math.sin(yaw) * 7.2;
+      const camZ = lookAt.z - Math.cos(yaw) * 7.2;
+      camera.position.lerp(new THREE.Vector3(camX, 5.2, camZ), 0.12);
       camera.lookAt(lookAt.x, 1, lookAt.z);
     }
     renderer.render(scene, camera);
@@ -815,7 +881,7 @@ export function mountFarm(canvas: HTMLCanvasElement, onHud: (hud: FarmHud) => vo
     },
     confirmLook() {
       creating = false;
-      note = "Buy the car by the road and drive east into the city.";
+      note = "Buy the car by the road. Use it to go to the city.";
       hud();
     },
     nudge(x: number, z: number) {
@@ -823,6 +889,51 @@ export function mountFarm(canvas: HTMLCanvasElement, onHud: (hud: FarmHud) => vo
       move.z = z;
     },
   };
+}
+
+function shellBoxes(ox: number, oz: number, extra: Box[] = []): Box[] {
+  return [
+    { minX: ox - 2.7, maxX: ox + 2.7, minZ: oz - 2.15, maxZ: oz - 1.75 },
+    { minX: ox - 2.7, maxX: ox - 2.3, minZ: oz - 2.1, maxZ: oz + 2.15 },
+    { minX: ox + 2.3, maxX: ox + 2.7, minZ: oz - 2.1, maxZ: oz + 2.15 },
+    { minX: ox - 2.6, maxX: ox - 0.62, minZ: oz + 1.75, maxZ: oz + 2.15 },
+    { minX: ox + 0.62, maxX: ox + 2.6, minZ: oz + 1.75, maxZ: oz + 2.15 },
+    ...extra,
+  ];
+}
+
+function dressRoom(
+  solid: (geo: THREE.BufferGeometry, color: number | string, x: number, y: number, z: number, parent?: THREE.Object3D) => THREE.Mesh,
+  ox: number,
+  oz: number,
+  kind: "shop" | "hall" | "office",
+) {
+  const group = new THREE.Group();
+  const floor = solid(new THREE.BoxGeometry(5.2, 0.08, 4.2), kind === "office" ? "#d7dde6" : "#f4f1ea", ox, 0.04, oz, group);
+  floor.castShadow = false;
+  solid(new THREE.BoxGeometry(5.2, 2.4, 0.16), "#f7f7f5", ox, 1.2, oz - 1.95, group);
+  solid(new THREE.BoxGeometry(0.16, 2.4, 4.1), "#f7f7f5", ox - 2.5, 1.2, oz, group);
+  solid(new THREE.BoxGeometry(0.16, 2.4, 4.1), "#f7f7f5", ox + 2.5, 1.2, oz, group);
+  solid(new THREE.BoxGeometry(1.85, 2.4, 0.16), "#f7f7f5", ox - 1.55, 1.2, oz + 1.95, group);
+  solid(new THREE.BoxGeometry(1.85, 2.4, 0.16), "#f7f7f5", ox + 1.55, 1.2, oz + 1.95, group);
+  solid(new THREE.BoxGeometry(1.5, 0.5, 0.16), "#f7f7f5", ox, 2.15, oz + 1.95, group);
+  solid(new THREE.BoxGeometry(5.4, 0.1, 4.5), "#2a3138", ox, 2.45, oz, group);
+  if (kind === "shop") {
+    solid(new THREE.BoxGeometry(2.4, 0.7, 0.5), "#2a3138", ox, 0.45, oz - 0.85, group);
+    solid(new THREE.BoxGeometry(0.7, 1.1, 0.35), "#2ec8e6", ox - 1.6, 0.7, oz + 0.2, group);
+    solid(new THREE.BoxGeometry(0.7, 1.1, 0.35), "#ff2bd6", ox + 1.6, 0.7, oz + 0.2, group);
+    solid(new THREE.BoxGeometry(0.55, 0.9, 0.3), "#f2c14e", ox - 1.6, 0.6, oz - 0.7, group);
+  } else if (kind === "hall") {
+    solid(new THREE.BoxGeometry(2.2, 0.7, 0.6), "#2a3138", ox, 0.45, oz - 1.1, group);
+    solid(new THREE.BoxGeometry(0.8, 1.6, 0.08), "#1c2126", ox - 1.5, 0.9, oz - 1.85, group);
+    solid(new THREE.BoxGeometry(0.8, 1.6, 0.08), "#1c2126", ox + 1.5, 0.9, oz - 1.85, group);
+    solid(new THREE.CylinderGeometry(0.18, 0.22, 0.7, 6), "#3f8d46", ox + 1.6, 0.4, oz + 0.8, group);
+  } else {
+    solid(new THREE.BoxGeometry(1.6, 0.5, 0.8), "#f7f7f5", ox - 0.8, 0.4, oz, group);
+    solid(new THREE.BoxGeometry(1.6, 0.5, 0.8), "#f7f7f5", ox + 0.8, 0.4, oz - 0.6, group);
+    solid(new THREE.BoxGeometry(1.4, 0.9, 0.08), "#b9e3f5", ox, 1.3, oz - 1.88, group);
+  }
+  return group;
 }
 
 function gable(width: number, depth: number, height: number) {
