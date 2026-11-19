@@ -129,7 +129,7 @@ type Save = {
   carZ: number;
 };
 
-const DEFAULT_LOOK: Look = { skin: "#f3d2b3", shirt: "#2ec8e6", pants: "#245c66", hat: "straw", hair: "brown", girl: false };
+const DEFAULT_LOOK: Look = { skin: "#f3d2b3", shirt: "#3a6ea5", pants: "#6a4a32", hat: "straw", hair: "brown", girl: false };
 
 function freshPlots(): Plot[] {
   return Array.from({ length: 16 }, () => ({ tilled: false, crop: null, growth: 0, water: 0 }));
@@ -161,7 +161,7 @@ function load(): Save {
       ...saved,
       seeds: { ...base.seeds, ...saved.seeds },
       plots: saved.plots?.length === 16 ? saved.plots : base.plots,
-      look: { ...base.look, ...saved.look },
+      look: saved.customized ? { ...base.look, ...saved.look } : { ...DEFAULT_LOOK },
       owned: saved.owned?.length ? saved.owned : base.owned,
       customized: saved.customized ?? false,
       carOwned: saved.carOwned ?? false,
@@ -184,8 +184,8 @@ export function mountFarm(canvas: HTMLCanvasElement, onHud: (hud: FarmHud) => vo
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color("#9fd0ea");
-  scene.fog = new THREE.Fog("#b7d7ea", 28, 72);
+  scene.background = new THREE.Color("#8ec8ef");
+  scene.fog = new THREE.Fog("#b7d7ea", 34, 78);
   const camera = new THREE.PerspectiveCamera(48, 1, 0.1, 120);
   const hemi = new THREE.HemisphereLight("#fff6df", "#3e6a34", 0.72);
   const sun = new THREE.DirectionalLight("#ffe3a8", 1.55);
@@ -219,10 +219,12 @@ export function mountFarm(canvas: HTMLCanvasElement, onHud: (hud: FarmHud) => vo
     return mesh;
   }
 
-  const ground = solid(new THREE.PlaneGeometry(96, 52), "#6fa34c", 16, 0, 0);
+  const ground = solid(new THREE.PlaneGeometry(96, 52), "#67a33a", 16, 0, 0);
   ground.rotation.x = -Math.PI / 2;
   ground.castShadow = false;
-  solid(new THREE.CircleGeometry(11, 8), "#7eb557", 1.2, 0.015, 1.4).rotation.x = -Math.PI / 2;
+  solid(new THREE.CircleGeometry(12, 10), "#7cb84a", 1.2, 0.012, 1.2).rotation.x = -Math.PI / 2;
+  const lane = solid(new THREE.PlaneGeometry(2.4, 18), "#c4a06a", 1.2, 0.02, 10);
+  lane.rotation.x = -Math.PI / 2;
 
   const hx = HOUSE.x;
   const hz = HOUSE.z;
@@ -230,7 +232,7 @@ export function mountFarm(canvas: HTMLCanvasElement, onHud: (hud: FarmHud) => vo
   scene.add(homestead);
   const walls = new THREE.Group();
   homestead.add(walls);
-  const plaster = "#f4f6f8";
+  const plaster = "#f6efe4";
   const ink = "#23282e";
   const glass = "#b9e3f5";
   const wall = (w: number, h: number, d: number, x: number, y: number, z: number, color = plaster) =>
@@ -242,7 +244,12 @@ export function mountFarm(canvas: HTMLCanvasElement, onHud: (hud: FarmHud) => vo
   wall(1.85, 2.45, 0.22, hx + 1.55, 1.22, hz + 1.95);
   wall(1.5, 0.55, 0.22, hx, 2.15, hz + 1.95);
   solid(new THREE.BoxGeometry(6.5, 0.16, 5.4), ink, hx, 2.55, hz);
-  solid(new THREE.BoxGeometry(6.8, 0.05, 5.7), "#1b2026", hx, 2.42, hz);
+  solid(new THREE.BoxGeometry(6.8, 0.05, 5.7), "#3a4048", hx, 2.42, hz);
+  solid(new THREE.BoxGeometry(0.42, 0.85, 0.42), "#b9c0c8", hx + 1.7, 2.95, hz - 0.7);
+  solid(new THREE.BoxGeometry(0.28, 2.5, 0.28), "#c4a574", hx - 2.45, 1.22, hz - 1.85);
+  solid(new THREE.BoxGeometry(0.28, 2.5, 0.28), "#c4a574", hx + 2.45, 1.22, hz - 1.85);
+  solid(new THREE.BoxGeometry(0.28, 2.5, 0.28), "#c4a574", hx - 2.45, 1.22, hz + 1.85);
+  solid(new THREE.BoxGeometry(0.28, 2.5, 0.28), "#c4a574", hx + 2.45, 1.22, hz + 1.85);
   solid(new THREE.BoxGeometry(2.6, 0.08, 1.6), "#d7dbe1", hx, 0.05, hz + 2.85);
   solid(new THREE.BoxGeometry(0.08, 2.05, 0.1), ink, hx - 0.62, 1.05, hz + 2.02);
   solid(new THREE.BoxGeometry(0.08, 2.05, 0.1), ink, hx + 0.62, 1.05, hz + 2.02);
@@ -308,8 +315,8 @@ export function mountFarm(canvas: HTMLCanvasElement, onHud: (hud: FarmHud) => vo
   for (let i = 0; i < 7; i += 1) {
     const tree = new THREE.Group();
     solid(new THREE.CylinderGeometry(0.16, 0.24, 1.15, 5), "#6b4630", 0, 0.58, 0, tree);
-    solid(new THREE.ConeGeometry(1.05, 1.35, 6), i % 2 ? "#2f7a3a" : "#3f8d46", 0, 1.55, 0, tree);
-    solid(new THREE.ConeGeometry(0.72, 1.05, 6), "#57a35a", 0, 2.25, 0, tree);
+    solid(new THREE.ConeGeometry(1.25, 1.7, 7), "#245c32", 0, 1.7, 0, tree);
+    solid(new THREE.ConeGeometry(0.85, 1.25, 7), "#3c7a40", 0, 2.55, 0, tree);
     const angle = Math.PI * 0.65 + (i / 6) * Math.PI * 0.9;
     tree.position.set(Math.cos(angle) * 12.4, 0, Math.sin(angle) * 10.5 - 0.4);
     homestead.add(tree);
@@ -359,10 +366,10 @@ export function mountFarm(canvas: HTMLCanvasElement, onHud: (hud: FarmHud) => vo
   }
 
   const farmer = new THREE.Group();
-  const body = solid(new THREE.BoxGeometry(0.42, 0.62, 0.28), "#2ec8e6", 0, 0.86, 0, farmer);
+  const body = solid(new THREE.BoxGeometry(0.42, 0.62, 0.28), "#3a6ea5", 0, 0.86, 0, farmer);
   const head = solid(new THREE.SphereGeometry(0.2, 8, 6), "#f3d2b3", 0, 1.32, 0, farmer);
-  const legL = solid(new THREE.BoxGeometry(0.12, 0.42, 0.12), "#245c66", -0.12, 0.32, 0, farmer);
-  const legR = solid(new THREE.BoxGeometry(0.12, 0.42, 0.12), "#245c66", 0.12, 0.32, 0, farmer);
+  const legL = solid(new THREE.BoxGeometry(0.12, 0.42, 0.12), "#6a4a32", -0.12, 0.32, 0, farmer);
+  const legR = solid(new THREE.BoxGeometry(0.12, 0.42, 0.12), "#6a4a32", 0.12, 0.32, 0, farmer);
   const skirt = solid(new THREE.CylinderGeometry(0.15, 0.42, 0.5, 8), "#2ec8e6", 0, 0.5, 0, farmer);
   const hats: Record<Exclude<HatId, "none">, THREE.Object3D> = {
     straw: hatStraw(solid),

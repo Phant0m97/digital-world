@@ -77,12 +77,12 @@ export function mountHotel(canvas: HTMLCanvasElement, onHud: (hud: HotelHud) => 
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color("#8fd4ff");
+  scene.background = new THREE.Color("#f3d7b0");
   const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 80);
   camera.position.set(0, 11, 5.2);
   camera.lookAt(0, 0, -2);
-  scene.add(new THREE.HemisphereLight("#fff4d2", "#6aa84f", 0.85));
-  const sun = new THREE.DirectionalLight("#fff1c9", 1.35);
+  scene.add(new THREE.HemisphereLight("#fff6e4", "#8a9a62", 0.95));
+  const sun = new THREE.DirectionalLight("#ffe0b0", 1.15);
   sun.position.set(6, 14, 4);
   sun.castShadow = true;
   sun.shadow.mapSize.set(1024, 1024);
@@ -102,18 +102,16 @@ export function mountHotel(canvas: HTMLCanvasElement, onHud: (hud: HotelHud) => 
     return mesh;
   }
 
-  const lawn = new THREE.Mesh(new THREE.PlaneGeometry(28, 28), mat("#7ed36a"));
+  const lawn = new THREE.Mesh(new THREE.PlaneGeometry(28, 28), mat("#6ea84a"));
   lawn.rotation.x = -Math.PI / 2;
   lawn.position.y = -0.04;
   lawn.receiveShadow = true;
   scene.add(lawn);
-  box(13.05, 0.08, 15.9, "#d7dbe3", 0, 0.02, 1.7, scene);
-  box(2.5, 0.04, 14.2, "#5b4cdb", 0, 0.09, 2.4, scene);
-  for (let i = 0; i < 12; i += 1) {
-    const tile = box(2.2, 0.08, 0.18, i % 2 ? "#ffe27a" : "#f6b73c", 0, 0.22, -3.6 + i * 1.15, scene);
-    tile.castShadow = false;
-    tile.receiveShadow = false;
-  }
+  box(12.6, 0.08, 15.5, "#e7d3ae", 0, 0.02, 1.7, scene);
+  box(1.7, 0.03, 13.4, "#6a4ea8", 0, 0.08, 1.8, scene);
+  box(12.9, 0.16, 0.22, "#6b4328", 0, 1.28, 9.9, scene);
+  box(0.22, 1.2, 16.2, "#6b4328", -6.7, 1.22, 1.7, scene);
+  box(0.22, 1.2, 16.2, "#6b4328", 6.7, 1.22, 1.7, scene);
   box(2.4, 0.7, 0.7, "#c47a3a", 0, 0.4, -3.5, scene);
   box(0.7, 0.28, 0.45, "#2a3138", -0.4, 0.86, -3.45, scene);
   box(0.35, 0.08, 0.28, "#8fd4ff", -0.4, 1.02, -3.45, scene);
@@ -187,48 +185,40 @@ export function mountHotel(canvas: HTMLCanvasElement, onHud: (hud: HotelHud) => 
       const look = LOOKS[index]!;
       const side = slot.x < 0 ? 1 : -1;
       if (!room.built) {
-        box(3.15, 0.08, 3.15, "#c4a574", 0, 0.06, 0, group);
-        box(0.7, 0.12, 0.12, "#fff6ea", 0, 0.7, 0, group);
-        box(0.12, 0.7, 0.12, "#fff6ea", 0, 0.7, 0, group);
-        const pad = box(3.15, 0.05, 3.15, "#c4a574", 0, 0.08, 0, group);
+        box(2.7, 0.08, 2.7, "#c4a574", 0, 0.06, 0, group);
+        box(0.55, 0.1, 0.1, "#fff6ea", 0, 0.55, 0, group);
+        box(0.1, 0.55, 0.1, "#fff6ea", 0, 0.55, 0, group);
+        const pad = box(2.7, 0.05, 2.7, "#c4a574", 0, 0.08, 0, group);
         pad.userData = { kind: "room", index };
         roomFloors.push(pad);
         return;
       }
-      const floor = box(2.9, 0.08, 2.9, room.dirty ? "#c9856a" : look.floor, 0, 0.06, 0, group);
+      const floor = box(2.7, 0.08, 2.7, room.dirty ? "#c9856a" : look.floor, 0, 0.06, 0, group);
       floor.userData = { kind: "room", index };
       roomFloors.push(floor);
-      const wallH = 0.82;
-      box(3.5, wallH, 0.18, "#fff4ea", 0, wallH / 2, 1.58, group);
-      box(3.5, wallH, 0.18, "#fff4ea", 0, wallH / 2, -1.58, group);
-      box(0.18, wallH, 3.5, "#ffe27a", -side * 1.58, wallH / 2, 0, group);
-      box(0.18, wallH, 1.15, "#fff4ea", side * 1.58, wallH / 2, -1.1, group);
-      box(0.18, wallH, 1.15, "#fff4ea", side * 1.58, wallH / 2, 1.1, group);
-      box(0.55, 0.45, 0.08, "#9fd8ff", -side * 1.52, 0.55, 0.35, group);
-      box(1.35, 0.28, 0.7, "#c47a3a", -side * 0.7, 0.28, -0.55, group);
-      box(1.2, 0.16, 0.62, room.dirty ? "#e7d3c4" : look.blanket, -side * 0.7, 0.46, -0.55, group);
-      box(0.38, 0.14, 0.28, "#fffaf3", -side * 0.25, 0.56, -0.55, group);
-      box(0.38, 0.42, 0.38, "#8b5a32", -side * 1.15, 0.28, 0.85, group);
-      box(0.12, 0.28, 0.12, "#f2c14e", -side * 1.15, 0.62, 0.85, group);
-      box(0.28, 0.16, 0.28, "#fff6ea", -side * 1.15, 0.78, 0.85, group);
+      const wallH = 0.9;
+      box(3.15, wallH, 0.16, "#f4efe6", 0, wallH / 2, 1.42, group);
+      box(3.15, wallH, 0.16, "#f4efe6", 0, wallH / 2, -1.42, group);
+      box(0.16, wallH, 3.0, "#6b4328", -side * 1.42, wallH / 2, 0, group);
+      box(0.16, wallH, 0.95, "#f4efe6", side * 1.42, wallH / 2, -0.95, group);
+      box(0.16, wallH, 0.95, "#f4efe6", side * 1.42, wallH / 2, 0.95, group);
+      box(0.36, 0.28, 0.05, "#9fd8ff", -side * 1.28, 0.52, 0.1, group);
+      box(0.95, 0.2, 0.5, "#8b5a32", -side * 0.35, 0.18, -0.28, group);
+      box(0.82, 0.1, 0.4, room.dirty ? "#e7d3c4" : look.blanket, -side * 0.35, 0.3, -0.28, group);
+      box(0.24, 0.08, 0.18, "#fffaf3", -side * 0.12, 0.38, -0.28, group);
+      box(0.26, 0.28, 0.26, "#6b4328", -side * 0.85, 0.18, 0.35, group);
+      box(0.06, 0.16, 0.06, "#f2c14e", -side * 0.85, 0.38, 0.35, group);
       if (room.level >= 2) {
-        const rug = box(1.15, 0.1, 0.78, look.rug, side * 0.35, 0.32, 0.35, group);
+        const rug = box(0.7, 0.04, 0.48, look.rug, side * 0.15, 0.12, 0.15, group);
         rug.castShadow = false;
         rug.receiveShadow = false;
       }
-      if (room.level >= 3) {
-        box(0.7, 0.4, 0.06, "#1c2126", -side * 0.2, 0.7, -1.42, group);
-        box(0.55, 0.28, 0.02, "#7ecbff", -side * 0.2, 0.72, -1.38, group);
-      }
+      if (room.level >= 3) box(0.42, 0.24, 0.04, "#1c2126", -side * 0.1, 0.55, -1.2, group);
       if (index % 2 === 0) {
-        box(1.15, 0.02, 1.05, "#8fd4ff", side * 0.85, 0.11, -0.95, group);
-        box(0.28, 0.32, 0.36, "#f7f7f5", side * 0.85, 0.28, -1.15, group);
-        box(0.32, 0.08, 0.32, "#f2c14e", side * 0.85, 0.46, -1.05, group);
+        box(0.62, 0.02, 0.5, "#d7e7ea", side * 0.55, 0.1, -0.55, group);
+        box(0.18, 0.2, 0.2, "#f7f7f5", side * 0.55, 0.18, -0.7, group);
       }
-      if (room.dirty) {
-        box(0.35, 0.2, 0.35, "#6b8f4e", 0.45, 0.2, 0.7, group);
-        box(0.28, 0.16, 0.28, "#8b5a32", -0.2, 0.16, 0.85, group);
-      }
+      if (room.dirty) box(0.22, 0.12, 0.22, "#6b8f4e", 0.15, 0.14, 0.35, group);
     });
   }
 
@@ -480,7 +470,7 @@ export function mountHotel(canvas: HTMLCanvasElement, onHud: (hud: HotelHud) => 
         playerClean = -1;
         note = "Step back into the room and press Space.";
       } else {
-        room.cleaning += dt / (6.5 + room.level * 1.8);
+        room.cleaning += dt / (3.25 + room.level * 0.9);
         if (room.cleaning >= 1) {
           room.cleaning = 0;
           room.dirty = false;
@@ -503,7 +493,7 @@ export function mountHotel(canvas: HTMLCanvasElement, onHud: (hud: HotelHud) => 
     let cleaned = false;
     for (const room of rooms) {
       if (room.cleaning <= 0 || rooms.indexOf(room) === playerClean) continue;
-      room.cleaning += dt / 7.5;
+      room.cleaning += dt / 3.75;
       if (room.cleaning >= 1) {
         room.cleaning = 0;
         room.dirty = false;
@@ -602,8 +592,8 @@ export function mountHotel(canvas: HTMLCanvasElement, onHud: (hud: HotelHud) => 
       const slot = SLOTS[index]!;
       if (!room?.built) continue;
       const side = slot.x < 0 ? 1 : -1;
-      if (hitBox(px, pz, slot.x - side * 0.7, slot.z - 0.55, 0.7, 0.4)) return true;
-      if (hitBox(px, pz, slot.x - side * 1.15, slot.z + 0.85, 0.28, 0.28)) return true;
+      if (hitBox(px, pz, slot.x - side * 0.35, slot.z - 0.28, 0.48, 0.28)) return true;
+      if (hitBox(px, pz, slot.x - side * 0.85, slot.z + 0.35, 0.18, 0.18)) return true;
     }
     return false;
   }
@@ -618,9 +608,8 @@ export function mountHotel(canvas: HTMLCanvasElement, onHud: (hud: HotelHud) => 
       const slot = SLOTS[index]!;
       if (!room?.built) continue;
       const side = slot.x < 0 ? 1 : -1;
-      if (hitBox(px, pz, slot.x - side * 0.7, slot.z - 0.55, 0.78, 0.46)) return true;
-      if (hitBox(px, pz, slot.x - side * 1.15, slot.z + 0.85, 0.32, 0.32)) return true;
-      if (index % 2 === 0 && hitBox(px, pz, slot.x + side * 0.85, slot.z - 1.05, 0.32, 0.34)) return true;
+      if (hitBox(px, pz, slot.x - side * 0.35, slot.z - 0.28, 0.48, 0.28)) return true;
+      if (hitBox(px, pz, slot.x - side * 0.85, slot.z + 0.35, 0.18, 0.18)) return true;
     }
     for (const guest of guests) {
       if (Math.hypot(px - guest.x, pz - guest.z) < 0.52) return true;
@@ -669,13 +658,14 @@ export function mountHotel(canvas: HTMLCanvasElement, onHud: (hud: HotelHud) => 
     const guest = [...guests].reverse().find((entry) => entry.phase !== "queue" && Math.hypot(entry.x - bell.position.x, entry.z - bell.position.z) < 1.25);
     if (guest?.need === "coffee" && holding === "coffee") return "Click Space to give coffee";
     if (guest?.need === "towel" && holding === "towel") return "Click Space to give a towel";
+    if (guest?.need === "coffee" || guest?.need === "towel") return "";
     if (guest?.need === "meal") return "Click Space to give a meal";
     if (nearDesk() && frontGuest()) return "Click Space to give a room";
     if (nearMachine() && holding !== "coffee") return "Click Space to pour coffee";
     if (nearCloset() && holding !== "towel") return "Click Space to take a towel";
     const here = stoodIn();
-    if (here >= 0 && !rooms[here]!.built) return `Pay ${roomPrice()} To Buy the room`;
-    if (here >= 0 && rooms[here]!.built && !rooms[here]!.dirty && rooms[here]!.level < 3) return `Pay 110 To Upgrade the Room`;
+    if (here >= 0 && !rooms[here]!.built) return `Pay ${roomPrice()} to buy the rooms`;
+    if (here >= 0 && rooms[here]!.built && !rooms[here]!.dirty && rooms[here]!.level < 3 && !guest) return `Pay 110 to upgrade the room`;
     const dirty = rooms.some((room, index) => room.built && room.dirty && Math.hypot(bell.position.x - doorAt(index).x, bell.position.z - doorAt(index).z) < 1.45);
     if (dirty) return "Click Space to clean";
     return "";
@@ -683,17 +673,23 @@ export function mountHotel(canvas: HTMLCanvasElement, onHud: (hud: HotelHud) => 
 
   function pressF() {
     const guest = [...guests].reverse().find((entry) => entry.phase !== "queue" && Math.hypot(entry.x - bell.position.x, entry.z - bell.position.z) < 1.25);
-    if (guest?.need === "coffee" && holding === "coffee") {
-      serve(guest);
-      holding = "none";
-      note = "Coffee delivered.";
+    if (guest?.need === "coffee") {
+      if (holding !== "coffee") note = "Get coffee from the machine.";
+      else {
+        serve(guest);
+        holding = "none";
+        note = "Coffee delivered.";
+      }
       hud();
       return;
     }
-    if (guest?.need === "towel" && holding === "towel") {
-      serve(guest);
-      holding = "none";
-      note = "Towel delivered.";
+    if (guest?.need === "towel") {
+      if (holding !== "towel") note = "Get a towel from the cupboard.";
+      else {
+        serve(guest);
+        holding = "none";
+        note = "Towel delivered.";
+      }
       hud();
       return;
     }
@@ -809,11 +805,67 @@ function walled(px: number, pz: number, rooms: Room[]) {
     const side = slot.x < 0 ? 1 : -1;
     const pad = 0.28;
     const hit = (x: number, z: number, hx: number, hz: number) => Math.abs(px - x) < hx && Math.abs(pz - z) < hz;
-    if (hit(slot.x, slot.z + 1.58, 1.9, pad)) return true;
-    if (hit(slot.x, slot.z - 1.58, 1.9, pad)) return true;
-    if (hit(slot.x - side * 1.58, slot.z, pad, 1.9)) return true;
-    return hit(slot.x + side * 1.58, slot.z, pad, 1.9) && Math.abs(pz - slot.z) > 0.55;
+    if (hit(slot.x, slot.z + 1.42, 1.62, pad)) return true;
+    if (hit(slot.x, slot.z - 1.42, 1.62, pad)) return true;
+    if (hit(slot.x - side * 1.42, slot.z, pad, 1.55)) return true;
+    return hit(slot.x + side * 1.42, slot.z, pad, 1.55) && Math.abs(pz - slot.z) > 0.5;
   });
+}
+
+function bubbleSprite(kind: "coffee" | "towel") {
+  const canvas = document.createElement("canvas");
+  canvas.width = 160;
+  canvas.height = 140;
+  const g = canvas.getContext("2d");
+  if (!g) return new THREE.Sprite();
+  g.fillStyle = "#fffaf3";
+  g.beginPath();
+  g.moveTo(28, 14);
+  g.arcTo(136, 14, 136, 92, 20);
+  g.arcTo(136, 92, 24, 92, 20);
+  g.arcTo(24, 92, 24, 14, 20);
+  g.arcTo(24, 14, 136, 14, 20);
+  g.closePath();
+  g.fill();
+  g.beginPath();
+  g.moveTo(64, 90);
+  g.lineTo(80, 128);
+  g.lineTo(98, 90);
+  g.closePath();
+  g.fill();
+  if (kind === "coffee") {
+    g.fillStyle = "#f7f4ee";
+    g.fillRect(58, 34, 34, 38);
+    g.fillStyle = "#6b3a22";
+    g.beginPath();
+    g.ellipse(75, 46, 13, 7, 0, 0, Math.PI * 2);
+    g.fill();
+    g.strokeStyle = "#c47a3a";
+    g.lineWidth = 4;
+    g.beginPath();
+    g.arc(94, 50, 9, -1, 1);
+    g.stroke();
+  } else {
+    g.fillStyle = "#d5e3ea";
+    g.fillRect(50, 30, 58, 42);
+    g.strokeStyle = "#7f9aaa";
+    g.lineWidth = 3;
+    g.strokeRect(50, 30, 58, 42);
+    g.beginPath();
+    g.moveTo(50, 44);
+    g.lineTo(108, 44);
+    g.moveTo(50, 56);
+    g.lineTo(108, 56);
+    g.stroke();
+  }
+  const map = new THREE.CanvasTexture(canvas);
+  map.colorSpace = THREE.SRGBColorSpace;
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map, transparent: true, depthWrite: false }));
+  sprite.scale.set(0.82, 0.72, 1);
+  sprite.position.set(0, 1.65, 0);
+  sprite.name = kind;
+  sprite.visible = false;
+  return sprite;
 }
 
 function stepActor(actor: THREE.Group, dt: number) {
@@ -860,18 +912,8 @@ function figure(shirt: string, pants: string, kind: "guest" | "bell" | "maid" | 
   const food = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 6), mat("#e25b4a"));
   food.position.y = 0.08;
   meal.add(plate, food);
-  const towel = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.08, 0.16), mat("#f7f7f5"));
-  towel.name = "towel";
-  towel.position.set(0.28, 1.35, 0);
-  towel.visible = false;
-  const coffee = new THREE.Group();
-  coffee.name = "coffee";
-  coffee.position.set(0.28, 1.4, 0);
-  coffee.visible = false;
-  const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.05, 0.12, 8), mat("#fffaf3"));
-  const drink = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.04, 8), mat("#6b3a22"));
-  drink.position.y = 0.05;
-  coffee.add(cup, drink);
+  const towel = bubbleSprite("towel");
+  const coffee = bubbleSprite("coffee");
   const bar = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.06, 0.06), mat("#2ec8e6"));
   bar.name = "bar";
   bar.position.y = 1.4;
