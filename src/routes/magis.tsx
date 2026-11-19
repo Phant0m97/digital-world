@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useRef, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Shell } from "@/components/shell";
 import { asset } from "@/lib/asset";
 
@@ -13,11 +13,25 @@ type Kind = "fight" | "rest" | "boss";
 type Node = { id: number; floor: number; x: number; kind: Kind; links: number[] };
 type Enemy = { uid: number; name: string; element: Element; hp: number; max: number; attack: number; boss: boolean };
 type Fight = { enemies: Enemy[]; draw: Card[]; hand: Card[]; discard: Card[]; energy: number; log: string };
+type Bonus = Partial<Record<CardId, number>>;
 
 const ELEMENTS: Element[] = ["fire", "water", "wind", "earth"];
 const BEATS: Record<Element, Element> = { water: "fire", fire: "wind", wind: "earth", earth: "water" };
 const INK: Record<Element, string> = { fire: "#e25b4a", water: "#3aa7ff", wind: "#d6e27a", earth: "#c47a3a" };
-const ART: Record<Element, string> = { fire: "magis/spark.jpg", water: "magis/wash.jpg", wind: "magis/breeze.jpg", earth: "magis/pebble.jpg" };
+const SPELL_ART: Record<CardId, string> = {
+  spark: "magis/spark.jpg",
+  wash: "magis/wash.jpg",
+  breeze: "magis/breeze.jpg",
+  pebble: "magis/pebble.jpg",
+  fireball: "magis/fireball.jpg",
+  blast: "magis/blast.jpg",
+  gust: "magis/gust.jpg",
+  rock: "magis/rock.jpg",
+  inferno: "magis/inferno.jpg",
+  tidal: "magis/tidal.jpg",
+  tempest: "magis/tempest.jpg",
+  quake: "magis/quake.jpg",
+};
 const SPRITE: Record<Element, string> = { fire: "magis/imp.jpg", water: "magis/serpent.jpg", wind: "magis/harpy.jpg", earth: "magis/golem.jpg" };
 const NAMES: Record<Element, string[]> = {
   fire: ["Cinder Imp", "Ash Wolf", "Magma Knight", "Inferno Drake"],
@@ -40,16 +54,26 @@ const BOOK: Record<CardId, CardDef> = {
   quake: { id: "quake", name: "Quake", element: "earth", damage: 22, cost: 2, tier: 3 },
 };
 const MAP: Node[] = [
-  { id: 0, floor: 0, x: 0.32, kind: "fight", links: [2, 3] },
-  { id: 1, floor: 0, x: 0.68, kind: "fight", links: [3, 4] },
-  { id: 2, floor: 1, x: 0.2, kind: "fight", links: [5] },
-  { id: 3, floor: 1, x: 0.5, kind: "rest", links: [5, 6] },
-  { id: 4, floor: 1, x: 0.8, kind: "fight", links: [6] },
-  { id: 5, floor: 2, x: 0.34, kind: "fight", links: [7] },
-  { id: 6, floor: 2, x: 0.66, kind: "fight", links: [8] },
-  { id: 7, floor: 3, x: 0.32, kind: "rest", links: [9] },
-  { id: 8, floor: 3, x: 0.68, kind: "fight", links: [9] },
-  { id: 9, floor: 4, x: 0.5, kind: "boss", links: [] },
+  { id: 0, floor: 0, x: 0.28, kind: "fight", links: [3, 4] },
+  { id: 1, floor: 0, x: 0.5, kind: "fight", links: [4, 5] },
+  { id: 2, floor: 0, x: 0.74, kind: "fight", links: [5, 6] },
+  { id: 3, floor: 1, x: 0.16, kind: "fight", links: [7] },
+  { id: 4, floor: 1, x: 0.38, kind: "rest", links: [7, 8] },
+  { id: 5, floor: 1, x: 0.62, kind: "fight", links: [8, 9] },
+  { id: 6, floor: 1, x: 0.84, kind: "fight", links: [9] },
+  { id: 7, floor: 2, x: 0.28, kind: "fight", links: [10] },
+  { id: 8, floor: 2, x: 0.5, kind: "fight", links: [10, 11] },
+  { id: 9, floor: 2, x: 0.74, kind: "fight", links: [11] },
+  { id: 10, floor: 3, x: 0.34, kind: "rest", links: [12, 13] },
+  { id: 11, floor: 3, x: 0.68, kind: "fight", links: [13, 14] },
+  { id: 12, floor: 4, x: 0.22, kind: "fight", links: [15] },
+  { id: 13, floor: 4, x: 0.5, kind: "fight", links: [15, 16] },
+  { id: 14, floor: 4, x: 0.78, kind: "fight", links: [16] },
+  { id: 15, floor: 5, x: 0.36, kind: "fight", links: [17] },
+  { id: 16, floor: 5, x: 0.66, kind: "rest", links: [17, 18] },
+  { id: 17, floor: 6, x: 0.34, kind: "fight", links: [19] },
+  { id: 18, floor: 6, x: 0.66, kind: "fight", links: [19] },
+  { id: 19, floor: 7, x: 0.5, kind: "boss", links: [] },
 ];
 
 let nextUid = 1;
@@ -75,30 +99,41 @@ function factor(spell: Element, foe: Element) {
   if (BEATS[foe] === spell) return 0.5;
   return 1;
 }
-function dealt(card: CardDef, foe: Element) {
-  return Math.max(1, Math.round(card.damage * factor(card.element, foe)));
+function power(card: CardDef, bonus: Bonus) {
+  return card.damage + (bonus[card.id] ?? 0);
+}
+function dealt(card: CardDef, foe: Element, bonus: Bonus) {
+  return Math.max(1, Math.round(power(card, bonus) * factor(card.element, foe)));
+}
+function needXp(level: number) {
+  return 24 + level * 12;
 }
 function nextElement(element: Element) {
   return ELEMENTS[(ELEMENTS.indexOf(element) + 1) % 4]!;
 }
 function group(node: Node): Enemy[] {
   if (node.kind === "boss") {
-    return [{ uid: 1, name: "Changing Heart", element: "fire", hp: 128, max: 128, attack: 16, boss: true }];
+    return [{ uid: 1, name: "Changing Heart", element: "fire", hp: 150, max: 150, attack: 18, boss: true }];
   }
-  const count = node.floor < 2 ? 2 : 3;
+  const count = node.floor < 3 ? 2 : 3;
   return Array.from({ length: count }, (_, index) => {
     const element = ELEMENTS[(node.id + index) % 4]!;
-    const rank = Math.min(3, node.floor);
-    const hp = 16 + node.floor * 8 + index * 4;
-    return { uid: index + 1, name: NAMES[element][rank]!, element, hp, max: hp, attack: 5 + node.floor * 2, boss: false };
+    const rank = Math.min(3, Math.floor(node.floor / 2));
+    const hp = 14 + node.floor * 6 + index * 3;
+    return { uid: index + 1, name: NAMES[element][rank]!, element, hp, max: hp, attack: 4 + Math.floor(node.floor * 1.3), boss: false };
   });
 }
-function pool(floor: number) {
+function xpFor(node: Node, enemies: Enemy[]) {
+  if (node.kind === "boss") return 48;
+  return enemies.reduce((sum, _enemy, index) => sum + 8 + node.floor * 2 + index, 0);
+}
+function pool(floor: number): CardId[] {
   const basic: CardId[] = ["spark", "wash", "breeze", "pebble"];
   const mid: CardId[] = ["fireball", "blast", "gust", "rock"];
   const high: CardId[] = ["inferno", "tidal", "tempest", "quake"];
-  if (floor <= 0) return [...basic, "fireball", "blast"] as CardId[];
-  if (floor <= 2) return [...basic, ...mid];
+  if (floor <= 1) return [...basic, "fireball", "blast"];
+  if (floor <= 3) return [...basic, ...mid];
+  if (floor <= 5) return [...mid, "inferno", "tidal"];
   return [...mid, ...high];
 }
 function offer(floor: number) {
@@ -113,13 +148,18 @@ function offer(floor: number) {
 function MagisPage() {
   const [deck, setDeck] = useState<Card[]>(() => starter());
   const [hp, setHp] = useState(74);
-  const [maxHp] = useState(74);
+  const [maxHp, setMaxHp] = useState(74);
+  const [level, setLevel] = useState(1);
+  const [xp, setXp] = useState(0);
+  const [skill, setSkill] = useState(0);
+  const [bonus, setBonus] = useState<Bonus>({});
   const [at, setAt] = useState(-1);
   const [screen, setScreen] = useState<"map" | "fight" | "reward" | "dead" | "won">("map");
   const [fight, setFight] = useState<Fight | null>(null);
   const [choices, setChoices] = useState<CardId[]>([]);
   const [pending, setPending] = useState<Node | null>(null);
-  const busy = useRef(false);
+  const [skillsOpen, setSkillsOpen] = useState(false);
+  const [note, setNote] = useState("");
 
   const open = at < 0 ? MAP.filter((node) => node.floor === 0) : MAP.filter((node) => MAP.find((item) => item.id === at)?.links.includes(node.id));
 
@@ -130,18 +170,39 @@ function MagisPage() {
       setAt(node.id);
       return;
     }
-    busy.current = false;
     setPending(node);
-    setFight({ enemies: group(node), ...deal(shuffle(deck)), energy: 3, log: node.kind === "boss" ? "The heart changes." : "They step forward." });
+    setFight({ enemies: group(node), ...deal(shuffle(deck)), energy: 3, log: node.kind === "boss" ? "The heart changes." : "Click a card, then an enemy." });
     setScreen("fight");
   }
 
+  function grant(amount: number) {
+    let nextXp = xp + amount;
+    let nextLevel = level;
+    let points = 0;
+    let extra = 0;
+    while (nextXp >= needXp(nextLevel)) {
+      nextXp -= needXp(nextLevel);
+      nextLevel += 1;
+      points += 1;
+      extra += 8;
+    }
+    setXp(nextXp);
+    if (points > 0) {
+      const full = maxHp + extra;
+      setLevel(nextLevel);
+      setSkill((value) => value + points);
+      setMaxHp(full);
+      setHp(full);
+      setNote(`Level ${nextLevel}. Healed to ${full}. +${points} skill.`);
+    } else setNote(`+${amount} xp.`);
+  }
+
   function play(uid: number, foe: number) {
-    if (!fight || busy.current) return;
+    if (!fight) return;
     const card = fight.hand.find((entry) => entry.uid === uid);
     const enemy = fight.enemies[foe];
     if (!card || !enemy || enemy.hp <= 0 || card.cost > fight.energy) return;
-    const amount = dealt(card, enemy.element);
+    const amount = dealt(card, enemy.element, bonus);
     const enemies = fight.enemies.map((entry, index) => (index === foe ? { ...entry, hp: Math.max(0, entry.hp - amount) } : entry));
     const next: Fight = {
       ...fight,
@@ -153,10 +214,10 @@ function MagisPage() {
     };
     setFight(next);
     if (enemies.every((entry) => entry.hp <= 0)) {
-      busy.current = true;
       const pile = [...next.draw, ...next.hand, ...next.discard];
       setDeck(pile);
       setAt(pending?.id ?? at);
+      if (pending) grant(xpFor(pending, fight.enemies));
       if (pending?.kind === "boss") {
         setScreen("won");
         setFight(null);
@@ -169,7 +230,7 @@ function MagisPage() {
   }
 
   function endTurn() {
-    if (!fight || busy.current) return;
+    if (!fight) return;
     let life = hp;
     const enemies = fight.enemies.map((enemy) => {
       if (enemy.hp <= 0) return enemy;
@@ -192,28 +253,47 @@ function MagisPage() {
     setFight(null);
   }
 
+  function upgrade(id: CardId) {
+    if (skill < 1) return;
+    setSkill((value) => value - 1);
+    setBonus((current) => ({ ...current, [id]: (current[id] ?? 0) + 1 }));
+  }
+
   function retry() {
     setDeck(starter());
-    setHp(maxHp);
+    setHp(74);
+    setMaxHp(74);
+    setLevel(1);
+    setXp(0);
+    setSkill(0);
+    setBonus({});
     setAt(-1);
+    setNote("");
     setScreen("map");
   }
+
+  const known = ([...new Set(deck.map((card) => card.id))] as CardId[]).sort((a, b) => BOOK[a].tier - BOOK[b].tier || BOOK[a].name.localeCompare(BOOK[b].name));
 
   return (
     <Shell bare>
       <div className="min-h-[calc(100dvh-4.25rem)] bg-[#14080d] text-[#f3e6c8]">
-        <div className="flex items-center justify-between px-4 py-3">
+        <div className="flex items-center justify-between gap-3 px-4 py-3">
           <Link to="/games" className="rounded-full bg-[#e6c27a] px-4 py-2 text-sm text-[#1a0c12]">
             Games
           </Link>
           <p className="font-display text-2xl font-bold tracking-wide">Magis</p>
-          <p className="text-sm">
-            {hp}/{maxHp} hp · {deck.length} cards
-          </p>
+          <div className="flex items-center gap-3 text-sm">
+            <p>
+              Lv {level} · {xp}/{needXp(level)} · {hp}/{maxHp} · {skill} skill
+            </p>
+            <button type="button" className="rounded-full border border-[#e6c27a] px-3 py-2" onClick={() => setSkillsOpen(true)}>
+              Skills
+            </button>
+          </div>
         </div>
         {screen === "map" ? <SpireMap at={at} open={open} hp={hp} onEnter={enter} /> : null}
-        {screen === "fight" && fight ? <Battle fight={fight} hp={hp} maxHp={maxHp} onPlay={play} onEnd={endTurn} /> : null}
-        {screen === "reward" ? <Reward choices={choices} onTake={take} /> : null}
+        {screen === "fight" && fight ? <Battle fight={fight} hp={hp} maxHp={maxHp} bonus={bonus} onPlay={play} onEnd={endTurn} /> : null}
+        {screen === "reward" ? <Reward choices={choices} bonus={bonus} note={note} onTake={take} /> : null}
         {screen === "dead" ? (
           <div className="mx-auto max-w-md px-4 py-16 text-center">
             <h2 className="font-display text-4xl font-bold">The run ends.</h2>
@@ -225,9 +305,39 @@ function MagisPage() {
         {screen === "won" ? (
           <div className="mx-auto max-w-md px-4 py-16 text-center">
             <h2 className="font-display text-4xl font-bold">The heart stills.</h2>
+            <p className="mt-2 text-sm">{note}</p>
             <button type="button" className="mt-6 rounded-full bg-[#e6c27a] px-5 py-3 text-sm text-[#1a0c12]" onClick={retry}>
               Climb again
             </button>
+          </div>
+        ) : null}
+        {skillsOpen ? (
+          <div className="fixed inset-0 z-30 grid place-items-center bg-black/70 p-4">
+            <div className="max-h-[80dvh] w-full max-w-lg overflow-auto rounded-3xl border border-[#e6c27a] bg-[#1a0c12] p-4">
+              <div className="flex items-center justify-between">
+                <h2 className="font-display text-2xl font-bold">Skills</h2>
+                <button type="button" className="rounded-full border border-[#e6c27a] px-3 py-1 text-sm" onClick={() => setSkillsOpen(false)}>
+                  Close
+                </button>
+              </div>
+              <p className="mt-1 text-sm">{skill} skill points. One point raises a spell by 1 damage.</p>
+              <ul className="mt-4 space-y-2">
+                {known.map((id) => (
+                  <li key={id} className="flex items-center gap-3 rounded-2xl border border-[#e6c27a]/40 p-2">
+                    <img src={asset(SPELL_ART[id])} alt="" className="h-14 w-14 rounded-xl object-cover" />
+                    <div className="min-w-0 flex-1">
+                      <p className="font-display font-bold">{BOOK[id].name}</p>
+                      <p className="text-sm">
+                        {power(BOOK[id], bonus)} damage {bonus[id] ? `(+${bonus[id]})` : ""}
+                      </p>
+                    </div>
+                    <button type="button" className="rounded-full bg-[#e6c27a] px-3 py-2 text-sm text-[#1a0c12] disabled:opacity-40" disabled={skill < 1} onClick={() => upgrade(id)}>
+                      +1
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
           </div>
         ) : null}
       </div>
@@ -237,12 +347,12 @@ function MagisPage() {
 
 function SpireMap({ at, open, hp, onEnter }: { at: number; open: Node[]; hp: number; onEnter: (node: Node) => void }) {
   const width = 640;
-  const height = 760;
-  const spot = (node: Node) => ({ x: 70 + node.x * (width - 140), y: 80 + node.floor * 150 });
+  const height = 1040;
+  const spot = (node: Node) => ({ x: 70 + node.x * (width - 140), y: 70 + node.floor * 125 });
   return (
     <div className="mx-auto max-w-3xl px-3 pb-8">
       <p className="text-sm text-[#e6c27a]">Water beats Fire. Fire beats Wind. Wind beats Earth. Earth beats Water. The other way resists. Only the next nodes are open.</p>
-      <p className="mt-1 text-sm">Rest sites heal. You have {hp} hp.</p>
+      <p className="mt-1 text-sm">Rest sites heal. You have {hp} hp. The boss waits at the top.</p>
       <svg viewBox={`0 0 ${width} ${height}`} className="mt-4 w-full rounded-3xl border border-[#e6c27a]/30 bg-[#2a1018]">
         {MAP.flatMap((node) =>
           node.links.map((id) => {
@@ -255,7 +365,8 @@ function SpireMap({ at, open, hp, onEnter }: { at: number; open: Node[]; hp: num
         {MAP.map((node) => {
           const pos = spot(node);
           const ready = open.some((item) => item.id === node.id);
-          const done = node.id === at || (at >= 0 && node.floor < (MAP.find((item) => item.id === at)?.floor ?? 0));
+          const here = MAP.find((item) => item.id === at);
+          const done = node.id === at || (here ? node.floor < here.floor : false);
           const fill = node.kind === "boss" ? "#e25b4a" : node.kind === "rest" ? "#3ecf8e" : "#c9a15b";
           return (
             <g key={node.id} onClick={() => ready && onEnter(node)} style={{ cursor: ready ? "pointer" : "default" }}>
@@ -271,35 +382,45 @@ function SpireMap({ at, open, hp, onEnter }: { at: number; open: Node[]; hp: num
   );
 }
 
-function Battle({ fight, hp, maxHp, onPlay, onEnd }: { fight: Fight; hp: number; maxHp: number; onPlay: (uid: number, foe: number) => void; onEnd: () => void }) {
-  const spots = useRef<(HTMLDivElement | null)[]>([]);
-  const [drag, setDrag] = useState<{ uid: number; x: number; y: number } | null>(null);
-  const card = drag ? fight.hand.find((entry) => entry.uid === drag.uid) : null;
+function Battle({ fight, hp, maxHp, bonus, onPlay, onEnd }: { fight: Fight; hp: number; maxHp: number; bonus: Bonus; onPlay: (uid: number, foe: number) => void; onEnd: () => void }) {
+  const [picked, setPicked] = useState<number | null>(null);
+  const [striking, setStriking] = useState(false);
+  useEffect(() => {
+    if (!striking) return;
+    const timer = window.setTimeout(() => setStriking(false), 700);
+    return () => window.clearTimeout(timer);
+  }, [striking]);
 
-  function drop(event: React.PointerEvent) {
-    if (!drag) return;
-    const hit = spots.current.findIndex((node) => {
-      if (!node) return false;
-      const box = node.getBoundingClientRect();
-      return event.clientX >= box.left && event.clientX <= box.right && event.clientY >= box.top && event.clientY <= box.bottom;
-    });
-    const uid = drag.uid;
-    setDrag(null);
-    if (hit >= 0) onPlay(uid, hit);
+  function strike() {
+    setPicked(null);
+    setStriking(true);
+    onEnd();
   }
 
+  const topDiscard = fight.discard[fight.discard.length - 1];
+
   return (
-    <div className="mx-auto flex min-h-[calc(100dvh-8rem)] max-w-5xl flex-col px-3 pb-4" onPointerMove={(event) => drag && setDrag({ ...drag, x: event.clientX, y: event.clientY })} onPointerUp={drop}>
+    <div className="mx-auto flex min-h-[calc(100dvh-8rem)] max-w-5xl flex-col px-3 pb-4">
+      <style>{`@keyframes magis-hit{0%,100%{transform:scale(1)}45%{transform:scale(1.12);filter:brightness(1.45)}}`}</style>
       <div className="flex flex-1 flex-wrap items-end justify-center gap-4 py-6">
         {fight.enemies.map((enemy, index) => (
-          <div
+          <button
             key={enemy.uid}
-            ref={(node) => {
-              spots.current[index] = node;
+            type="button"
+            className={`w-40 text-center ${enemy.hp <= 0 ? "opacity-30" : ""} ${picked !== null && enemy.hp > 0 ? "rounded-2xl ring-2 ring-[#e6c27a]" : ""}`}
+            onClick={() => {
+              if (picked === null || enemy.hp <= 0) return;
+              const uid = picked;
+              setPicked(null);
+              onPlay(uid, index);
             }}
-            className={`w-40 text-center ${enemy.hp <= 0 ? "opacity-30" : ""}`}
           >
-            <img src={asset(enemy.boss ? "magis/boss.jpg" : SPRITE[enemy.element])} alt="" className="mx-auto h-44 w-32 rounded-2xl border-4 object-cover" style={{ borderColor: INK[enemy.element] }} />
+            <img
+              src={asset(enemy.boss ? "magis/boss.jpg" : SPRITE[enemy.element])}
+              alt=""
+              className="mx-auto h-44 w-32 rounded-2xl border-4 object-cover"
+              style={{ borderColor: INK[enemy.element], animation: striking && enemy.hp > 0 ? "magis-hit 0.7s ease" : undefined }}
+            />
             <p className="mt-2 font-display text-lg font-bold leading-tight">{enemy.name}</p>
             <p className="text-xs uppercase" style={{ color: INK[enemy.element] }}>
               {enemy.element}
@@ -311,53 +432,87 @@ function Battle({ fight, hp, maxHp, onPlay, onEnd }: { fight: Fight; hp: number;
               {enemy.hp}/{enemy.max} · hits {enemy.attack}
               {enemy.boss ? `, then ${nextElement(enemy.element)}` : ""}
             </p>
-          </div>
+          </button>
         ))}
       </div>
-      <p className="text-center text-sm">{fight.log}</p>
+      <p className="text-center text-sm">{picked !== null ? "Click an enemy." : fight.log}</p>
       <div className="my-2 flex items-center justify-between text-sm">
         <p>
           You {hp}/{maxHp}
         </p>
         <p className="text-[#e6c27a]">{fight.energy} energy</p>
-        <p>
-          Draw {fight.draw.length} · Discard {fight.discard.length}
-        </p>
-        <button type="button" className="rounded-full bg-[#e6c27a] px-4 py-2 text-[#1a0c12]" onClick={onEnd}>
+        <button type="button" className="rounded-full bg-[#e6c27a] px-4 py-2 text-[#1a0c12]" onClick={strike}>
           End turn
         </button>
       </div>
-      <div className="flex justify-center gap-2 overflow-x-auto pb-2">
-        {fight.hand.map((entry) => (
-          <button
-            key={entry.uid}
-            type="button"
-            className="relative h-52 w-32 shrink-0 overflow-hidden rounded-2xl border-2 border-[#e6c27a] bg-[#1a0c12] text-left disabled:opacity-40"
-            disabled={entry.cost > fight.energy}
-            onPointerDown={(event) => {
-              event.currentTarget.setPointerCapture(event.pointerId);
-              setDrag({ uid: entry.uid, x: event.clientX, y: event.clientY });
-            }}
-          >
-            <SpellCard card={entry} foe={fight.enemies.find((enemy) => enemy.hp > 0)?.element} />
-          </button>
-        ))}
-      </div>
-      {drag && card ? (
-        <div className="pointer-events-none fixed z-20 h-52 w-32 -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-2xl border-2 border-[#e6c27a]" style={{ left: drag.x, top: drag.y }}>
-          <SpellCard card={card} />
+      <div className="flex items-end justify-center gap-3 pb-2">
+        <Pile label="Discard" count={fight.discard.length}>
+          {topDiscard ? <SpellCard card={topDiscard} bonus={bonus} /> : <EmptyPile />}
+        </Pile>
+        <div className="flex gap-2 overflow-x-auto">
+          {fight.hand.map((entry) => (
+            <button
+              key={entry.uid}
+              type="button"
+              className={`relative h-52 w-32 shrink-0 overflow-hidden rounded-2xl border-2 bg-[#1a0c12] text-left disabled:opacity-40 ${picked === entry.uid ? "border-[#fff6d8] ring-2 ring-[#fff6d8]" : "border-[#e6c27a]"}`}
+              disabled={entry.cost > fight.energy}
+              onClick={() => setPicked((current) => (current === entry.uid ? null : entry.uid))}
+            >
+              <SpellCard card={entry} bonus={bonus} foe={fight.enemies.find((enemy) => enemy.hp > 0)?.element} />
+            </button>
+          ))}
         </div>
-      ) : null}
+        <Pile label="Draw" count={fight.draw.length}>
+          {fight.draw.length ? <CardBack /> : <EmptyPile />}
+        </Pile>
+      </div>
     </div>
   );
 }
 
-function SpellCard({ card, foe }: { card: CardDef; foe?: Element }) {
-  const amount = foe ? dealt(card, foe) : card.damage;
-  const scale = foe ? factor(card.element, foe) : 1;
+function Pile({ label, count, children }: { label: string; count: number; children: ReactNode }) {
   return (
-    <div className="relative h-full w-full">
-      <img src={asset(ART[card.element])} alt="" className="h-32 w-full object-cover" />
+    <div className="w-28 shrink-0 text-center">
+      <div className="h-44 overflow-hidden rounded-2xl">{children}</div>
+      <p className="mt-1 text-xs">
+        {label} {count}
+      </p>
+    </div>
+  );
+}
+
+function EmptyPile() {
+  return <div className="h-full rounded-2xl border border-dashed border-[#e6c27a]/40" />;
+}
+
+function CardBack() {
+  return (
+    <div className="relative h-full rounded-2xl border-2 border-[#e6c27a] bg-[#241018]">
+      <CornerMark element="fire" className="top-2 left-2" />
+      <CornerMark element="water" className="top-2 right-2" />
+      <CornerMark element="wind" className="bottom-2 left-2" />
+      <CornerMark element="earth" className="right-2 bottom-2" />
+      <div className="absolute inset-6 rounded-xl border border-[#e6c27a]/50" />
+    </div>
+  );
+}
+
+function CornerMark({ element, className }: { element: Element; className: string }) {
+  const mark = element === "fire" ? "▲" : element === "water" ? "●" : element === "wind" ? "〰" : "■";
+  return (
+    <span className={`absolute text-sm font-bold ${className}`} style={{ color: INK[element] }}>
+      {mark}
+    </span>
+  );
+}
+
+function SpellCard({ card, bonus, foe }: { card: CardDef; bonus: Bonus; foe?: Element }) {
+  const amount = foe ? dealt(card, foe, bonus) : power(card, bonus);
+  const scale = foe ? factor(card.element, foe) : 1;
+  const frame = card.tier === 3 ? "shadow-[inset_0_0_0_3px_#e25b4a]" : card.tier === 2 ? "shadow-[inset_0_0_0_3px_#f2c14e]" : "";
+  return (
+    <div className={`relative h-full w-full ${frame}`}>
+      <img src={asset(SPELL_ART[card.id])} alt="" className="h-28 w-full object-cover" />
       <span className="absolute top-1 left-1 grid size-7 place-items-center rounded-full text-sm font-bold text-[#1a0c12]" style={{ background: INK[card.element] }}>
         {card.cost}
       </span>
@@ -367,14 +522,15 @@ function SpellCard({ card, foe }: { card: CardDef; foe?: Element }) {
   );
 }
 
-function Reward({ choices, onTake }: { choices: CardId[]; onTake: (id: CardId) => void }) {
+function Reward({ choices, bonus, note, onTake }: { choices: CardId[]; bonus: Bonus; note: string; onTake: (id: CardId) => void }) {
   return (
     <div className="mx-auto max-w-3xl px-4 py-8 text-center">
       <h2 className="font-display text-4xl font-bold">Choose a spell</h2>
+      <p className="mt-2 text-sm">{note}</p>
       <div className="mt-6 flex flex-wrap justify-center gap-3">
         {choices.map((id) => (
           <button key={id} type="button" className="h-64 w-40 overflow-hidden rounded-2xl border-2 border-[#e6c27a] bg-[#1a0c12] text-left" onClick={() => onTake(id)}>
-            <SpellCard card={BOOK[id]} />
+            <SpellCard card={BOOK[id]} bonus={bonus} />
           </button>
         ))}
       </div>
