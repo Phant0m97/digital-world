@@ -151,7 +151,9 @@ export function mountHotel(canvas: HTMLCanvasElement, onHud: (hud: HotelHud) => 
   cleanFill.visible = false;
   const maidMesh = figure("#2a3138", "#f7f7f5", "maid", mat);
   maidMesh.visible = maid;
+  maidMesh.position.set(2.4, 0, -5.1);
   scene.add(maidMesh);
+  const maidWay: { x: number; z: number }[] = [];
   const cookMesh = figure("#fff6ea", "#e23b4a", "cook", mat);
   cookMesh.visible = cook;
   cookMesh.position.set(2.9, 0, -2.5);
@@ -200,8 +202,8 @@ export function mountHotel(canvas: HTMLCanvasElement, onHud: (hud: HotelHud) => 
       box(3.15, wallH, 0.16, "#f4efe6", 0, wallH / 2, 1.42, group);
       box(3.15, wallH, 0.16, "#f4efe6", 0, wallH / 2, -1.42, group);
       box(0.16, wallH, 3.0, "#6b4328", -side * 1.42, wallH / 2, 0, group);
-      box(0.16, wallH, 0.95, "#f4efe6", side * 1.42, wallH / 2, -0.95, group);
-      box(0.16, wallH, 0.95, "#f4efe6", side * 1.42, wallH / 2, 0.95, group);
+      box(0.16, wallH, 0.72, "#f4efe6", side * 1.42, wallH / 2, -1.08, group);
+      box(0.16, wallH, 0.72, "#f4efe6", side * 1.42, wallH / 2, 1.08, group);
       box(0.36, 0.28, 0.05, "#9fd8ff", -side * 1.28, 0.52, 0.1, group);
       box(0.95, 0.2, 0.5, "#8b5a32", -side * 0.35, 0.18, -0.28, group);
       box(0.82, 0.1, 0.4, room.dirty ? "#e7d3c4" : look.blanket, -side * 0.35, 0.3, -0.28, group);
@@ -225,35 +227,21 @@ export function mountHotel(canvas: HTMLCanvasElement, onHud: (hud: HotelHud) => 
   function takeRoom(guest: Guest) {
     const index = rooms.findIndex((room, i) => room.built && !room.dirty && !guests.some((other) => other.room === i && other.phase !== "leave"));
     if (index < 0) return false;
-    const slot = SLOTS[index]!;
     guest.phase = "walk";
     guest.room = index;
     guest.need = "none";
     guest.served = false;
     guest.ask = 12 + Math.random() * 16;
-    const door = doorAt(index);
-    guest.waypoints = [
-      { x: 1.9, z: -4.7 },
-      { x: 1.9, z: slot.z },
-      { x: door.x, z: door.z },
-    ];
-    guest.tx = slot.x + (slot.x < 0 ? 0.2 : -0.2);
-    guest.tz = slot.z;
+    guest.waypoints = roomRoute(index);
+    guest.tx = guest.waypoints[guest.waypoints.length - 1]!.x;
+    guest.tz = guest.waypoints[guest.waypoints.length - 1]!.z;
     return true;
   }
 
   function finish(guest: Guest, happy: boolean) {
     guest.phase = "leave";
     const slot = guest.room >= 0 ? SLOTS[guest.room] : null;
-    const door = guest.room >= 0 ? doorAt(guest.room) : { x: 0, z: -4 };
-    guest.waypoints = slot
-      ? [
-          { x: door.x, z: door.z },
-          { x: 1.9, z: slot.z },
-          { x: 1.9, z: -5.2 },
-          { x: 0, z: -7.8 },
-        ]
-      : [{ x: 0, z: -7.8 }];
+    guest.waypoints = slot ? roomRoute(guest.room).slice(0, 6).reverse().concat([{ x: 0, z: -7.8 }]) : [{ x: 0, z: -7.8 }];
     guest.tx = 0;
     guest.tz = -8;
     history.push(happy);
@@ -398,6 +386,20 @@ export function mountHotel(canvas: HTMLCanvasElement, onHud: (hud: HotelHud) => 
   let last = performance.now();
   let saveTimer = 0;
 
+  function stepMaid(dt: number) {
+    const goal = maidWay[0];
+    if (!goal) return;
+    const dx = goal.x - maidMesh.position.x;
+    const dz = goal.z - maidMesh.position.z;
+    const dist = Math.hypot(dx, dz);
+    if (dist > 0.28) {
+      const next = slide(maidMesh.position.x, maidMesh.position.z, dx, dz, Math.min(1.8 * dt, dist), guestSolid);
+      maidMesh.position.x = next.x;
+      maidMesh.position.z = next.z;
+      maidMesh.rotation.y = Math.atan2(dx, dz);
+    } else maidWay.shift();
+  }
+
   function frame(now: number) {
     const dt = Math.min(0.05, (now - last) / 1000);
     last = now;
@@ -445,7 +447,9 @@ export function mountHotel(canvas: HTMLCanvasElement, onHud: (hud: HotelHud) => 
     if (maid && maidCool <= 0 && playerClean < 0) {
       const dirtyIndex = rooms.findIndex((room) => room.built && room.dirty && room.cleaning <= 0);
       if (dirtyIndex >= 0) {
-        const spot = doorAt(dirtyIndex);
+        const route = roomRoute(dirtyIndex);
+        maidWay.splice(0, maidWay.length, ...route);
+        const spot = route[route.length - 1]!;
         maidMesh.userData.tx = spot.x;
         maidMesh.userData.tz = spot.z;
         if (Math.hypot(maidMesh.position.x - spot.x, maidMesh.position.z - spot.z) < 0.8) {
@@ -506,15 +510,11 @@ export function mountHotel(canvas: HTMLCanvasElement, onHud: (hud: HotelHud) => 
       const dx = goal.x - guest.x;
       const dz = goal.z - guest.z;
       const dist = Math.hypot(dx, dz);
-      if (dist > 0.08) {
-        const stepLen = Math.min(1.35 * dt, dist);
-        const nx = guest.x + (dx / dist) * stepLen;
-        const nz = guest.z + (dz / dist) * stepLen;
-        const ox = guest.x;
-        const oz = guest.z;
-        if (!guestSolid(nx, guest.z)) guest.x = nx;
-        if (!guestSolid(guest.x, nz)) guest.z = nz;
-        if (Math.hypot(guest.x - ox, guest.z - oz) < 0.001 && dist > 0.45 && guest.waypoints.length) guest.waypoints.shift();
+      if (dist > 0.28) {
+        const stepLen = Math.min(1.55 * dt, dist);
+        const next = slide(guest.x, guest.z, dx, dz, stepLen, guestSolid);
+        guest.x = next.x;
+        guest.z = next.z;
         guest.mesh.rotation.y = Math.atan2(dx, dz);
       } else if (guest.waypoints.length) {
         guest.waypoints.shift();
@@ -565,7 +565,7 @@ export function mountHotel(canvas: HTMLCanvasElement, onHud: (hud: HotelHud) => 
         guests.splice(i, 1);
       }
     }
-    if (maid) stepActor(maidMesh, dt);
+    if (maid) stepMaid(dt);
     const look = bell.position;
     camera.position.lerp(new THREE.Vector3(look.x, 6.2, look.z + 5.8), 0.12);
     camera.lookAt(look.x, 0.7, look.z);
@@ -808,7 +808,7 @@ function walled(px: number, pz: number, rooms: Room[]) {
     if (hit(slot.x, slot.z + 1.42, 1.62, pad)) return true;
     if (hit(slot.x, slot.z - 1.42, 1.62, pad)) return true;
     if (hit(slot.x - side * 1.42, slot.z, pad, 1.55)) return true;
-    return hit(slot.x + side * 1.42, slot.z, pad, 1.55) && Math.abs(pz - slot.z) > 0.5;
+    return hit(slot.x + side * 1.42, slot.z, pad, 1.55) && Math.abs(pz - slot.z) > 0.62;
   });
 }
 
@@ -866,6 +866,39 @@ function bubbleSprite(kind: "coffee" | "towel") {
   sprite.name = kind;
   sprite.visible = false;
   return sprite;
+}
+
+function roomRoute(index: number) {
+  const slot = SLOTS[index]!;
+  const side = slot.x < 0 ? 1 : -1;
+  const wallX = slot.x + side * 1.42;
+  const lane = slot.x < 0 ? -3.35 : 3.35;
+  return [
+    { x: 0, z: -5.55 },
+    { x: lane, z: -4.7 },
+    { x: lane, z: -2.15 },
+    { x: 0, z: -2.05 },
+    { x: 0, z: slot.z },
+    { x: wallX + side * 0.95, z: slot.z },
+    { x: wallX - side * 0.9, z: slot.z },
+  ];
+}
+
+function slide(px: number, pz: number, dx: number, dz: number, step: number, solid: (x: number, z: number) => boolean) {
+  const dist = Math.hypot(dx, dz) || 1;
+  const ux = (dx / dist) * step;
+  const uz = (dz / dist) * step;
+  const options = [
+    [ux, uz],
+    [ux, 0],
+    [0, uz],
+    [-uz, ux],
+    [uz, -ux],
+  ];
+  for (const [ox, oz] of options) {
+    if (!solid(px + ox!, pz + oz!)) return { x: px + ox!, z: pz + oz! };
+  }
+  return { x: px, z: pz };
 }
 
 function stepActor(actor: THREE.Group, dt: number) {

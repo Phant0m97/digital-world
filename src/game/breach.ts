@@ -60,6 +60,8 @@ const NODES: Record<string, Spot> = {
   tmid: [0, 13],
   midsouth: [0, 4],
   midnorth: [0, -2],
+  midcover: [-4.6, -6],
+  midbend: [-4.6, -2],
   cttop: [0, -8],
   ctgate: [0, -12.6],
   ctspawn: [1, -16],
@@ -82,7 +84,9 @@ const LINKS: [string, string][] = [
   ["tspawn", "tunnelt"],
   ["tmid", "midsouth"],
   ["midsouth", "midnorth"],
-  ["midnorth", "cttop"],
+  ["midnorth", "midbend"],
+  ["midbend", "midcover"],
+  ["midcover", "cttop"],
   ["midnorth", "cat"],
   ["cttop", "ctspawn"],
   ["cttop", "ctgate"],
@@ -105,7 +109,7 @@ const ROUTES: Record<Role, Spot[]> = {
   cat: [NODES.tmid!, NODES.midsouth!, NODES.midnorth!, NODES.cat!, NODES.asite!],
   holdA: [NODES.ctgate!, NODES.act!, NODES.asite!],
   holdB: [NODES.ctgate!, NODES.bct!, NODES.bsite!],
-  mid: [NODES.ctgate!, NODES.cttop!, NODES.midnorth!, NODES.midsouth!],
+  mid: [NODES.ctgate!, NODES.cttop!, NODES.midcover!, NODES.midbend!, NODES.midnorth!, NODES.midsouth!],
 };
 
 export function mountBreach(canvas: HTMLCanvasElement, onHud: (hud: BreachHud) => void) {
@@ -178,6 +182,7 @@ export function mountBreach(canvas: HTMLCanvasElement, onHud: (hud: BreachHud) =
   block(0.5, 4, 16, "#c8b8a4", 12.2, 2, 10);
   block(3.6, 4, 0.5, "#b7a794", 14.2, 2, -2);
   block(6, 4, 0.5, "#b7a794", 21.2, 2, -2);
+  block(4.2, 2.6, 0.45, "#b7a794", -0.2, 1.3, -4);
   block(4, 4, 0.5, "#d2c4b0", -3.2, 2, -11);
   block(4.4, 4, 0.5, "#d2c4b0", 3.6, 2, -11);
   block(52, 0.35, 1.4, "#b7a28c", 0, 4.15, -20.2, false);
@@ -669,16 +674,16 @@ export function mountBreach(canvas: HTMLCanvasElement, onHud: (hud: BreachHud) =
         best = dist;
       }
     }
-    if (seen && bot.cool <= 0 && bot.mag > 0 && bot.reload <= 0) {
+    if (seen && best < 16 && bot.cool <= 0 && bot.mag > 0 && bot.reload <= 0) {
       const dx = seen.x - bot.x;
       const dy = seen.y - 1.4;
       const dz = seen.z - bot.z;
-      fire(bot.team, bot.x, 1.4, bot.z, dx, dy, dz, { ...GUNS.rifle, spread: 0.045 });
-      bot.cool = best < 8 ? 0.18 : 0.32;
+      fire(bot.team, bot.x, 1.4, bot.z, dx, dy, dz, { ...GUNS.rifle, spread: best > 8 ? 0.09 : 0.04 });
+      bot.cool = best < 8 ? 0.22 : 0.45;
       bot.mag -= 1;
       bot.yaw = Math.atan2(dx, dz);
     }
-    const fighting = seen !== null && best < 14;
+    const fighting = seen !== null && best < 11;
     if (!fighting) {
       const point = bot.route[Math.min(bot.cursor, bot.route.length - 1)];
       if (point) {
@@ -751,28 +756,29 @@ export function mountBreach(canvas: HTMLCanvasElement, onHud: (hud: BreachHud) =
           resetRound("buy");
         }
       }
-    } else if (phase === "live") {
-      timer -= dt;
-      if (hp > 0) {
-        const forward = (keys.has("KeyW") || keys.has("ArrowUp") ? 1 : 0) - (keys.has("KeyS") || keys.has("ArrowDown") ? 1 : 0);
-        const strafe = (keys.has("KeyD") || keys.has("ArrowRight") ? 1 : 0) - (keys.has("KeyA") || keys.has("ArrowLeft") ? 1 : 0);
-        const speed = 4.7;
-        const nx = x + (-Math.sin(yaw) * forward + Math.cos(yaw) * strafe) * speed * dt;
-        const nz = z + (-Math.cos(yaw) * forward - Math.sin(yaw) * strafe) * speed * dt;
-        if (!blocked(nx, z)) x = nx;
-        if (!blocked(x, nz)) z = nz;
-        x = Math.max(-24.4, Math.min(24.4, x));
-        z = Math.max(-19.6, Math.min(22.6, z));
-        vy -= 22 * dt;
-        y += vy * dt;
-        if (y <= 0) {
-          y = 0;
-          vy = 0;
-        }
-        if (keys.has("Space") && y === 0) vy = 7.2;
-        if (keys.has("KeyR") && reserve > 0 && mag < GUNS[gunId].mag && reload === 0) reload = 1.45;
-        if (trigger && GUNS[gunId].auto) shootPlayer();
+    }
+    if (hp > 0 && phase !== "match") {
+      const forward = (keys.has("KeyW") || keys.has("ArrowUp") ? 1 : 0) - (keys.has("KeyS") || keys.has("ArrowDown") ? 1 : 0);
+      const strafe = (keys.has("KeyD") || keys.has("ArrowRight") ? 1 : 0) - (keys.has("KeyA") || keys.has("ArrowLeft") ? 1 : 0);
+      const speed = 4.7;
+      const nx = x + (-Math.sin(yaw) * forward + Math.cos(yaw) * strafe) * speed * dt;
+      const nz = z + (-Math.cos(yaw) * forward - Math.sin(yaw) * strafe) * speed * dt;
+      if (!blocked(nx, z)) x = nx;
+      if (!blocked(x, nz)) z = nz;
+      x = Math.max(-24.4, Math.min(24.4, x));
+      z = Math.max(-19.6, Math.min(22.6, z));
+      vy -= 22 * dt;
+      y += vy * dt;
+      if (y <= 0) {
+        y = 0;
+        vy = 0;
       }
+      if (keys.has("Space") && y === 0) vy = 7.2;
+      if (phase === "live" && keys.has("KeyR") && reserve > 0 && mag < GUNS[gunId].mag && reload === 0) reload = 1.45;
+      if (phase === "live" && trigger && GUNS[gunId].auto) shootPlayer();
+    }
+    if (phase === "live") {
+      timer -= dt;
       if (planted && !routedBomb) {
         routedBomb = true;
         retargetBomb();
@@ -811,6 +817,7 @@ export function mountBreach(canvas: HTMLCanvasElement, onHud: (hud: BreachHud) =
           if (defuse >= 5) finish(false, "You defused the case.");
         } else defuse = 0;
       }
+      if (hp <= 0) prompt = "You're down.";
       if (planted && timer <= 0) finish(true, "The case goes off.");
       else if (!planted && timer <= 0) finish(false, "Time. The hold wins.");
       else if (living(0) === 0 && !planted) finish(false, "Plant team is down.");
