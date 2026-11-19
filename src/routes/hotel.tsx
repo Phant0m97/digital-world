@@ -1,0 +1,76 @@
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useRef, useState } from "react";
+import { Shell, useHydrated } from "@/components/shell";
+import { mountHotel, type HotelHud } from "@/game/hotel";
+
+export const Route = createFileRoute("/hotel")({ component: HotelPage });
+
+const empty: HotelHud = {
+  coins: 0,
+  stars: 3,
+  rooms: 2,
+  dirty: 0,
+  waiting: 0,
+  clerk: false,
+  maid: false,
+  cook: false,
+  note: "",
+  done: false,
+  buildCost: 40,
+  upgradeCost: 45,
+};
+
+function HotelPage() {
+  const ready = useHydrated();
+  return <Shell bare>{ready ? <Desk /> : <p className="p-6 text-mute">Opening Happy Hotel…</p>}</Shell>;
+}
+
+function Desk() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const api = useRef<ReturnType<typeof mountHotel> | null>(null);
+  const [hud, setHud] = useState<HotelHud>(empty);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const mounted = mountHotel(canvas, setHud);
+    api.current = mounted;
+    return () => mounted.destroy();
+  }, []);
+
+  return (
+    <div className="relative h-[calc(100dvh-4.25rem)] bg-[#c4b396]">
+      <canvas ref={canvasRef} className="h-full w-full" />
+      <div className="pointer-events-none absolute top-3 right-3 left-3 flex justify-between gap-3">
+        <Link to="/games" className="pointer-events-auto rounded-full bg-[#f3f0e8] px-4 py-2 text-sm text-ink">
+          Games
+        </Link>
+        <div className="max-w-xs rounded-2xl border-2 border-ink bg-[#f3f0e8] px-3 py-2 text-right text-xs text-ink">
+          <p>
+            {hud.coins} coins · {"★".repeat(hud.stars)}
+            {"☆".repeat(5 - hud.stars)} · {hud.rooms} rooms
+          </p>
+          <p>{hud.done ? "The hotel is loved." : "Fill every room and reach 5 stars with 500 coins."}</p>
+          <p className="mt-1">{hud.note}</p>
+        </div>
+      </div>
+      <div className="absolute inset-x-0 bottom-3 flex flex-wrap gap-2 px-3">
+        <button type="button" className="rounded-full bg-cyan px-4 py-3 text-sm text-ink" onClick={() => api.current?.build()}>
+          Build room · {hud.buildCost}
+        </button>
+        <button type="button" className="rounded-full border-2 border-ink bg-[#f3f0e8] px-4 py-3 text-sm text-ink" onClick={() => api.current?.upgrade()}>
+          Upgrade a room · {hud.upgradeCost}
+        </button>
+        <button type="button" className="rounded-full border-2 border-ink bg-[#f3f0e8] px-4 py-3 text-sm text-ink" onClick={() => api.current?.hire("clerk")} disabled={hud.clerk}>
+          {hud.clerk ? "Clerk hired" : "Hire clerk · 80"}
+        </button>
+        <button type="button" className="rounded-full border-2 border-ink bg-[#f3f0e8] px-4 py-3 text-sm text-ink" onClick={() => api.current?.hire("maid")} disabled={hud.maid}>
+          {hud.maid ? "Maid hired" : "Hire maid · 90"}
+        </button>
+        <button type="button" className="rounded-full border-2 border-ink bg-[#f3f0e8] px-4 py-3 text-sm text-ink" onClick={() => api.current?.hire("cook")} disabled={hud.cook}>
+          {hud.cook ? "Cook hired" : "Hire cook · 70"}
+        </button>
+      </div>
+    </div>
+  );
+}

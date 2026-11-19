@@ -11,6 +11,7 @@ const GAMES = [
   { to: "/ruins", title: "Ruins", image: "games/ruins.jpg" },
   { to: "/harbor", title: "Harbor", image: "games/harbor.jpg" },
   { to: "/foundry", title: "Foundry", image: "games/foundry.jpg" },
+  { to: "/hotel", title: "Happy Hotel", image: "games/hotel.jpg" },
 ] as const;
 
 function GamesPage() {

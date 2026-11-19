@@ -226,8 +226,10 @@ export function mountFarm(canvas: HTMLCanvasElement, onHud: (hud: FarmHud) => vo
 
   const hx = HOUSE.x;
   const hz = HOUSE.z;
+  const homestead = new THREE.Group();
+  scene.add(homestead);
   const walls = new THREE.Group();
-  scene.add(walls);
+  homestead.add(walls);
   const plaster = "#f4f6f8";
   const ink = "#23282e";
   const glass = "#b9e3f5";
@@ -250,7 +252,8 @@ export function mountFarm(canvas: HTMLCanvasElement, onHud: (hud: FarmHud) => vo
   solid(new THREE.BoxGeometry(0.06, 1.45, 1.7), glass, hx + 2.64, 1.25, hz - 0.2);
   solid(new THREE.BoxGeometry(2.4, 1.2, 0.06), glass, hx, 1.35, hz - 2.08);
   solid(new THREE.BoxGeometry(5.3, 0.1, 0.06), "#c4a574", hx, 2.22, hz + 2.08);
-  solid(new THREE.PlaneGeometry(1.15, 1.9), "#1c2126", hx, 1.0, hz + 1.82);
+  solid(new THREE.PlaneGeometry(1.15, 1.9), "#1c2126", hx, 1.0, hz + 1.82, walls);
+  dressHouse(solid, walls, hx, hz);
 
   const outsideBoxes: Box[] = [
     { minX: hx - 2.7, maxX: hx + 2.7, minZ: hz - 2.15, maxZ: hz - 1.75 },
@@ -309,9 +312,20 @@ export function mountFarm(canvas: HTMLCanvasElement, onHud: (hud: FarmHud) => vo
     solid(new THREE.ConeGeometry(0.72, 1.05, 6), "#57a35a", 0, 2.25, 0, tree);
     const angle = Math.PI * 0.65 + (i / 6) * Math.PI * 0.9;
     tree.position.set(Math.cos(angle) * 12.4, 0, Math.sin(angle) * 10.5 - 0.4);
-    scene.add(tree);
+    homestead.add(tree);
   }
-  scene.add(buildCity(solid, outsideBoxes));
+  dressYard(solid, homestead, hx, hz);
+  for (let i = 0; i < 14; i += 1) {
+    const trunk = new THREE.Group();
+    solid(new THREE.CylinderGeometry(0.22, 0.32, 1.8, 5), "#5a3b28", 0, 0.9, 0, trunk);
+    solid(new THREE.ConeGeometry(1.35, 2.1, 6), "#245c32", 0, 2.5, 0, trunk);
+    solid(new THREE.ConeGeometry(0.9, 1.4, 6), "#3f8d46", 0, 3.5, 0, trunk);
+    trunk.position.set(8.75, 0, -13 + i * 2);
+    scene.add(trunk);
+  }
+  outsideBoxes.push({ minX: 8.2, maxX: 9.5, minZ: -14, maxZ: 13 });
+  const city = buildCity(solid, outsideBoxes);
+  scene.add(city);
   const shopDoor = solid(new THREE.PlaneGeometry(0.9, 1.7), "#1c2126", STALL_AT.x, 0.95, STALL_AT.z + 1.46);
   shopDoor.castShadow = false;
   const hallDoor = solid(new THREE.PlaneGeometry(0.9, 1.7), "#1c2126", 16.5, 0.95, -3.52);
@@ -322,15 +336,15 @@ export function mountFarm(canvas: HTMLCanvasElement, onHud: (hud: FarmHud) => vo
 
   const shopGroups = [0, 1, 2, 3].map((level) => business(solid, "shop", level, SHOP_AT.x, SHOP_AT.z));
   const restGroups = [0, 1, 2, 3].map((level) => business(solid, "restaurant", level, REST_AT.x, REST_AT.z));
-  shopGroups.forEach((group) => scene.add(group));
-  restGroups.forEach((group) => scene.add(group));
+  shopGroups.forEach((group) => homestead.add(group));
+  restGroups.forEach((group) => homestead.add(group));
 
   const plotMeshes: { soil: THREE.Mesh; crop: THREE.Group }[] = [];
   const plots = save.plots;
   for (let i = 0; i < 16; i += 1) {
     const col = i % 4;
     const row = Math.floor(i / 4);
-    const soil = solid(new THREE.BoxGeometry(1.28, 0.16, 1.28), "#8a6244", (col - 1.5) * 1.65, 0.08, (row - 1.5) * 1.65 + 1.5);
+    const soil = solid(new THREE.BoxGeometry(1.28, 0.16, 1.28), "#8a6244", (col - 1.5) * 1.65, 0.08, (row - 1.5) * 1.65 + 1.5, homestead);
     const crop = new THREE.Group();
     crop.position.copy(soil.position);
     for (let s = 0; s < 3; s += 1) {
@@ -340,7 +354,7 @@ export function mountFarm(canvas: HTMLCanvasElement, onHud: (hud: FarmHud) => vo
     const fruit = solid(new THREE.SphereGeometry(0.22, 7, 5), "#e86a1a", 0, 0.38, 0, crop);
     fruit.name = "fruit";
     crop.visible = false;
-    scene.add(crop);
+    homestead.add(crop);
     plotMeshes.push({ soil, crop });
   }
 
@@ -809,9 +823,18 @@ export function mountFarm(canvas: HTMLCanvasElement, onHud: (hud: FarmHud) => vo
     sun.position.set(farmer.position.x + Math.cos(sunAngle) * 14, 5 + Math.max(0.4, Math.sin(sunAngle)) * 12, farmer.position.z + 7);
     sunTarget.position.set(farmer.position.x, 0, farmer.position.z);
     const dayness = Math.max(0, Math.sin(sunAngle));
+    const inCity = !room && farmer.position.x > 10;
     sun.intensity = 0.25 + dayness * 1.45;
     scene.background = new THREE.Color(dayness > 0.15 ? "#9fd0ea" : "#1c2740");
-    scene.fog = new THREE.Fog(dayness > 0.15 ? "#b7d7ea" : "#1c2740", 24, 70);
+    scene.fog = new THREE.Fog(dayness > 0.15 ? "#b7d7ea" : "#1c2740", inCity ? 8 : 24, inCity ? 20 : 62);
+    homestead.visible = !inCity;
+    if (!room && farmer.position.x > 7.5) {
+      const next = carOwned ? "The woods are too thick. Use the car." : "The road is closed. Buy the car to reach the city.";
+      if (note !== next) {
+        note = next;
+        hud();
+      }
+    }
     if (room) {
       const spot = roomAt(room);
       lamp.position.set(spot.x, 1.8, spot.z);
@@ -1046,7 +1069,81 @@ function buildCity(
     city.add(parkedCar);
   }
   scenePeople(solid, city);
+  cityDetails(solid, city);
   return city;
+}
+
+function dressHouse(
+  solid: (geo: THREE.BufferGeometry, color: number | string, x: number, y: number, z: number, parent?: THREE.Object3D) => THREE.Mesh,
+  walls: THREE.Group,
+  hx: number,
+  hz: number,
+) {
+  solid(new THREE.BoxGeometry(0.7, 1.1, 0.7), "#d7dbe1", hx - 2.1, 3.05, hz - 1.3, walls);
+  solid(new THREE.BoxGeometry(0.4, 0.25, 0.4), "#2a3138", hx - 2.1, 3.7, hz - 1.3, walls);
+  solid(new THREE.BoxGeometry(0.9, 0.22, 0.28), "#f7f7f5", hx - 1.55, 0.7, hz + 2.2, walls);
+  solid(new THREE.BoxGeometry(0.9, 0.22, 0.28), "#f7f7f5", hx + 1.55, 0.7, hz + 2.2, walls);
+  for (const x of [-1.55, 1.55]) {
+    solid(new THREE.SphereGeometry(0.12, 6, 5), "#e25b4a", hx + x - 0.22, 0.95, hz + 2.32, walls);
+    solid(new THREE.SphereGeometry(0.12, 6, 5), "#f2c14e", hx + x + 0.22, 0.95, hz + 2.32, walls);
+  }
+  solid(new THREE.BoxGeometry(1.7, 0.08, 0.7), "#c4a574", hx, 0.12, hz + 2.35, walls);
+  solid(new THREE.BoxGeometry(1.2, 0.08, 0.5), "#8d5524", hx, 0.2, hz + 2.15, walls);
+  solid(new THREE.BoxGeometry(0.7, 0.02, 0.4), "#2ec8e6", hx, 0.08, hz + 2.7, walls);
+  solid(new THREE.BoxGeometry(0.08, 0.7, 0.08), "#23282e", hx - 0.7, 0.45, hz + 2.55, walls);
+  solid(new THREE.BoxGeometry(0.08, 0.7, 0.08), "#23282e", hx + 0.7, 0.45, hz + 2.55, walls);
+}
+
+function dressYard(
+  solid: (geo: THREE.BufferGeometry, color: number | string, x: number, y: number, z: number, parent?: THREE.Object3D) => THREE.Mesh,
+  home: THREE.Group,
+  hx: number,
+  hz: number,
+) {
+  for (let i = 0; i < 6; i += 1) {
+    solid(new THREE.BoxGeometry(0.42, 0.05, 0.42), "#cfc6b8", hx + 0.15, 0.04, hz + 3.3 + i * 0.55, home);
+  }
+  solid(new THREE.BoxGeometry(0.16, 0.9, 0.16), "#6b4630", hx + 3.4, 0.5, hz + 2.2, home);
+  solid(new THREE.BoxGeometry(0.46, 0.28, 0.16), "#2ec8e6", hx + 3.55, 0.85, hz + 2.2, home);
+  for (const spot of [
+    { x: hx - 3.2, z: hz + 1.2, color: "#e25b4a" },
+    { x: hx - 3.5, z: hz - 0.4, color: "#f2c14e" },
+    { x: hx + 3.3, z: hz - 1.1, color: "#ff2bd6" },
+    { x: hx + 2.4, z: hz + 3.1, color: "#ffffff" },
+  ]) {
+    solid(new THREE.SphereGeometry(0.28, 6, 5), "#2f7a3a", spot.x, 0.22, spot.z, home);
+    solid(new THREE.SphereGeometry(0.1, 5, 4), spot.color, spot.x + 0.12, 0.42, spot.z, home);
+  }
+  for (let i = 0; i < 5; i += 1) {
+    solid(new THREE.BoxGeometry(0.08, 0.55, 0.08), "#f4f6f8", -12.5 + i * 1.4, 0.32, 8.4, home);
+    if (i < 4) solid(new THREE.BoxGeometry(1.4, 0.06, 0.05), "#f4f6f8", -11.8 + i * 1.4, 0.48, 8.4, home);
+  }
+  solid(new THREE.BoxGeometry(0.9, 0.35, 0.55), "#6b4630", hx - 4.2, 0.22, hz - 1.4, home);
+}
+
+function cityDetails(
+  solid: (geo: THREE.BufferGeometry, color: number | string, x: number, y: number, z: number, parent?: THREE.Object3D) => THREE.Mesh,
+  city: THREE.Group,
+) {
+  solid(new THREE.BoxGeometry(3.4, 0.08, 1.1), "#2ec8e6", STALL_AT.x, 2.15, STALL_AT.z + 1.7, city);
+  solid(new THREE.BoxGeometry(1.4, 0.35, 0.08), "#f3f0e8", STALL_AT.x, 2.45, STALL_AT.z + 1.5, city);
+  for (let i = 0; i < 5; i += 1) {
+    solid(new THREE.BoxGeometry(0.7, 0.06, 1.6), "#f3f0e8", 26 + i * 1.1, 0.08, 5.3, city);
+  }
+  for (const bench of [
+    { x: 17.2, z: 3.55 },
+    { x: 26.5, z: 7.15 },
+    { x: 34.2, z: 3.55 },
+  ]) {
+    solid(new THREE.BoxGeometry(1.1, 0.08, 0.34), "#8b5a32", bench.x, 0.38, bench.z, city);
+    solid(new THREE.BoxGeometry(1.1, 0.28, 0.08), "#6b4630", bench.x, 0.55, bench.z - 0.14, city);
+  }
+  for (const pot of [15.2, 21.5, 30.4, 38.6]) {
+    solid(new THREE.CylinderGeometry(0.22, 0.16, 0.28, 6), "#2a3138", pot, 0.2, 3.5, city);
+    solid(new THREE.ConeGeometry(0.28, 0.45, 6), "#3f8d46", pot, 0.5, 3.5, city);
+  }
+  solid(new THREE.BoxGeometry(1.1, 0.35, 0.8), "#c5ccd4", 22.4, 12.15, -6.4, city);
+  solid(new THREE.BoxGeometry(0.8, 0.4, 0.7), "#9aa6b2", 35.2, 14.2, -6.2, city);
 }
 
 function scenePeople(

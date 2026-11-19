@@ -15,6 +15,7 @@ import { Route as FarmRouteImport } from './routes/farm'
 import { Route as FoundryRouteImport } from './routes/foundry'
 import { Route as GamesRouteImport } from './routes/games'
 import { Route as HarborRouteImport } from './routes/harbor'
+import { Route as HotelRouteImport } from './routes/hotel'
 import { Route as PaintballRouteImport } from './routes/paintball'
 import { Route as PlayRouteImport } from './routes/play'
 import { Route as RuinsRouteImport } from './routes/ruins'
@@ -50,6 +51,11 @@ const HarborRoute = HarborRouteImport.update({
   path: '/harbor',
   getParentRoute: () => rootRouteImport,
 } as any)
+const HotelRoute = HotelRouteImport.update({
+  id: '/hotel',
+  path: '/hotel',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PaintballRoute = PaintballRouteImport.update({
   id: '/paintball',
   path: '/paintball',
@@ -78,6 +84,7 @@ export interface FileRoutesByFullPath {
   '/foundry': typeof FoundryRoute
   '/games': typeof GamesRoute
   '/harbor': typeof HarborRoute
+  '/hotel': typeof HotelRoute
   '/paintball': typeof PaintballRoute
   '/play': typeof PlayRoute
   '/ruins': typeof RuinsRoute
@@ -90,6 +97,7 @@ export interface FileRoutesByTo {
   '/foundry': typeof FoundryRoute
   '/games': typeof GamesRoute
   '/harbor': typeof HarborRoute
+  '/hotel': typeof HotelRoute
   '/paintball': typeof PaintballRoute
   '/play': typeof PlayRoute
   '/ruins': typeof RuinsRoute
@@ -103,6 +111,7 @@ export interface FileRoutesById {
   '/foundry': typeof FoundryRoute
   '/games': typeof GamesRoute
   '/harbor': typeof HarborRoute
+  '/hotel': typeof HotelRoute
   '/paintball': typeof PaintballRoute
   '/play': typeof PlayRoute
   '/ruins': typeof RuinsRoute
@@ -117,6 +126,7 @@ export interface FileRouteTypes {
     | '/foundry'
     | '/games'
     | '/harbor'
+    | '/hotel'
     | '/paintball'
     | '/play'
     | '/ruins'
@@ -129,6 +139,7 @@ export interface FileRouteTypes {
     | '/foundry'
     | '/games'
     | '/harbor'
+    | '/hotel'
     | '/paintball'
     | '/play'
     | '/ruins'
@@ -141,6 +152,7 @@ export interface FileRouteTypes {
     | '/foundry'
     | '/games'
     | '/harbor'
+    | '/hotel'
     | '/paintball'
     | '/play'
     | '/ruins'
@@ -154,6 +166,7 @@ export interface RootRouteChildren {
   FoundryRoute: typeof FoundryRoute
   GamesRoute: typeof GamesRoute
   HarborRoute: typeof HarborRoute
+  HotelRoute: typeof HotelRoute
   PaintballRoute: typeof PaintballRoute
   PlayRoute: typeof PlayRoute
   RuinsRoute: typeof RuinsRoute
@@ -204,6 +217,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof HarborRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/hotel': {
+      id: '/hotel'
+      path: '/hotel'
+      fullPath: '/hotel'
+      preLoaderRoute: typeof HotelRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/paintball': {
       id: '/paintball'
       path: '/paintball'
@@ -242,6 +262,7 @@ const rootRouteChildren: RootRouteChildren = {
   FoundryRoute: FoundryRoute,
   GamesRoute: GamesRoute,
   HarborRoute: HarborRoute,
+  HotelRoute: HotelRoute,
   PaintballRoute: PaintballRoute,
   PlayRoute: PlayRoute,
   RuinsRoute: RuinsRoute,
