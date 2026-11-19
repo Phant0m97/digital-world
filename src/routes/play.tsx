@@ -55,7 +55,8 @@ function PlayPage() {
         loadout: botLoadout(index + 1),
         dyes: botDyes(index + 1),
         weapon: index % 2 === 0 ? "marker" : "spray",
-        bot: true,
+        bot: false,
+        remote: true,
       });
     });
     const target = Math.max(search.players, others.length + 1);

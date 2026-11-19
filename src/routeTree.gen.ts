@@ -10,7 +10,6 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as BlackoutRouteImport } from './routes/blackout'
 import { Route as ChatRouteImport } from './routes/chat'
 import { Route as FarmRouteImport } from './routes/farm'
 import { Route as GamesRouteImport } from './routes/games'
@@ -23,11 +22,6 @@ import { Route as SketchRouteImport } from './routes/sketch'
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const BlackoutRoute = BlackoutRouteImport.update({
-  id: '/blackout',
-  path: '/blackout',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ChatRoute = ChatRouteImport.update({
@@ -73,7 +67,6 @@ const SketchRoute = SketchRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/blackout': typeof BlackoutRoute
   '/chat': typeof ChatRoute
   '/farm': typeof FarmRoute
   '/games': typeof GamesRoute
@@ -85,7 +78,6 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/blackout': typeof BlackoutRoute
   '/chat': typeof ChatRoute
   '/farm': typeof FarmRoute
   '/games': typeof GamesRoute
@@ -98,7 +90,6 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/blackout': typeof BlackoutRoute
   '/chat': typeof ChatRoute
   '/farm': typeof FarmRoute
   '/games': typeof GamesRoute
@@ -112,7 +103,6 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/blackout'
     | '/chat'
     | '/farm'
     | '/games'
@@ -124,7 +114,6 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/blackout'
     | '/chat'
     | '/farm'
     | '/games'
@@ -136,7 +125,6 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
-    | '/blackout'
     | '/chat'
     | '/farm'
     | '/games'
@@ -149,7 +137,6 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  BlackoutRoute: typeof BlackoutRoute
   ChatRoute: typeof ChatRoute
   FarmRoute: typeof FarmRoute
   GamesRoute: typeof GamesRoute
@@ -167,13 +154,6 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/blackout': {
-      id: '/blackout'
-      path: '/blackout'
-      fullPath: '/blackout'
-      preLoaderRoute: typeof BlackoutRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/chat': {
@@ -237,7 +217,6 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  BlackoutRoute: BlackoutRoute,
   ChatRoute: ChatRoute,
   FarmRoute: FarmRoute,
   GamesRoute: GamesRoute,

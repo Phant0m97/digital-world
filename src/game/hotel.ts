@@ -31,6 +31,8 @@ type Guest = {
   need: Need;
   served: boolean;
   mesh: THREE.Group;
+  waypoints: { x: number; z: number }[];
+  ask: number;
 };
 type Room = { built: boolean; dirty: boolean; level: number; cleaning: number };
 
@@ -105,7 +107,7 @@ export function mountHotel(canvas: HTMLCanvasElement, onHud: (hud: HotelHud) => 
   lawn.position.y = -0.04;
   lawn.receiveShadow = true;
   scene.add(lawn);
-  box(14, 0.08, 18, "#d7dbe3", 0, 0, 1.2, scene);
+  box(13.05, 0.08, 15.9, "#d7dbe3", 0, 0.02, 1.7, scene);
   box(2.5, 0.04, 14.2, "#5b4cdb", 0, 0.09, 2.4, scene);
   for (let i = 0; i < 12; i += 1) {
     const tile = box(2.2, 0.08, 0.18, i % 2 ? "#ffe27a" : "#f6b73c", 0, 0.22, -3.6 + i * 1.15, scene);
@@ -133,13 +135,13 @@ export function mountHotel(canvas: HTMLCanvasElement, onHud: (hud: HotelHud) => 
   box(0.42, 0.08, 0.08, "#fffaf3", 0, 0.61, 0.22, closet);
   scene.add(closet);
   const wallH = 1.35;
-  box(0.18, wallH, 16.2, "#fff4ea", -6.7, wallH / 2, 1.6, scene);
-  box(0.18, wallH, 16.2, "#fff4ea", 6.7, wallH / 2, 1.6, scene);
-  box(13.6, wallH, 0.18, "#fff4ea", 0, wallH / 2, 9.7, scene);
-  box(5.2, wallH, 0.18, "#fff4ea", -3.7, wallH / 2, -6.3, scene);
-  box(5.2, wallH, 0.18, "#fff4ea", 3.7, wallH / 2, -6.3, scene);
-  box(0.16, wallH, 0.2, "#c47a3a", -1.2, wallH / 2, -6.3, scene);
-  box(0.16, wallH, 0.2, "#c47a3a", 1.2, wallH / 2, -6.3, scene);
+  box(0.28, wallH, 16.7, "#fff4ea", -6.7, wallH / 2, 1.7, scene);
+  box(0.28, wallH, 16.7, "#fff4ea", 6.7, wallH / 2, 1.7, scene);
+  box(13.9, wallH, 0.28, "#fff4ea", 0, wallH / 2, 9.9, scene);
+  box(5.5, wallH, 0.28, "#fff4ea", -3.9, wallH / 2, -6.45, scene);
+  box(5.5, wallH, 0.28, "#fff4ea", 3.9, wallH / 2, -6.45, scene);
+  box(0.22, wallH, 0.28, "#c47a3a", -1.15, wallH / 2, -6.45, scene);
+  box(0.22, wallH, 0.28, "#c47a3a", 1.15, wallH / 2, -6.45, scene);
   const bell = figure("#e23b4a", "#2a3138", "bell", mat);
   bell.position.set(0, 0, -2.15);
   scene.add(bell);
@@ -193,15 +195,15 @@ export function mountHotel(canvas: HTMLCanvasElement, onHud: (hud: HotelHud) => 
         roomFloors.push(pad);
         return;
       }
-      const floor = box(3.15, 0.08, 3.15, room.dirty ? "#c9856a" : look.floor, 0, 0.06, 0, group);
+      const floor = box(2.9, 0.08, 2.9, room.dirty ? "#c9856a" : look.floor, 0, 0.06, 0, group);
       floor.userData = { kind: "room", index };
       roomFloors.push(floor);
       const wallH = 0.82;
-      box(3.2, wallH, 0.1, "#fff4ea", 0, wallH / 2, 1.55, group);
-      box(3.2, wallH, 0.1, "#fff4ea", 0, wallH / 2, -1.55, group);
-      box(0.1, wallH, 3.2, "#ffe27a", -side * 1.55, wallH / 2, 0, group);
-      box(0.1, wallH, 0.95, "#fff4ea", side * 1.55, wallH / 2, -1.05, group);
-      box(0.1, wallH, 0.95, "#fff4ea", side * 1.55, wallH / 2, 1.05, group);
+      box(3.5, wallH, 0.18, "#fff4ea", 0, wallH / 2, 1.58, group);
+      box(3.5, wallH, 0.18, "#fff4ea", 0, wallH / 2, -1.58, group);
+      box(0.18, wallH, 3.5, "#ffe27a", -side * 1.58, wallH / 2, 0, group);
+      box(0.18, wallH, 1.15, "#fff4ea", side * 1.58, wallH / 2, -1.1, group);
+      box(0.18, wallH, 1.15, "#fff4ea", side * 1.58, wallH / 2, 1.1, group);
       box(0.55, 0.45, 0.08, "#9fd8ff", -side * 1.52, 0.55, 0.35, group);
       box(1.35, 0.28, 0.7, "#c47a3a", -side * 0.7, 0.28, -0.55, group);
       box(1.2, 0.16, 0.62, room.dirty ? "#e7d3c4" : look.blanket, -side * 0.7, 0.46, -0.55, group);
@@ -236,14 +238,32 @@ export function mountHotel(canvas: HTMLCanvasElement, onHud: (hud: HotelHud) => 
     const slot = SLOTS[index]!;
     guest.phase = "walk";
     guest.room = index;
-    guest.tx = slot.x + (slot.x < 0 ? 0.35 : -0.35);
-    guest.tz = slot.z + 0.15;
     guest.need = "none";
+    guest.served = false;
+    guest.ask = 12 + Math.random() * 16;
+    const door = doorAt(index);
+    guest.waypoints = [
+      { x: 1.9, z: -4.7 },
+      { x: 1.9, z: slot.z },
+      { x: door.x, z: door.z },
+    ];
+    guest.tx = slot.x + (slot.x < 0 ? 0.2 : -0.2);
+    guest.tz = slot.z;
     return true;
   }
 
   function finish(guest: Guest, happy: boolean) {
     guest.phase = "leave";
+    const slot = guest.room >= 0 ? SLOTS[guest.room] : null;
+    const door = guest.room >= 0 ? doorAt(guest.room) : { x: 0, z: -4 };
+    guest.waypoints = slot
+      ? [
+          { x: door.x, z: door.z },
+          { x: 1.9, z: slot.z },
+          { x: 1.9, z: -5.2 },
+          { x: 0, z: -7.8 },
+        ]
+      : [{ x: 0, z: -7.8 }];
     guest.tx = 0;
     guest.tz = -8;
     history.push(happy);
@@ -419,6 +439,8 @@ export function mountHotel(canvas: HTMLCanvasElement, onHud: (hud: HotelHud) => 
           stay: 36,
           need: "none",
           served: false,
+          waypoints: [],
+          ask: 99,
           mesh,
         });
         nextId += 1;
@@ -490,14 +512,22 @@ export function mountHotel(canvas: HTMLCanvasElement, onHud: (hud: HotelHud) => 
     }
     if (cleaned) roomSig = "";
     for (const guest of guests) {
-      const step = 1.35 * dt;
-      const dx = guest.tx - guest.x;
-      const dz = guest.tz - guest.z;
+      const goal = guest.waypoints[0] ?? { x: guest.tx, z: guest.tz };
+      const dx = goal.x - guest.x;
+      const dz = goal.z - guest.z;
       const dist = Math.hypot(dx, dz);
       if (dist > 0.08) {
-        guest.x += (dx / dist) * Math.min(step, dist);
-        guest.z += (dz / dist) * Math.min(step, dist);
+        const stepLen = Math.min(1.35 * dt, dist);
+        const nx = guest.x + (dx / dist) * stepLen;
+        const nz = guest.z + (dz / dist) * stepLen;
+        const ox = guest.x;
+        const oz = guest.z;
+        if (!guestSolid(nx, guest.z)) guest.x = nx;
+        if (!guestSolid(guest.x, nz)) guest.z = nz;
+        if (Math.hypot(guest.x - ox, guest.z - oz) < 0.001 && dist > 0.45 && guest.waypoints.length) guest.waypoints.shift();
         guest.mesh.rotation.y = Math.atan2(dx, dz);
+      } else if (guest.waypoints.length) {
+        guest.waypoints.shift();
       } else if (guest.phase === "walk") {
         guest.phase = "stay";
         guest.stay = 34 + rooms[guest.room]!.level * 8;
@@ -513,9 +543,8 @@ export function mountHotel(canvas: HTMLCanvasElement, onHud: (hud: HotelHud) => 
       }
       if (guest.phase === "stay") {
         guest.stay -= dt;
-        if (guest.need === "none" && !guest.served && guest.stay < 18 && guest.stay > 17.6) {
-          const roll = Math.random();
-          guest.need = roll < 0.4 ? "coffee" : roll < 0.7 ? "meal" : "towel";
+        if (guest.need === "none" && !guest.served && guest.stay < guest.ask) {
+          guest.need = Math.random() < 0.55 ? "coffee" : "towel";
         }
         if (guest.need === "meal" && cook) serve(guest);
         if (guest.stay <= 0) finish(guest, guest.need === "none");
@@ -561,6 +590,22 @@ export function mountHotel(canvas: HTMLCanvasElement, onHud: (hud: HotelHud) => 
       localStorage.setItem(KEY, JSON.stringify({ coins, clerk, maid, cook, done, rooms, history }));
     }
     raf = requestAnimationFrame(frame);
+  }
+
+  function guestSolid(px: number, pz: number) {
+    if (walled(px, pz, rooms)) return true;
+    if (hitBox(px, pz, 0, -3.5, 1.2, 0.45)) return true;
+    if (hitBox(px, pz, 2.15, -3.45, 0.4, 0.3)) return true;
+    if (hitBox(px, pz, -2.2, -3.4, 0.4, 0.28)) return true;
+    for (let index = 0; index < SLOTS.length; index += 1) {
+      const room = rooms[index];
+      const slot = SLOTS[index]!;
+      if (!room?.built) continue;
+      const side = slot.x < 0 ? 1 : -1;
+      if (hitBox(px, pz, slot.x - side * 0.7, slot.z - 0.55, 0.7, 0.4)) return true;
+      if (hitBox(px, pz, slot.x - side * 1.15, slot.z + 0.85, 0.28, 0.28)) return true;
+    }
+    return false;
   }
 
   function blocked(px: number, pz: number) {
@@ -755,19 +800,19 @@ function hitBox(px: number, pz: number, x: number, z: number, hx: number, hz: nu
 
 function walled(px: number, pz: number, rooms: Room[]) {
   if (px < -7.3 || px > 7.3 || pz > 10.3 || pz < -8.4) return true;
-  if (Math.abs(px + 6.7) < 0.32 && pz > -6.5 && pz < 9.9) return true;
-  if (Math.abs(px - 6.7) < 0.32 && pz > -6.5 && pz < 9.9) return true;
-  if (Math.abs(pz - 9.7) < 0.32 && Math.abs(px) < 6.9) return true;
-  if (Math.abs(pz + 6.3) < 0.32 && Math.abs(px) > 1.25 && Math.abs(px) < 6.9) return true;
+  if (Math.abs(px + 6.7) < 0.42 && pz > -6.7 && pz < 10.1) return true;
+  if (Math.abs(px - 6.7) < 0.42 && pz > -6.7 && pz < 10.1) return true;
+  if (Math.abs(pz - 9.9) < 0.42 && Math.abs(px) < 7.05) return true;
+  if (Math.abs(pz + 6.45) < 0.42 && Math.abs(px) > 1.2 && Math.abs(px) < 7.05) return true;
   return SLOTS.some((slot, index) => {
     if (!rooms[index]?.built) return false;
     const side = slot.x < 0 ? 1 : -1;
     const pad = 0.28;
     const hit = (x: number, z: number, hx: number, hz: number) => Math.abs(px - x) < hx && Math.abs(pz - z) < hz;
-    if (hit(slot.x, slot.z + 1.55, 1.7, pad)) return true;
-    if (hit(slot.x, slot.z - 1.55, 1.7, pad)) return true;
-    if (hit(slot.x - side * 1.55, slot.z, pad, 1.7)) return true;
-    return hit(slot.x + side * 1.55, slot.z, pad, 1.7) && Math.abs(pz - slot.z) > 0.55;
+    if (hit(slot.x, slot.z + 1.58, 1.9, pad)) return true;
+    if (hit(slot.x, slot.z - 1.58, 1.9, pad)) return true;
+    if (hit(slot.x - side * 1.58, slot.z, pad, 1.9)) return true;
+    return hit(slot.x + side * 1.58, slot.z, pad, 1.9) && Math.abs(pz - slot.z) > 0.55;
   });
 }
 

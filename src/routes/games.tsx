@@ -9,7 +9,6 @@ const GAMES = [
   { to: "/sketch", title: "Sketch", image: "games/sketch-stick.jpg" },
   { to: "/farm", title: "PolyFarm", image: "games/acre.jpg" },
   { to: "/hotel", title: "Happy Hotel", image: "games/hotel.jpg" },
-  { to: "/blackout", title: "Blackout", image: "games/blackout.jpg" },
   { to: "/magis", title: "Magis", image: "games/magis.jpg" },
 ] as const;
 

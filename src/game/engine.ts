@@ -8,6 +8,7 @@ export type MatchFighterSetup = {
   dyes: Dyes;
   weapon: string;
   bot: boolean;
+  remote?: boolean;
 };
 
 export type MatchSetup = {
@@ -56,6 +57,7 @@ type Fighter = {
   name: string;
   you: boolean;
   bot: boolean;
+  remote: boolean;
   team: number;
   color: string;
   loadout: Loadout;
@@ -85,6 +87,8 @@ type Fighter = {
   hill: number;
   wantJump: boolean;
   jumpHeld: boolean;
+  shots: number;
+  netShot: number;
 };
 type Bullet = {
   x: number;
@@ -293,7 +297,8 @@ export function createMatch(
       id: index,
       name: entry.name,
       you: index === 0,
-      bot: entry.bot,
+      bot: entry.bot && !entry.remote,
+      remote: Boolean(entry.remote),
       team,
       color: entry.color,
       loadout: entry.loadout,
@@ -323,8 +328,31 @@ export function createMatch(
       hill: 0,
       wantJump: false,
       jumpHeld: false,
+      shots: 0,
+      netShot: -1,
     });
   });
+
+  const nets = new Map<string, { x: number; y: number; aim: number; facing: number; hp: number; alive: boolean; shot: number; seen: number }>();
+  let sendNet = (_body: Record<string, unknown>) => {};
+  let closeNet = () => {};
+  let lastPub = 0;
+  void openYardNet((msg) => {
+    if (!msg.n || msg.n.trim().toLowerCase() === setup.you.name.trim().toLowerCase()) return;
+    nets.set(msg.n.trim().toLowerCase(), {
+      x: msg.x,
+      y: msg.y,
+      aim: msg.a,
+      facing: msg.f,
+      hp: msg.hp,
+      alive: msg.alive,
+      shot: msg.s,
+      seen: performance.now(),
+    });
+  }).then((link) => {
+    sendNet = link.send;
+    closeNet = link.close;
+  }).catch(() => {});
 
   const crystals: Crystal[] = [
     { x: 230, y: 578, team: 0, hp: 18, max: 18 },
@@ -445,6 +473,7 @@ export function createMatch(
       bounce: spec.id === "ricochet" ? 1 : 0,
     });
     fighter.burst += 1;
+    fighter.shots += 1;
     if (fighter.burst >= spec.burst) {
       fighter.burst = 0;
       fighter.cool = 1 / spec.rof;
@@ -651,6 +680,10 @@ export function createMatch(
     fighter.cool = Math.max(0, fighter.cool - dt);
     fighter.invuln = Math.max(0, fighter.invuln - dt);
     fighter.drop = Math.max(0, fighter.drop - dt);
+    if (fighter.remote) {
+      driveRemote(fighter);
+      return;
+    }
     if (!fighter.alive) {
       if (fighter.eliminated || fighter.respawn <= 0) return;
       fighter.respawn -= dt;
@@ -835,6 +868,47 @@ export function createMatch(
     onEnd({ title, placements, youCredits });
   }
 
+  function driveRemote(fighter: Fighter) {
+    const net = nets.get(fighter.name.trim().toLowerCase());
+    if (!net || performance.now() - net.seen > 2500) {
+      fighter.vx = 0;
+      fighter.vy = 0;
+      return;
+    }
+    fighter.x = net.x;
+    fighter.y = net.y;
+    fighter.aim = net.aim;
+    fighter.facing = net.facing || 1;
+    fighter.hp = net.hp;
+    fighter.alive = net.alive && net.hp > 0;
+    if (net.shot !== fighter.netShot) {
+      const first = fighter.netShot < 0;
+      fighter.netShot = net.shot;
+      if (!first && fighter.alive) {
+        fighter.cool = 0;
+        fire(fighter);
+      }
+    }
+  }
+
+  function publishYou() {
+    const now = performance.now();
+    if (now - lastPub < 90) return;
+    lastPub = now;
+    const self = you();
+    sendNet({
+      t: "p",
+      n: self.name,
+      x: self.x,
+      y: self.y,
+      a: self.aim,
+      f: self.facing,
+      hp: self.hp,
+      alive: self.alive,
+      s: self.shots,
+    });
+  }
+
   function step(dt: number) {
     if (ended) return;
     if (hitStop > 0) {
@@ -854,6 +928,7 @@ export function createMatch(
     }
     shake = Math.max(0, shake - dt * 18);
     checkEnd();
+    publishYou();
   }
 
   function syncView() {
@@ -1104,6 +1179,7 @@ export function createMatch(
   return {
     destroy() {
       cancelAnimationFrame(raf);
+      closeNet();
       canvas.removeEventListener("pointerdown", onPointer);
       canvas.removeEventListener("pointermove", onPointer);
       window.removeEventListener("pointerup", onPointerUp);
@@ -1191,4 +1267,46 @@ export function paintPreview(canvas: HTMLCanvasElement, loadout: Loadout, dyes: 
   } as Fighter;
   drawFigure(ctx, fake, 0);
   ctx.restore();
+}
+
+const YARD_RELAYS = ["wss://relay.primal.net", "wss://offchain.pub", "wss://nos.lol"];
+
+function openYardNet(onMessage: (msg: { n: string; x: number; y: number; a: number; f: number; hp: number; alive: boolean; s: number }) => void) {
+  return (async () => {
+    const { generateSecretKey, getPublicKey, finalizeEvent } = await import("nostr-tools/pure");
+    const { bytesToHex, hexToBytes } = await import("nostr-tools/utils");
+    const { SimplePool } = await import("nostr-tools/pool");
+    const saved = localStorage.getItem("dw-chat-sk");
+    const sk = saved && /^[0-9a-f]{64}$/i.test(saved) ? hexToBytes(saved) : generateSecretKey();
+    if (!saved) localStorage.setItem("dw-chat-sk", bytesToHex(sk));
+    getPublicKey(sk);
+    const pool = new SimplePool();
+    const sub = pool.subscribe(
+      YARD_RELAYS,
+      { kinds: [21111], "#t": ["dw-paintball"], since: Math.floor(Date.now() / 1000) - 3 },
+      {
+        onevent(event) {
+          try {
+            const body = JSON.parse(event.content) as { t?: string; n?: string; x?: number; y?: number; a?: number; f?: number; hp?: number; alive?: boolean; s?: number };
+            if (body.t !== "p" || !body.n) return;
+            onMessage({ n: body.n, x: body.x ?? 0, y: body.y ?? 0, a: body.a ?? 0, f: body.f ?? 1, hp: body.hp ?? 2, alive: body.alive !== false, s: body.s ?? 0 });
+          } catch {
+            /* ignore bad packets */
+          }
+        },
+      },
+    );
+    return {
+      send(body: Record<string, unknown>) {
+        const event = finalizeEvent(
+          { kind: 21111, created_at: Math.floor(Date.now() / 1000), tags: [["t", "dw-paintball"]], content: JSON.stringify(body) },
+          sk,
+        );
+        pool.publish(YARD_RELAYS, event);
+      },
+      close() {
+        sub.close();
+      },
+    };
+  })();
 }
