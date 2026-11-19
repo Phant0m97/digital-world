@@ -16,8 +16,9 @@ const empty: HotelHud = {
   cook: false,
   note: "",
   done: false,
-  buildCost: 40,
-  upgradeCost: 45,
+  buildCost: 120,
+  upgradeCost: 110,
+  cleaning: 0,
 };
 
 function HotelPage() {
@@ -50,10 +51,17 @@ function Desk() {
             {hud.coins} coins · {"★".repeat(hud.stars)}
             {"☆".repeat(5 - hud.stars)} · {hud.rooms} rooms
           </p>
-          <p>{hud.done ? "The hotel is loved." : "Fill every room and reach 5 stars with 500 coins."}</p>
+          <p>{hud.done ? "The hotel is loved." : "WASD walks. F cleans, checks in, and serves. Build slowly."}</p>
           <p className="mt-1">{hud.note}</p>
         </div>
       </div>
+      {hud.cleaning > 0 ? (
+        <div className="absolute bottom-24 left-1/2 w-56 -translate-x-1/2">
+          <div className="h-4 overflow-hidden rounded-full border-2 border-ink bg-[#f3f0e8]">
+            <div className="h-full bg-[#3ecf8e]" style={{ width: `${Math.round(hud.cleaning * 100)}%` }} />
+          </div>
+        </div>
+      ) : null}
       <div className="absolute inset-x-0 bottom-3 flex flex-wrap gap-2 px-3">
         <button type="button" className="rounded-full bg-cyan px-4 py-3 text-sm text-ink" onClick={() => api.current?.build()}>
           Build room · {hud.buildCost}
@@ -62,13 +70,13 @@ function Desk() {
           Upgrade a room · {hud.upgradeCost}
         </button>
         <button type="button" className="rounded-full border-2 border-ink bg-[#f3f0e8] px-4 py-3 text-sm text-ink" onClick={() => api.current?.hire("clerk")} disabled={hud.clerk}>
-          {hud.clerk ? "Clerk hired" : "Hire clerk · 80"}
+          {hud.clerk ? "Clerk hired" : "Hire clerk · 280"}
         </button>
         <button type="button" className="rounded-full border-2 border-ink bg-[#f3f0e8] px-4 py-3 text-sm text-ink" onClick={() => api.current?.hire("maid")} disabled={hud.maid}>
-          {hud.maid ? "Maid hired" : "Hire maid · 90"}
+          {hud.maid ? "Maid hired" : "Hire maid · 320"}
         </button>
         <button type="button" className="rounded-full border-2 border-ink bg-[#f3f0e8] px-4 py-3 text-sm text-ink" onClick={() => api.current?.hire("cook")} disabled={hud.cook}>
-          {hud.cook ? "Cook hired" : "Hire cook · 70"}
+          {hud.cook ? "Cook hired" : "Hire cook · 240"}
         </button>
       </div>
     </div>

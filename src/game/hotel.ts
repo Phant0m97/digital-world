@@ -13,6 +13,7 @@ export type HotelHud = {
   done: boolean;
   buildCost: number;
   upgradeCost: number;
+  cleaning: number;
 };
 
 type Need = "none" | "meal" | "towel";
@@ -32,7 +33,7 @@ type Guest = {
 };
 type Room = { built: boolean; dirty: boolean; level: number; cleaning: number };
 
-const KEY = "dw-hotel-v1";
+const KEY = "dw-hotel-v2";
 const SLOTS = [
   { x: -3.85, z: 0.15 },
   { x: -3.85, z: 4.05 },
@@ -57,7 +58,7 @@ export function mountHotel(canvas: HTMLCanvasElement, onHud: (hud: HotelHud) => 
   let clerk = save.clerk;
   let maid = save.maid;
   let cook = save.cook;
-  let note = "Tap a guest to check them in. Tap a dirty room to clean it.";
+  let note = "WASD to walk. Stand in a dirty room and press F.";
   let done = save.done;
   const rooms: Room[] = save.rooms;
   const guests: Guest[] = [];
@@ -74,9 +75,9 @@ export function mountHotel(canvas: HTMLCanvasElement, onHud: (hud: HotelHud) => 
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   const scene = new THREE.Scene();
   scene.background = new THREE.Color("#8fd4ff");
-  const camera = new THREE.PerspectiveCamera(34, 1, 0.1, 80);
-  camera.position.set(0.2, 18.5, 7.2);
-  camera.lookAt(0, 0, 1.6);
+  const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 80);
+  camera.position.set(0, 11, 5.2);
+  camera.lookAt(0, 0, -2);
   scene.add(new THREE.HemisphereLight("#fff4d2", "#6aa84f", 0.85));
   const sun = new THREE.DirectionalLight("#fff1c9", 1.35);
   sun.position.set(6, 14, 4);
@@ -115,6 +116,10 @@ export function mountHotel(canvas: HTMLCanvasElement, onHud: (hud: HotelHud) => 
   const bell = figure("#e23b4a", "#2a3138", "bell", mat);
   bell.position.set(0, 0, -2.15);
   scene.add(bell);
+  const cleanBack = box(0.82, 0.1, 0.05, "#1c2126", 0, 1.58, -0.02, bell);
+  const cleanFill = box(0.74, 0.06, 0.05, "#3ecf8e", 0, 1.58, 0.02, bell);
+  cleanBack.visible = false;
+  cleanFill.visible = false;
   const maidMesh = figure("#2a3138", "#f7f7f5", "maid", mat);
   maidMesh.visible = maid;
   scene.add(maidMesh);
@@ -235,9 +240,14 @@ export function mountHotel(canvas: HTMLCanvasElement, onHud: (hud: HotelHud) => 
       const guest = guests.find((entry) => entry.id === data.id);
       if (!guest) return;
       if (guest.phase === "queue") {
-        if (!takeRoom(guest)) note = "No clean rooms. Clean one or build another.";
+        if (Math.hypot(guest.x - bell.position.x, guest.z - bell.position.z) > 1.6) {
+          note = "Walk up to them and press F.";
+        } else if (!takeRoom(guest)) note = "No clean rooms. Clean one or build another.";
         else note = "Checked in.";
-      } else if (guest.need !== "none") serve(guest);
+      } else if (guest.need !== "none") {
+        if (Math.hypot(guest.x - bell.position.x, guest.z - bell.position.z) > 1.6) note = "Walk up to them and press F.";
+        else serve(guest);
+      }
       hud();
       return;
     }
@@ -248,14 +258,9 @@ export function mountHotel(canvas: HTMLCanvasElement, onHud: (hud: HotelHud) => 
         build();
         return;
       }
-      if (room.dirty && room.cleaning <= 0) {
-        room.cleaning = 0.01;
-        const slot = SLOTS[data.index]!;
-        bell.userData.tx = slot.x + (slot.x < 0 ? 1.7 : -1.7);
-        bell.userData.tz = slot.z;
-        note = "Cleaning.";
-        hud();
-      }
+      if (room.dirty && room.cleaning <= 0) note = "Walk in and press F to clean.";
+      hud();
+      return;
     }
   }
 
@@ -266,7 +271,7 @@ export function mountHotel(canvas: HTMLCanvasElement, onHud: (hud: HotelHud) => 
       hud();
       return;
     }
-    const cost = 40 + rooms.filter((room) => room.built).length * 30;
+    const cost = 120 + rooms.filter((room) => room.built).length * 90;
     if (coins < cost) {
       note = `A new room costs ${cost}.`;
       hud();
@@ -279,7 +284,7 @@ export function mountHotel(canvas: HTMLCanvasElement, onHud: (hud: HotelHud) => 
   }
 
   function hire(role: "clerk" | "maid" | "cook") {
-    const price = role === "clerk" ? 80 : role === "maid" ? 90 : 70;
+    const price = role === "clerk" ? 280 : role === "maid" ? 320 : 240;
     const owned = role === "clerk" ? clerk : role === "maid" ? maid : cook;
     if (owned) return;
     if (coins < price) {
@@ -305,12 +310,12 @@ export function mountHotel(canvas: HTMLCanvasElement, onHud: (hud: HotelHud) => 
       hud();
       return;
     }
-    if (coins < 45) {
-      note = "An upgrade costs 45.";
+    if (coins < 110) {
+      note = "An upgrade costs 110.";
       hud();
       return;
     }
-    coins -= 45;
+    coins -= 110;
     room.level += 1;
     note = room.level === 2 ? "Better beds." : "Suite linens.";
     hud();
@@ -335,13 +340,16 @@ export function mountHotel(canvas: HTMLCanvasElement, onHud: (hud: HotelHud) => 
       cook,
       note,
       done,
-      buildCost: 40 + built.length * 30,
-      upgradeCost: 45,
+      buildCost: 120 + built.length * 90,
+      upgradeCost: 110,
+      cleaning: playerClean >= 0 ? rooms[playerClean]!.cleaning : 0,
     });
   }
 
   bell.userData.tx = 0;
   bell.userData.tz = -2.15;
+  let playerClean = -1;
+  const keys = new Set<string>();
   let raf = 0;
   let last = performance.now();
   let saveTimer = 0;
@@ -358,8 +366,8 @@ export function mountHotel(canvas: HTMLCanvasElement, onHud: (hud: HotelHud) => 
     }
     spawn -= dt;
     if (spawn <= 0) {
-      spawn = 6.2;
-      if (guests.filter((guest) => guest.phase !== "leave").length < 8) {
+      spawn = 18;
+      if (guests.filter((guest) => guest.phase !== "leave").length < 4) {
         const mesh = figure(SHIRTS[nextId % SHIRTS.length]!, "#24324a", "guest", mat);
         mesh.traverse((child) => {
           child.userData = { kind: "guest", id: nextId };
@@ -373,8 +381,8 @@ export function mountHotel(canvas: HTMLCanvasElement, onHud: (hud: HotelHud) => 
           tz: -4.6,
           phase: "queue",
           room: -1,
-          patience: 16,
-          stay: 11,
+          patience: 48,
+          stay: 36,
           need: "none",
           served: false,
           mesh,
@@ -388,20 +396,56 @@ export function mountHotel(canvas: HTMLCanvasElement, onHud: (hud: HotelHud) => 
       const waiting = guests.find((guest) => guest.phase === "queue");
       if (waiting && takeRoom(waiting)) clerkCool = 1.5;
     }
-    if (maid && maidCool <= 0) {
+    if (maid && maidCool <= 0 && playerClean < 0) {
       const dirtyIndex = rooms.findIndex((room) => room.built && room.dirty && room.cleaning <= 0);
       if (dirtyIndex >= 0) {
-        rooms[dirtyIndex]!.cleaning = 0.01;
-        const slot = SLOTS[dirtyIndex]!;
-        maidMesh.userData.tx = slot.x + (slot.x < 0 ? 1.7 : -1.7);
-        maidMesh.userData.tz = slot.z;
-        maidCool = 1.7;
+        const spot = doorAt(dirtyIndex);
+        maidMesh.userData.tx = spot.x;
+        maidMesh.userData.tz = spot.z;
+        if (Math.hypot(maidMesh.position.x - spot.x, maidMesh.position.z - spot.z) < 0.8) {
+          rooms[dirtyIndex]!.cleaning = 0.01;
+          maidCool = 2.4;
+        }
       }
+    }
+    const forward = (keys.has("KeyW") || keys.has("ArrowUp") ? 1 : 0) - (keys.has("KeyS") || keys.has("ArrowDown") ? 1 : 0);
+    const strafe = (keys.has("KeyD") || keys.has("ArrowRight") ? 1 : 0) - (keys.has("KeyA") || keys.has("ArrowLeft") ? 1 : 0);
+    const speed = 2.6;
+    const nx = bell.position.x + strafe * speed * dt;
+    const nz = bell.position.z - forward * speed * dt;
+    if (!walled(nx, bell.position.z, rooms)) bell.position.x = nx;
+    if (!walled(bell.position.x, nz, rooms)) bell.position.z = nz;
+    if (strafe || forward) bell.rotation.y = Math.atan2(strafe, -forward);
+    if (playerClean >= 0) {
+      const spot = doorAt(playerClean);
+      const room = rooms[playerClean]!;
+      if (Math.hypot(bell.position.x - spot.x, bell.position.z - spot.z) > 1.45 || !room.dirty) {
+        room.cleaning = 0;
+        playerClean = -1;
+        note = "Step back into the room and press F.";
+      } else {
+        room.cleaning += dt / (6.5 + room.level * 1.8);
+        if (room.cleaning >= 1) {
+          room.cleaning = 0;
+          room.dirty = false;
+          playerClean = -1;
+          roomSig = "";
+          note = "Room cleaned.";
+        }
+      }
+    }
+    cleanBack.visible = playerClean >= 0;
+    cleanFill.visible = playerClean >= 0;
+    if (playerClean >= 0) {
+      const amount = Math.max(0.04, rooms[playerClean]!.cleaning);
+      cleanFill.scale.x = amount;
+      cleanFill.position.x = (amount - 1) * 0.37;
+      hud();
     }
     let cleaned = false;
     for (const room of rooms) {
-      if (room.cleaning <= 0) continue;
-      room.cleaning += dt * (maid ? 0.85 : 0.7);
+      if (room.cleaning <= 0 || rooms.indexOf(room) === playerClean) continue;
+      room.cleaning += dt / 7.5;
       if (room.cleaning >= 1) {
         room.cleaning = 0;
         room.dirty = false;
@@ -410,7 +454,7 @@ export function mountHotel(canvas: HTMLCanvasElement, onHud: (hud: HotelHud) => 
     }
     if (cleaned) roomSig = "";
     for (const guest of guests) {
-      const step = 2.4 * dt;
+      const step = 1.35 * dt;
       const dx = guest.tx - guest.x;
       const dz = guest.tz - guest.z;
       const dist = Math.hypot(dx, dz);
@@ -420,9 +464,10 @@ export function mountHotel(canvas: HTMLCanvasElement, onHud: (hud: HotelHud) => 
         guest.mesh.rotation.y = Math.atan2(dx, dz);
       } else if (guest.phase === "walk") {
         guest.phase = "stay";
-        guest.stay = 9 + rooms[guest.room]!.level;
-        coins += 16 + rooms[guest.room]!.level * 12;
-        note = `Room ${guest.room + 1} paid ${16 + rooms[guest.room]!.level * 12}.`;
+        guest.stay = 34 + rooms[guest.room]!.level * 8;
+        const pay = 7 + rooms[guest.room]!.level * 4;
+        coins += pay;
+        note = `Room ${guest.room + 1} paid ${pay}.`;
         hud();
       } else if (guest.phase === "leave" && dist <= 0.08) guest.patience = -2;
       if (guest.phase === "queue") {
@@ -431,7 +476,7 @@ export function mountHotel(canvas: HTMLCanvasElement, onHud: (hud: HotelHud) => 
       }
       if (guest.phase === "stay") {
         guest.stay -= dt;
-        if (guest.need === "none" && !guest.served && guest.stay < 6 && guest.stay > 5.75) guest.need = Math.random() < 0.5 ? "meal" : "towel";
+        if (guest.need === "none" && !guest.served && guest.stay < 18 && guest.stay > 17.6) guest.need = Math.random() < 0.5 ? "meal" : "towel";
         if (guest.need === "meal" && cook) serve(guest);
         if (guest.stay <= 0) finish(guest, guest.need === "none");
       }
@@ -443,7 +488,7 @@ export function mountHotel(canvas: HTMLCanvasElement, onHud: (hud: HotelHud) => 
       if (towel) towel.visible = guest.need === "towel";
       if (bar) {
         bar.visible = guest.phase === "queue";
-        bar.scale.x = Math.max(0.05, guest.patience / 16);
+        bar.scale.x = Math.max(0.05, guest.patience / 48);
       }
     }
     let line = 0;
@@ -459,8 +504,10 @@ export function mountHotel(canvas: HTMLCanvasElement, onHud: (hud: HotelHud) => 
         guests.splice(i, 1);
       }
     }
-    stepActor(bell, dt);
     if (maid) stepActor(maidMesh, dt);
+    const look = bell.position;
+    camera.position.lerp(new THREE.Vector3(look.x, 10.5, look.z + 7.6), 0.12);
+    camera.lookAt(look.x, 0, look.z);
     rebuildRooms();
     renderer.render(scene, camera);
     saveTimer += dt;
@@ -471,13 +518,57 @@ export function mountHotel(canvas: HTMLCanvasElement, onHud: (hud: HotelHud) => 
     raf = requestAnimationFrame(frame);
   }
 
+  function onKey(event: KeyboardEvent) {
+    if (event.type === "keydown") keys.add(event.code);
+    else keys.delete(event.code);
+    if (event.type === "keydown" && event.code === "KeyF") pressF();
+  }
+
+  function pressF() {
+    let best = 1.45;
+    let index = -1;
+    rooms.forEach((room, i) => {
+      if (!room.built || !room.dirty) return;
+      const spot = doorAt(i);
+      const dist = Math.hypot(bell.position.x - spot.x, bell.position.z - spot.z);
+      if (dist < best) {
+        best = dist;
+        index = i;
+      }
+    });
+    if (index >= 0) {
+      playerClean = index;
+      if (rooms[index]!.cleaning <= 0) rooms[index]!.cleaning = 0.001;
+      note = "Cleaning. Stay in the room.";
+      hud();
+      return;
+    }
+    const guest = [...guests].reverse().find((entry) => Math.hypot(entry.x - bell.position.x, entry.z - bell.position.z) < 1.4);
+    if (!guest) {
+      note = "Walk into a dirty room, then press F.";
+      hud();
+      return;
+    }
+    if (guest.phase === "queue") {
+      if (!takeRoom(guest)) note = "No clean rooms.";
+      else note = "Checked in.";
+    } else if (guest.need !== "none") serve(guest);
+    hud();
+  }
+
   canvas.addEventListener("pointerdown", onPointer);
+  window.addEventListener("keydown", onKey);
+  window.addEventListener("keyup", onKey);
   rebuildRooms();
+  camera.position.set(bell.position.x, 10.5, bell.position.z + 7.6);
+  camera.lookAt(bell.position.x, 0, bell.position.z);
   hud();
   raf = requestAnimationFrame(frame);
   return {
     destroy() {
       cancelAnimationFrame(raf);
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("keyup", onKey);
       canvas.removeEventListener("pointerdown", onPointer);
       renderer.dispose();
     },
@@ -485,6 +576,26 @@ export function mountHotel(canvas: HTMLCanvasElement, onHud: (hud: HotelHud) => 
     hire,
     upgrade,
   };
+}
+
+function doorAt(index: number) {
+  const slot = SLOTS[index]!;
+  const side = slot.x < 0 ? 1 : -1;
+  return { x: slot.x + side * 0.7, z: slot.z };
+}
+
+function walled(px: number, pz: number, rooms: Room[]) {
+  if (px < -6.5 || px > 6.5 || pz < -6.2 || pz > 9.8) return true;
+  return SLOTS.some((slot, index) => {
+    if (!rooms[index]?.built) return false;
+    const side = slot.x < 0 ? 1 : -1;
+    const pad = 0.22;
+    const hit = (x: number, z: number, hx: number, hz: number) => Math.abs(px - x) < hx && Math.abs(pz - z) < hz;
+    if (hit(slot.x, slot.z + 1.55, 1.65, pad)) return true;
+    if (hit(slot.x, slot.z - 1.55, 1.65, pad)) return true;
+    if (hit(slot.x - side * 1.55, slot.z, pad, 1.65)) return true;
+    return hit(slot.x + side * 1.55, slot.z, pad, 1.65) && Math.abs(pz - slot.z) > 0.62;
+  });
 }
 
 function stepActor(actor: THREE.Group, dt: number) {
@@ -544,8 +655,8 @@ function figure(shirt: string, pants: string, kind: "guest" | "bell" | "maid" | 
 }
 
 function load() {
-  const rooms: Room[] = SLOTS.map((_, index) => ({ built: index < 2, dirty: index === 1, level: 1, cleaning: 0 }));
-  const base = { coins: 60, clerk: false, maid: false, cook: false, done: false, rooms, history: [] as boolean[] };
+  const rooms: Room[] = SLOTS.map((_, index) => ({ built: index < 1, dirty: false, level: 1, cleaning: 0 }));
+  const base = { coins: 40, clerk: false, maid: false, cook: false, done: false, rooms, history: [] as boolean[] };
   try {
     const raw = localStorage.getItem(KEY);
     if (!raw) return base;

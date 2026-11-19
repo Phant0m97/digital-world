@@ -363,7 +363,7 @@ export function mountFarm(canvas: HTMLCanvasElement, onHud: (hud: FarmHud) => vo
   const head = solid(new THREE.SphereGeometry(0.2, 8, 6), "#f3d2b3", 0, 1.32, 0, farmer);
   const legL = solid(new THREE.BoxGeometry(0.12, 0.42, 0.12), "#245c66", -0.12, 0.32, 0, farmer);
   const legR = solid(new THREE.BoxGeometry(0.12, 0.42, 0.12), "#245c66", 0.12, 0.32, 0, farmer);
-  const skirt = solid(new THREE.CylinderGeometry(0.3, 0.2, 0.42, 7), "#2ec8e6", 0, 0.62, 0, farmer);
+  const skirt = solid(new THREE.CylinderGeometry(0.15, 0.42, 0.5, 8), "#2ec8e6", 0, 0.5, 0, farmer);
   const hats: Record<Exclude<HatId, "none">, THREE.Object3D> = {
     straw: hatStraw(solid),
     cap: hatCap(solid),
