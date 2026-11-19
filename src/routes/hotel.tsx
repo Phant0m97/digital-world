@@ -51,7 +51,7 @@ function Desk() {
             {hud.coins} coins · {"★".repeat(hud.stars)}
             {"☆".repeat(5 - hud.stars)} · {hud.rooms} rooms
           </p>
-          <p>{hud.done ? "The hotel is loved." : "WASD walks. F cleans, checks in, and serves. Build slowly."}</p>
+          <p>{hud.done ? "The hotel is loved." : "WASD walks. Space cleans, checks in, and serves."}</p>
           <p className="mt-1">{hud.note}</p>
         </div>
       </div>
