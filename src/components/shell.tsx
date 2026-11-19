@@ -15,17 +15,16 @@ export function Shell({ children, bare = false }: { children: ReactNode; bare?: 
   const path = useRouterState({ select: (state) => state.location.pathname });
   return (
     <div className="min-h-dvh bg-ink text-cream">
-      <header className="sticky top-0 z-20 grid grid-cols-[1fr_auto_1fr] items-center gap-2 border-b border-line bg-ink/90 px-4 py-3 backdrop-blur">
-        <span />
-        <Link to="/" className="flex items-center gap-2 justify-self-center">
+      <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-line bg-ink/90 px-4 py-3 backdrop-blur">
+        <Link to="/" className="flex items-center gap-2">
           <TinyEye className="size-9 rounded-full" />
           <span className="font-display text-lg font-bold tracking-wide uppercase">DigitalWorld</span>
         </Link>
-        <nav className="flex items-center justify-self-end gap-2 text-sm">
+        <nav className="ml-auto flex items-center gap-2 text-sm">
           <TopLink to="/chat" active={path.startsWith("/chat")}>
             Chat
           </TopLink>
-          <TopLink to="/games" active={path.startsWith("/games") || path.startsWith("/play") || path.startsWith("/life") || path.startsWith("/paintball") || path.startsWith("/sketch")}>
+          <TopLink to="/games" active={path.startsWith("/games") || path.startsWith("/play") || path.startsWith("/paintball") || path.startsWith("/sketch") || path.startsWith("/farm") || path.startsWith("/ruins")}>
             Games
           </TopLink>
           <span className="rounded-full border border-line px-3 py-2 font-display text-cyan">
