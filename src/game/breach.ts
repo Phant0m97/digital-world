@@ -225,8 +225,9 @@ export function mountBreach(canvas: HTMLCanvasElement, onHud: (hud: BreachHud) =
     block(0.7, 0.7, 0.12, "#e2c14e", site.x, 1.6, site.z - 2.4, false);
   }
   const bombMesh = new THREE.Group();
-  bombMesh.add(new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.24, 0.62), mat("#e25b4a")));
-  bombMesh.add(Object.assign(new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.08, 0.12), mat("#f2c14e")), { position: new THREE.Vector3(0, 0.16, 0.1) }));
+  const fuse = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.08, 0.12), mat("#f2c14e"));
+  fuse.position.set(0, 0.16, 0.1);
+  bombMesh.add(new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.24, 0.62), mat("#e25b4a")), fuse);
   bombMesh.visible = false;
   scene.add(bombMesh);
 
