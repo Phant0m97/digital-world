@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { Shell, useHydrated } from "@/components/shell";
-import { BIZ_COST, COSMETICS, SKINS, type BizId, type Cosmetic, type CropId, type FarmHud, type Look } from "@/game/farm";
+import { BIZ_COST, CAR_PRICE, COSMETICS, SKINS, type BizId, type Cosmetic, type CropId, type FarmHud, type Look } from "@/game/farm";
 
 export const Route = createFileRoute("/farm")({ component: FarmPage });
 
@@ -14,11 +14,14 @@ const empty: FarmHud = {
   seasonDone: false,
   inside: false,
   creating: false,
-  look: { skin: "#f3d2b3", shirt: "#2ec8e6", pants: "#245c66", hat: "straw", hair: "brown" },
+  look: { skin: "#f3d2b3", shirt: "#2ec8e6", pants: "#245c66", hat: "straw", hair: "brown", girl: false },
   owned: [],
   shopLevel: 0,
   restLevel: 0,
   near: null,
+  carOwned: false,
+  driving: false,
+  nearCar: false,
 };
 
 function FarmPage() {
@@ -65,7 +68,7 @@ function Field() {
         </Link>
         <div className="rounded-2xl border-2 border-ink bg-[#f3f0e8] px-3 py-2 text-right text-xs text-ink">
           <p>
-            PolyFarm · Day {hud.day} · {hud.coins} coins{hud.inside ? " · Inside" : ""}
+            PolyFarm · Day {hud.day} · {hud.coins} coins{hud.inside ? " · Inside" : ""}{hud.driving ? " · Driving" : ""}
           </p>
           <p>{hud.seasonDone ? "Season won. Keep farming." : "Earn 200 to finish the season."}</p>
           <p className="mt-1">{hud.note}</p>
@@ -78,10 +81,10 @@ function Field() {
           onStart={() => api.current?.confirmLook()}
         />
       ) : null}
-      {hud.near === "village" && !hud.creating ? (
-        <Stall hud={hud} onWear={(id) => api.current?.wear(id)} />
+      {hud.near === "village" && !hud.creating && !hud.driving ? (
+        <Stall hud={hud} onWear={(id) => api.current?.wear(id)} onLook={(look) => api.current?.previewLook(look)} />
       ) : null}
-      {biz && !hud.creating ? (
+      {biz && !hud.creating && !hud.driving ? (
         <div className="absolute top-16 left-3 w-56 rounded-2xl border-2 border-ink bg-[#f3f0e8] p-3 text-sm text-ink">
           <p className="font-display text-xl font-bold capitalize">{biz}</p>
           <p className="mt-1 text-xs">{bizLevel === 0 ? "Nothing is built here yet." : `Level ${bizLevel} of 3. It pays out each day.`}</p>
@@ -93,6 +96,16 @@ function Field() {
             <p className="mt-2 text-xs">Fully upgraded.</p>
           )}
         </div>
+      ) : null}
+      {hud.driving ? (
+        <button type="button" className="absolute top-16 left-3 rounded-full bg-cyan px-4 py-3 text-sm text-ink" onClick={() => api.current?.act()}>
+          Get out
+        </button>
+      ) : null}
+      {hud.nearCar && !hud.driving && !hud.creating ? (
+        <button type="button" className="absolute top-16 left-3 rounded-2xl border-2 border-ink bg-[#f3f0e8] px-4 py-3 text-sm text-ink" onClick={() => api.current?.act()}>
+          {hud.carOwned ? "Get in" : `Buy the car · ${CAR_PRICE}`}
+        </button>
       ) : null}
       {hud.creating ? null : (
         <div className="absolute inset-x-0 bottom-3 flex flex-wrap items-end justify-between gap-2 px-3">
@@ -128,11 +141,23 @@ function Creator({ look, onLook, onStart }: { look: Look; onLook: (look: Partial
   return (
     <div className="absolute top-16 bottom-4 left-3 flex w-[min(24rem,calc(100%-1.5rem))] flex-col gap-3 overflow-auto rounded-2xl border-2 border-ink bg-[#f3f0e8] p-4 text-ink">
       <p className="font-display text-2xl font-bold">Your farmer</p>
+      <div className="flex gap-2">
+        <button type="button" className={`rounded-full px-4 py-2 text-sm ${look.girl ? "bg-white/70" : "bg-cyan"}`} onClick={() => onLook({ girl: false })}>
+          Guy
+        </button>
+        <button
+          type="button"
+          className={`rounded-full px-4 py-2 text-sm ${look.girl ? "bg-cyan" : "bg-white/70"}`}
+          onClick={() => onLook({ girl: true, hair: look.hair === "none" || look.hair === "brown" ? "long" : look.hair })}
+        >
+          Girl
+        </button>
+      </div>
       <Swatches label="Skin" values={SKINS} selected={look.skin} onPick={(skin) => onLook({ skin })} />
       <Choices label="Hair" items={free.filter((item) => item.slot === "hair")} selected={look.hair} onPick={(item) => onLook({ hair: item.hair })} />
       <Choices label="Hat" items={free.filter((item) => item.slot === "hat")} selected={look.hat} onPick={(item) => onLook({ hat: item.hat })} />
       <Choices label="Shirt" items={free.filter((item) => item.slot === "shirt")} selected={look.shirt} onPick={(item) => onLook({ shirt: item.color })} />
-      <Choices label="Pants" items={free.filter((item) => item.slot === "pants")} selected={look.pants} onPick={(item) => onLook({ pants: item.color })} />
+      <Choices label="Pants / skirt" items={free.filter((item) => item.slot === "pants")} selected={look.pants} onPick={(item) => onLook({ pants: item.color })} />
       <button type="button" className="mt-auto rounded-full bg-cyan px-4 py-3 text-sm font-bold" onClick={onStart}>
         Start farming
       </button>
@@ -140,10 +165,22 @@ function Creator({ look, onLook, onStart }: { look: Look; onLook: (look: Partial
   );
 }
 
-function Stall({ hud, onWear }: { hud: FarmHud; onWear: (id: string) => void }) {
+function Stall({ hud, onWear, onLook }: { hud: FarmHud; onWear: (id: string) => void; onLook: (look: Partial<Look>) => void }) {
   return (
     <div className="absolute top-16 bottom-24 left-3 w-[min(22rem,calc(100%-1.5rem))] overflow-auto rounded-2xl border-2 border-ink bg-[#f3f0e8] p-3 text-ink">
-      <p className="font-display text-2xl font-bold">Village stall</p>
+      <p className="font-display text-2xl font-bold">City shop</p>
+      <div className="mt-2 flex gap-2">
+        <button type="button" className={`rounded-full px-3 py-1 text-sm ${hud.look.girl ? "bg-white/70" : "bg-cyan"}`} onClick={() => onLook({ girl: false })}>
+          Guy
+        </button>
+        <button
+          type="button"
+          className={`rounded-full px-3 py-1 text-sm ${hud.look.girl ? "bg-cyan" : "bg-white/70"}`}
+          onClick={() => onLook({ girl: true, hair: hud.look.hair === "none" || hud.look.hair === "brown" ? "long" : hud.look.hair })}
+        >
+          Girl
+        </button>
+      </div>
       <div className="mt-2 flex flex-col gap-1">
         {COSMETICS.map((item) => {
           const owned = hud.owned.includes(item.id);

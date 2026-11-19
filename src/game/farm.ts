@@ -11,6 +11,7 @@ export type Look = {
   pants: string;
   hat: HatId;
   hair: HairId;
+  girl: boolean;
 };
 
 export type Cosmetic = {
@@ -44,6 +45,9 @@ export type FarmHud = {
   shopLevel: number;
   restLevel: number;
   near: BizId | "village" | null;
+  carOwned: boolean;
+  driving: boolean;
+  nearCar: boolean;
 };
 
 export const SKINS = ["#f3d2b3", "#e0b090", "#c68642", "#8d5524", "#4a3128"];
@@ -74,6 +78,8 @@ export const COSMETICS: Cosmetic[] = [
   { id: "hair-long", slot: "hair", name: "Long hair", price: 22, hair: "long" },
 ];
 
+export const CAR_PRICE = 85;
+const CAR_PARK = { x: 1.6, z: 7.3 };
 export const BIZ_COST: Record<BizId, number[]> = {
   shop: [40, 80, 150],
   restaurant: [60, 110, 180],
@@ -111,9 +117,12 @@ type Save = {
   shopLevel: number;
   restLevel: number;
   customized: boolean;
+  carOwned: boolean;
+  carX: number;
+  carZ: number;
 };
 
-const DEFAULT_LOOK: Look = { skin: "#f3d2b3", shirt: "#2ec8e6", pants: "#245c66", hat: "straw", hair: "brown" };
+const DEFAULT_LOOK: Look = { skin: "#f3d2b3", shirt: "#2ec8e6", pants: "#245c66", hat: "straw", hair: "brown", girl: false };
 
 function freshPlots(): Plot[] {
   return Array.from({ length: 16 }, () => ({ tilled: false, crop: null, growth: 0, water: 0 }));
@@ -132,6 +141,9 @@ function load(): Save {
     shopLevel: 0,
     restLevel: 0,
     customized: false,
+    carOwned: false,
+    carX: CAR_PARK.x,
+    carZ: CAR_PARK.z,
   };
   try {
     const raw = localStorage.getItem(KEY);
@@ -145,6 +157,9 @@ function load(): Save {
       look: { ...base.look, ...saved.look },
       owned: saved.owned?.length ? saved.owned : base.owned,
       customized: saved.customized ?? false,
+      carOwned: saved.carOwned ?? false,
+      carX: saved.carX ?? CAR_PARK.x,
+      carZ: saved.carZ ?? CAR_PARK.z,
     };
   } catch {
     return base;
@@ -197,36 +212,38 @@ export function mountFarm(canvas: HTMLCanvasElement, onHud: (hud: FarmHud) => vo
     return mesh;
   }
 
-  const ground = solid(new THREE.PlaneGeometry(64, 42), "#6fa34c", 8, 0, 0);
+  const ground = solid(new THREE.PlaneGeometry(96, 52), "#6fa34c", 16, 0, 0);
   ground.rotation.x = -Math.PI / 2;
   ground.castShadow = false;
   solid(new THREE.CircleGeometry(11, 8), "#7eb557", 1.2, 0.015, 1.4).rotation.x = -Math.PI / 2;
-  solid(new THREE.CircleGeometry(7, 7), "#86b85f", 20, 0.02, 1).rotation.x = -Math.PI / 2;
-  for (let i = 0; i < 14; i += 1) {
-    const slab = solid(new THREE.BoxGeometry(1.15, 0.05, 0.7), "#b7a07a", 3.2 + i * 1.35, 0.04, 5.2);
-    slab.castShadow = false;
-  }
 
   const hx = HOUSE.x;
   const hz = HOUSE.z;
   const walls = new THREE.Group();
   scene.add(walls);
-  const wall = (w: number, h: number, d: number, x: number, y: number, z: number, color = "#e7d3ad") =>
+  const plaster = "#f4f6f8";
+  const ink = "#23282e";
+  const glass = "#b9e3f5";
+  const wall = (w: number, h: number, d: number, x: number, y: number, z: number, color = plaster) =>
     solid(new THREE.BoxGeometry(w, h, d), color, x, y, z, walls);
-  wall(5.2, 2.35, 0.22, hx, 1.18, hz - 1.95);
-  wall(0.22, 2.35, 4.1, hx - 2.5, 1.18, hz);
-  wall(0.22, 2.35, 4.1, hx + 2.5, 1.18, hz);
-  wall(1.85, 2.35, 0.22, hx - 1.55, 1.18, hz + 1.95);
-  wall(1.85, 2.35, 0.22, hx + 1.55, 1.18, hz + 1.95);
-  wall(1.5, 0.7, 0.22, hx, 2.0, hz + 1.95);
-  solid(new THREE.BoxGeometry(0.9, 0.08, 0.7), "#8b5a32", hx, 0.06, hz + 2.25);
-  solid(gable(5.6, 4.6, 1.35), "#8e3a32", hx, 2.35, hz);
-  solid(new THREE.BoxGeometry(0.38, 1.1, 0.38), "#6d513c", hx + 1.6, 3.15, hz - 0.8);
-  solid(new THREE.BoxGeometry(0.55, 0.7, 0.08), "#8fd0ea", hx - 1.35, 1.45, hz - 1.84);
-  solid(new THREE.BoxGeometry(0.55, 0.7, 0.08), "#8fd0ea", hx + 1.35, 1.45, hz - 1.84);
-  solid(new THREE.BoxGeometry(0.16, 2.35, 0.16), "#6b4632", hx - 2.35, 1.18, hz - 1.8);
-  solid(new THREE.BoxGeometry(0.16, 2.35, 0.16), "#6b4632", hx + 2.35, 1.18, hz - 1.8);
-  solid(new THREE.PlaneGeometry(1.15, 1.65), "#2a211c", hx, 0.9, hz + 1.82);
+  wall(5.2, 2.45, 0.22, hx, 1.22, hz - 1.95);
+  wall(0.22, 2.45, 4.1, hx - 2.5, 1.22, hz);
+  wall(0.22, 2.45, 4.1, hx + 2.5, 1.22, hz);
+  wall(1.85, 2.45, 0.22, hx - 1.55, 1.22, hz + 1.95);
+  wall(1.85, 2.45, 0.22, hx + 1.55, 1.22, hz + 1.95);
+  wall(1.5, 0.55, 0.22, hx, 2.15, hz + 1.95);
+  solid(new THREE.BoxGeometry(6.5, 0.16, 5.4), ink, hx, 2.55, hz);
+  solid(new THREE.BoxGeometry(6.8, 0.05, 5.7), "#1b2026", hx, 2.42, hz);
+  solid(new THREE.BoxGeometry(2.6, 0.08, 1.6), "#d7dbe1", hx, 0.05, hz + 2.85);
+  solid(new THREE.BoxGeometry(0.08, 2.05, 0.1), ink, hx - 0.62, 1.05, hz + 2.02);
+  solid(new THREE.BoxGeometry(0.08, 2.05, 0.1), ink, hx + 0.62, 1.05, hz + 2.02);
+  solid(new THREE.BoxGeometry(1.2, 1.55, 0.06), glass, hx - 1.55, 1.2, hz + 2.08);
+  solid(new THREE.BoxGeometry(1.2, 1.55, 0.06), glass, hx + 1.55, 1.2, hz + 2.08);
+  solid(new THREE.BoxGeometry(0.06, 1.45, 1.7), glass, hx - 2.64, 1.25, hz + 0.2);
+  solid(new THREE.BoxGeometry(0.06, 1.45, 1.7), glass, hx + 2.64, 1.25, hz - 0.2);
+  solid(new THREE.BoxGeometry(2.4, 1.2, 0.06), glass, hx, 1.35, hz - 2.08);
+  solid(new THREE.BoxGeometry(5.3, 0.1, 0.06), "#c4a574", hx, 2.22, hz + 2.08);
+  solid(new THREE.PlaneGeometry(1.15, 1.9), "#1c2126", hx, 1.0, hz + 1.82);
 
   const outsideBoxes: Box[] = [
     { minX: hx - 2.7, maxX: hx + 2.7, minZ: hz - 2.15, maxZ: hz - 1.75 },
@@ -234,9 +251,6 @@ export function mountFarm(canvas: HTMLCanvasElement, onHud: (hud: FarmHud) => vo
     { minX: hx + 2.3, maxX: hx + 2.7, minZ: hz - 2.1, maxZ: hz + 2.15 },
     { minX: hx - 2.6, maxX: hx - 0.62, minZ: hz + 1.75, maxZ: hz + 2.15 },
     { minX: hx + 0.62, maxX: hx + 2.6, minZ: hz + 1.75, maxZ: hz + 2.15 },
-    { minX: 18.4, maxX: 22.2, minZ: -0.2, maxZ: 2.5 },
-    { minX: 14.5, maxX: 17.4, minZ: -3.6, maxZ: -1.2 },
-    { minX: 22.6, maxX: 25.6, minZ: -2.8, maxZ: -0.2 },
   ];
   const insideBoxes: Box[] = [
     { minX: ROOM.x - 2.7, maxX: ROOM.x + 2.7, minZ: ROOM.z - 2.15, maxZ: ROOM.z - 1.75 },
@@ -250,21 +264,23 @@ export function mountFarm(canvas: HTMLCanvasElement, onHud: (hud: FarmHud) => vo
 
   const room = new THREE.Group();
   scene.add(room);
-  const floor = solid(new THREE.BoxGeometry(5.2, 0.08, 4.2), "#b88858", ROOM.x, 0.04, ROOM.z, room);
+  const floor = solid(new THREE.BoxGeometry(5.2, 0.08, 4.2), "#ece7e1", ROOM.x, 0.04, ROOM.z, room);
   floor.castShadow = false;
-  solid(new THREE.BoxGeometry(5.2, 2.3, 0.18), "#f0e2c8", ROOM.x, 1.2, ROOM.z - 1.95, room);
-  solid(new THREE.BoxGeometry(0.18, 2.3, 4.1), "#f0e2c8", ROOM.x - 2.5, 1.2, ROOM.z, room);
-  solid(new THREE.BoxGeometry(0.18, 2.3, 4.1), "#f0e2c8", ROOM.x + 2.5, 1.2, ROOM.z, room);
-  solid(new THREE.BoxGeometry(1.85, 2.3, 0.18), "#f0e2c8", ROOM.x - 1.55, 1.2, ROOM.z + 1.95, room);
-  solid(new THREE.BoxGeometry(1.85, 2.3, 0.18), "#f0e2c8", ROOM.x + 1.55, 1.2, ROOM.z + 1.95, room);
-  solid(new THREE.BoxGeometry(1.5, 0.65, 0.18), "#f0e2c8", ROOM.x, 1.95, ROOM.z + 1.95, room);
-  solid(new THREE.BoxGeometry(2.1, 0.45, 1.05), "#8d4b32", ROOM.x - 1.45, 0.35, ROOM.z - 1.05, room);
-  solid(new THREE.BoxGeometry(1.7, 0.22, 0.7), "#d7b07a", ROOM.x - 1.4, 0.62, ROOM.z - 0.85, room);
-  solid(new THREE.BoxGeometry(1.15, 0.55, 0.7), "#a56b3c", ROOM.x + 1.15, 0.35, ROOM.z + 0.65, room);
-  solid(new THREE.BoxGeometry(0.9, 0.55, 0.7), "#6a442c", ROOM.x - 1.7, 0.4, ROOM.z + 0.9, room);
-  solid(new THREE.CircleGeometry(0.85, 6), "#c4553a", ROOM.x + 0.2, 0.07, ROOM.z - 0.2, room).rotation.x = -Math.PI / 2;
-  solid(new THREE.BoxGeometry(0.5, 0.7, 0.08), "#9fd4ee", ROOM.x + 2.38, 1.4, ROOM.z - 0.2, room);
-  solid(gable(5.5, 4.4, 1.15), "#8e3a32", ROOM.x, 2.35, ROOM.z, room);
+  solid(new THREE.BoxGeometry(5.2, 2.4, 0.16), "#f7f7f5", ROOM.x, 1.2, ROOM.z - 1.95, room);
+  solid(new THREE.BoxGeometry(0.16, 2.4, 4.1), "#f7f7f5", ROOM.x - 2.5, 1.2, ROOM.z, room);
+  solid(new THREE.BoxGeometry(0.16, 2.4, 4.1), "#f7f7f5", ROOM.x + 2.5, 1.2, ROOM.z, room);
+  solid(new THREE.BoxGeometry(1.85, 2.4, 0.16), "#f7f7f5", ROOM.x - 1.55, 1.2, ROOM.z + 1.95, room);
+  solid(new THREE.BoxGeometry(1.85, 2.4, 0.16), "#f7f7f5", ROOM.x + 1.55, 1.2, ROOM.z + 1.95, room);
+  solid(new THREE.BoxGeometry(1.5, 0.5, 0.16), "#f7f7f5", ROOM.x, 2.15, ROOM.z + 1.95, room);
+  solid(new THREE.BoxGeometry(5.4, 0.1, 4.5), "#2a3138", ROOM.x, 2.45, ROOM.z, room);
+  solid(new THREE.BoxGeometry(2.1, 0.28, 1.15), "#f4f6f8", ROOM.x - 1.35, 0.28, ROOM.z - 1.05, room);
+  solid(new THREE.BoxGeometry(1.7, 0.12, 0.9), "#d9dee7", ROOM.x - 1.35, 0.46, ROOM.z - 1.05, room);
+  solid(new THREE.BoxGeometry(1.3, 0.32, 0.55), "#2a3138", ROOM.x + 1.15, 0.28, ROOM.z + 0.35, room);
+  solid(new THREE.BoxGeometry(0.9, 0.45, 0.4), "#f4f6f8", ROOM.x - 1.7, 0.32, ROOM.z + 0.9, room);
+  solid(new THREE.BoxGeometry(1.6, 0.02, 1.1), "#cfd5de", ROOM.x + 0.15, 0.06, ROOM.z - 0.15, room);
+  solid(new THREE.BoxGeometry(1.5, 1.15, 0.06), "#b9e3f5", ROOM.x + 2.4, 1.35, ROOM.z - 0.2, room);
+  solid(new THREE.CylinderGeometry(0.04, 0.04, 1.15, 6), "#2a3138", ROOM.x + 1.5, 0.7, ROOM.z - 1.2, room);
+  solid(new THREE.ConeGeometry(0.18, 0.16, 6), "#f3f0e8", ROOM.x + 1.5, 1.3, ROOM.z - 1.2, room);
 
   for (let i = 0; i < 7; i += 1) {
     const tree = new THREE.Group();
@@ -275,21 +291,7 @@ export function mountFarm(canvas: HTMLCanvasElement, onHud: (hud: FarmHud) => vo
     tree.position.set(Math.cos(angle) * 12.4, 0, Math.sin(angle) * 10.5 - 0.4);
     scene.add(tree);
   }
-  scene.add(cottage(solid, 15.9, -2.4, "#d7c4a3", "#8e3a32"));
-  scene.add(cottage(solid, 24.1, -1.5, "#f0e2c8", "#3f5f86"));
-  const stall = new THREE.Group();
-  scene.add(stall);
-  solid(new THREE.BoxGeometry(3.6, 2.1, 2.4), "#f7e7c4", 0, 1.05, 0, stall);
-  solid(gable(4.1, 2.9, 1.15), "#e25b4a", 0, 2.1, 0, stall);
-  solid(new THREE.BoxGeometry(2.2, 0.12, 1.3), "#2ec8e6", 0, 1.55, 1.15, stall);
-  solid(new THREE.BoxGeometry(1.4, 0.7, 0.4), "#8b5a32", 0, 0.45, 1.35, stall);
-  solid(new THREE.ConeGeometry(0.28, 0.22, 6), "#f2c14e", -0.8, 0.95, 1.4, stall);
-  solid(new THREE.BoxGeometry(0.46, 0.18, 0.46), "#c4553a", 0.75, 0.95, 1.4, stall);
-  stall.position.set(STALL_AT.x, 0, STALL_AT.z);
-  scene.add(villager(solid, 18.4, 4.2, "#ff8a3d"));
-  scene.add(villager(solid, 22.6, 4.6, "#3f8d46"));
-  solid(new THREE.CylinderGeometry(0.55, 0.6, 0.7, 6), "#8a8f98", 17.2, 0.35, 4.6);
-  solid(new THREE.CylinderGeometry(0.28, 0.28, 0.15, 6), "#5d6872", 17.2, 0.75, 4.6);
+  scene.add(buildCity(solid, outsideBoxes));
 
   const shopGroups = [0, 1, 2, 3].map((level) => business(solid, "shop", level, SHOP_AT.x, SHOP_AT.z));
   const restGroups = [0, 1, 2, 3].map((level) => business(solid, "restaurant", level, REST_AT.x, REST_AT.z));
@@ -320,6 +322,7 @@ export function mountFarm(canvas: HTMLCanvasElement, onHud: (hud: FarmHud) => vo
   const head = solid(new THREE.SphereGeometry(0.2, 8, 6), "#f3d2b3", 0, 1.32, 0, farmer);
   const legL = solid(new THREE.BoxGeometry(0.12, 0.42, 0.12), "#245c66", -0.12, 0.32, 0, farmer);
   const legR = solid(new THREE.BoxGeometry(0.12, 0.42, 0.12), "#245c66", 0.12, 0.32, 0, farmer);
+  const skirt = solid(new THREE.CylinderGeometry(0.3, 0.2, 0.42, 7), "#2ec8e6", 0, 0.62, 0, farmer);
   const hats: Record<Exclude<HatId, "none">, THREE.Object3D> = {
     straw: hatStraw(solid),
     cap: hatCap(solid),
@@ -332,6 +335,10 @@ export function mountFarm(canvas: HTMLCanvasElement, onHud: (hud: FarmHud) => vo
   const hairLong = solid(new THREE.BoxGeometry(0.36, 0.28, 0.12), "#e2c56a", 0, 1.18, -0.12, farmer);
   farmer.position.set(0.4, 0, 5.4);
   scene.add(farmer);
+  const car = buildCar(solid);
+  car.position.set(save.carX, 0, save.carZ);
+  car.rotation.y = Math.PI / 2;
+  scene.add(car);
 
   const keys = new Set<string>();
   const move = { x: 0, z: 0 };
@@ -348,8 +355,11 @@ export function mountFarm(canvas: HTMLCanvasElement, onHud: (hud: FarmHud) => vo
   let owned = [...save.owned];
   let shopLevel = save.shopLevel;
   let restLevel = save.restLevel;
+  let carOwned = save.carOwned;
+  let driving = false;
+  let nearCar = false;
   let near: FarmHud["near"] = null;
-  let note = creating ? "Pick a look, then start." : "The road east leads to the village.";
+  let note = creating ? "Pick a look, then start." : "The car by the road goes to the city.";
   const seeds = { ...save.seeds };
   const raycaster = new THREE.Raycaster();
   const pointer = new THREE.Vector2();
@@ -360,6 +370,10 @@ export function mountFarm(canvas: HTMLCanvasElement, onHud: (hud: FarmHud) => vo
     (head.material as THREE.MeshLambertMaterial).color.set(look.skin);
     (legL.material as THREE.MeshLambertMaterial).color.set(look.pants);
     (legR.material as THREE.MeshLambertMaterial).color.set(look.pants);
+    (skirt.material as THREE.MeshLambertMaterial).color.set(look.shirt);
+    skirt.visible = look.girl;
+    body.scale.set(look.girl ? 0.78 : 1, look.girl ? 0.92 : 1, look.girl ? 0.84 : 1);
+    body.position.y = look.girl ? 0.96 : 0.86;
     (Object.keys(hats) as Exclude<HatId, "none">[]).forEach((id) => {
       hats[id].visible = look.hat === id;
     });
@@ -369,6 +383,7 @@ export function mountFarm(canvas: HTMLCanvasElement, onHud: (hud: FarmHud) => vo
     hairLong.visible = look.hair === "long";
     (hairShort.material as THREE.MeshLambertMaterial).color.set(hairColor);
     (hairBun.material as THREE.MeshLambertMaterial).color.set(hairColor);
+    (hairLong.material as THREE.MeshLambertMaterial).color.set(hairColor);
   }
 
   function showBiz() {
@@ -420,11 +435,14 @@ export function mountFarm(canvas: HTMLCanvasElement, onHud: (hud: FarmHud) => vo
       shopLevel,
       restLevel,
       near,
+      carOwned,
+      driving,
+      nearCar,
     });
   }
 
   function persist() {
-    localStorage.setItem(KEY, JSON.stringify({ coins, seeds, selected, plots, day, chestDay, look, owned, shopLevel, restLevel, customized: !creating }));
+    localStorage.setItem(KEY, JSON.stringify({ coins, seeds, selected, plots, day, chestDay, look, owned, shopLevel, restLevel, customized: !creating, carOwned, carX: car.position.x, carZ: car.position.z }));
   }
 
   function nearestPlot() {
@@ -514,6 +532,33 @@ export function mountFarm(canvas: HTMLCanvasElement, onHud: (hud: FarmHud) => vo
 
   function act() {
     if (creating) return;
+    if (driving) {
+      driving = false;
+      farmer.visible = true;
+      farmer.position.z += 1.6;
+      note = "Parked.";
+      hud();
+      return;
+    }
+    if (!inside && nearCar) {
+      if (!carOwned) {
+        if (coins < CAR_PRICE) note = `The car costs ${CAR_PRICE} coins.`;
+        else {
+          coins -= CAR_PRICE;
+          carOwned = true;
+          note = "It's yours. Get in and drive east.";
+        }
+      } else {
+        driving = true;
+        farmer.visible = false;
+        farmer.position.set(car.position.x, 0, car.position.z);
+        yaw = car.rotation.y;
+        farmer.rotation.y = yaw;
+        note = "Driving. The city is east.";
+      }
+      hud();
+      return;
+    }
     if (inside) {
       const nearChest = Math.hypot(farmer.position.x - (ROOM.x - 1.7), farmer.position.z - (ROOM.z + 0.9)) < 1.25;
       if (!nearChest) {
@@ -535,13 +580,13 @@ export function mountFarm(canvas: HTMLCanvasElement, onHud: (hud: FarmHud) => vo
       return;
     }
     if (near === "village") {
-      note = "Buy a look from the stall.";
+      note = driving ? "Park to go into the shop." : "The city shop sells clothes and hats.";
       hud();
       return;
     }
     const index = nearestPlot();
     if (index < 0) {
-      note = "Get closer to a plot, a lot, or the village stall.";
+      note = "Get closer to a plot, a lot, the car, or the city shop.";
       hud();
       return;
     }
@@ -561,6 +606,15 @@ export function mountFarm(canvas: HTMLCanvasElement, onHud: (hud: FarmHud) => vo
     seeds[selected] += 1;
     note = `Bought a ${selected} seed.`;
     hud();
+  }
+
+  function carBounds(): Box {
+    return {
+      minX: car.position.x - 1.2,
+      maxX: car.position.x + 1.2,
+      minZ: car.position.z - 0.75,
+      maxZ: car.position.z + 0.75,
+    };
   }
 
   function onKey(event: KeyboardEvent) {
@@ -617,12 +671,12 @@ export function mountFarm(canvas: HTMLCanvasElement, onHud: (hud: FarmHud) => vo
     if (!creating) {
       const forward = (keys.has("KeyW") || keys.has("ArrowUp") ? 1 : 0) - (keys.has("KeyS") || keys.has("ArrowDown") ? 1 : 0);
       const strafe = (keys.has("KeyD") || keys.has("ArrowRight") ? 1 : 0) - (keys.has("KeyA") || keys.has("ArrowLeft") ? 1 : 0);
-      const speed = 4.1;
+      const speed = driving ? 11 : 4.1;
       const sin = Math.sin(yaw);
       const cos = Math.cos(yaw);
       const vx = (-strafe * cos + forward * sin) * speed * dt + move.x * speed * dt;
       const vz = (strafe * sin + forward * cos) * speed * dt + move.z * speed * dt;
-      const boxes = inside ? insideBoxes : [...outsideBoxes, ...bizBoxes];
+      const boxes = inside ? insideBoxes : [...outsideBoxes, ...bizBoxes, ...(driving ? [] : [carBounds()])];
       const nx = farmer.position.x + vx;
       const nz = farmer.position.z + vz;
       if (!hits(nx, farmer.position.z, boxes)) farmer.position.x = nx;
@@ -631,12 +685,12 @@ export function mountFarm(canvas: HTMLCanvasElement, onHud: (hud: FarmHud) => vo
         farmer.position.x = Math.max(ROOM.x - 2.2, Math.min(ROOM.x + 2.2, farmer.position.x));
         farmer.position.z = Math.max(ROOM.z - 1.7, Math.min(ROOM.z + 2.5, farmer.position.z));
       } else {
-        farmer.position.x = Math.max(-15, Math.min(28, farmer.position.x));
-        farmer.position.z = Math.max(-12, Math.min(12, farmer.position.z));
+        farmer.position.x = Math.max(-15, Math.min(46, farmer.position.x));
+        farmer.position.z = Math.max(-14, Math.min(13, farmer.position.z));
       }
       if (forward || strafe || move.x || move.z) farmer.rotation.y = Math.atan2(vx, vz);
       doorLock = Math.max(0, doorLock - dt);
-      if (doorLock <= 0 && !inside && Math.abs(farmer.position.x - hx) < 0.55 && Math.abs(farmer.position.z - (hz + 1.85)) < 0.45) {
+      if (doorLock <= 0 && !driving && !inside && Math.abs(farmer.position.x - hx) < 0.55 && Math.abs(farmer.position.z - (hz + 1.85)) < 0.45) {
         inside = true;
         doorLock = 0.7;
         farmer.position.set(ROOM.x, 0, ROOM.z + 1.35);
@@ -680,8 +734,19 @@ export function mountFarm(canvas: HTMLCanvasElement, onHud: (hud: FarmHud) => vo
       near = nextNear;
       if (near === "shop") note = shopLevel === 0 ? "Empty lot. Set up a shop." : `Shop level ${shopLevel}. Upgrade it here.`;
       if (near === "restaurant") note = restLevel === 0 ? "Empty lot. Set up a restaurant." : `Restaurant level ${restLevel}. Upgrade it here.`;
-      if (near === "village") note = "The stall sells clothes and hats.";
+      if (near === "village") note = "The city shop sells clothes and hats.";
       hud();
+    }
+    const closeToCar = Math.hypot(farmer.position.x - car.position.x, farmer.position.z - car.position.z) < 2.6;
+    if (closeToCar !== nearCar) {
+      nearCar = closeToCar;
+      if (nearCar && !driving && !carOwned) note = `A car is for sale. ${CAR_PRICE} coins.`;
+      if (nearCar && !driving && carOwned) note = "Get in and drive to the city.";
+      hud();
+    }
+    if (driving) {
+      car.position.copy(farmer.position);
+      car.rotation.y = farmer.rotation.y;
     }
     const sunAngle = clock * Math.PI * 2;
     sun.position.set(farmer.position.x + Math.cos(sunAngle) * 14, 5 + Math.max(0.4, Math.sin(sunAngle)) * 12, farmer.position.z + 7);
@@ -704,10 +769,10 @@ export function mountFarm(canvas: HTMLCanvasElement, onHud: (hud: FarmHud) => vo
       camera.position.lerp(new THREE.Vector3(lookAt.x + 0.2, 1.7, lookAt.z + 3.4), 0.18);
       camera.lookAt(lookAt.x, 1.15, lookAt.z);
     } else {
-      const dist = inside ? 4.6 : 7.2;
+      const dist = inside ? 4.6 : driving ? 10 : 7.2;
       const camX = lookAt.x - Math.sin(yaw) * dist;
       const camZ = lookAt.z - Math.cos(yaw) * dist;
-      camera.position.lerp(new THREE.Vector3(camX, inside ? 3.3 : 5.2, camZ), 0.12);
+      camera.position.lerp(new THREE.Vector3(camX, inside ? 3.3 : driving ? 6.4 : 5.2, camZ), 0.12);
       camera.lookAt(lookAt.x, 1, lookAt.z);
     }
     renderer.render(scene, camera);
@@ -750,7 +815,7 @@ export function mountFarm(canvas: HTMLCanvasElement, onHud: (hud: FarmHud) => vo
     },
     confirmLook() {
       creating = false;
-      note = "The road east leads to the village. Empty lots can become a shop or a restaurant.";
+      note = "Buy the car by the road and drive east into the city.";
       hud();
     },
     nudge(x: number, z: number) {
@@ -777,34 +842,118 @@ function gable(width: number, depth: number, height: number) {
   return geo;
 }
 
-function cottage(
-  solid: (geo: THREE.BufferGeometry, color: number | string, x: number, y: number, z: number, parent?: THREE.Object3D) => THREE.Mesh,
-  x: number,
-  z: number,
-  wallColor: string,
-  roofColor: string,
-) {
+function buildCar(solid: (geo: THREE.BufferGeometry, color: number | string, x: number, y: number, z: number, parent?: THREE.Object3D) => THREE.Mesh) {
   const group = new THREE.Group();
-  solid(new THREE.BoxGeometry(2.6, 1.7, 2.2), wallColor, 0, 0.85, 0, group);
-  solid(gable(3.1, 2.6, 1), roofColor, 0, 1.7, 0, group);
-  solid(new THREE.BoxGeometry(0.4, 0.45, 0.08), "#8fd0ea", 0.7, 1.05, 1.12, group);
-  group.position.set(x, 0, z);
+  solid(new THREE.BoxGeometry(1.15, 0.38, 2.25), "#e8eef5", 0, 0.48, 0.05, group);
+  solid(new THREE.BoxGeometry(1.02, 0.34, 1.15), "#2a3138", 0, 0.78, -0.12, group);
+  solid(new THREE.BoxGeometry(0.92, 0.22, 0.08), "#b9e3f5", 0, 0.8, 0.46, group);
+  solid(new THREE.BoxGeometry(0.9, 0.08, 0.35), "#f2c14e", 0, 0.42, 1.05, group);
+  solid(new THREE.BoxGeometry(0.7, 0.08, 0.12), "#e25b4a", 0, 0.48, -1.05, group);
+  for (const side of [-0.48, 0.48]) {
+    for (const axle of [-0.7, 0.72]) {
+      const wheel = solid(new THREE.CylinderGeometry(0.22, 0.22, 0.16, 8), "#1c2126", side, 0.22, axle, group);
+      wheel.rotation.z = Math.PI / 2;
+    }
+  }
   return group;
 }
 
-function villager(
+function buildCity(
   solid: (geo: THREE.BufferGeometry, color: number | string, x: number, y: number, z: number, parent?: THREE.Object3D) => THREE.Mesh,
-  x: number,
-  z: number,
-  shirt: string,
+  boxes: Box[],
 ) {
-  const group = new THREE.Group();
-  solid(new THREE.BoxGeometry(0.36, 0.5, 0.24), shirt, 0, 0.7, 0, group);
-  solid(new THREE.SphereGeometry(0.16, 7, 5), "#f3d2b3", 0, 1.1, 0, group);
-  solid(new THREE.BoxGeometry(0.1, 0.32, 0.1), "#243a66", -0.08, 0.22, 0, group);
-  solid(new THREE.BoxGeometry(0.1, 0.32, 0.1), "#243a66", 0.08, 0.22, 0, group);
-  group.position.set(x, 0, z);
-  return group;
+  const city = new THREE.Group();
+  const pad = solid(new THREE.PlaneGeometry(40, 30), "#616872", 30, 0.02, 1.2, city);
+  pad.rotation.x = -Math.PI / 2;
+  pad.castShadow = false;
+  const road = solid(new THREE.BoxGeometry(52, 0.05, 2.5), "#3c444c", 22, 0.04, 5.3, city);
+  road.castShadow = false;
+  const cross = solid(new THREE.BoxGeometry(2.4, 0.06, 20), "#3c444c", 28.5, 0.05, 2.2, city);
+  cross.castShadow = false;
+  for (let i = 0; i < 16; i += 1) {
+    const dash = solid(new THREE.BoxGeometry(1.1, 0.02, 0.08), "#f3f0e8", 2 + i * 2.8, 0.07, 5.3, city);
+    dash.castShadow = false;
+  }
+  const walkN = solid(new THREE.BoxGeometry(40, 0.04, 1.1), "#c5ccd4", 30, 0.045, 3.55, city);
+  walkN.castShadow = false;
+  const walkS = solid(new THREE.BoxGeometry(40, 0.04, 1.1), "#c5ccd4", 30, 0.045, 7.15, city);
+  walkS.castShadow = false;
+  const towers = [
+    { x: 16.5, z: -5.2, w: 3.6, d: 3.2, h: 8, color: "#e7eef5", glass: "#8ec5e0" },
+    { x: 22.4, z: -6.4, w: 3.8, d: 3.3, h: 12, color: "#d5deea", glass: "#f2c14e" },
+    { x: 28.8, z: -4.6, w: 4.2, d: 3.4, h: 9.5, color: "#f7f4f1", glass: "#7eb6d6" },
+    { x: 35.2, z: -6.2, w: 3.4, d: 3.2, h: 14, color: "#c9d4e2", glass: "#e8eef5" },
+    { x: 41.2, z: -3.4, w: 3.8, d: 3.6, h: 7.5, color: "#2a3138", glass: "#f2c14e" },
+    { x: 18.2, z: 9.2, w: 4.4, d: 3, h: 4.2, color: "#f4f6f8", glass: "#b9e3f5" },
+    { x: 25.4, z: 9.4, w: 5.2, d: 3.2, h: 5.4, color: "#e7d7cf", glass: "#2a3138" },
+    { x: 33.5, z: 9.1, w: 4, d: 3.1, h: 6.2, color: "#dfe6ee", glass: "#8ec5e0" },
+    { x: 40.4, z: 8.6, w: 3.6, d: 3, h: 10, color: "#f7f4f1", glass: "#e25b4a" },
+  ];
+  for (const tower of towers) {
+    const block = new THREE.Group();
+    solid(new THREE.BoxGeometry(tower.w, tower.h * 0.7, tower.d), tower.color, 0, tower.h * 0.35, 0, block);
+    solid(new THREE.BoxGeometry(tower.w * 0.72, tower.h * 0.3, tower.d * 0.72), tower.color, 0, tower.h * 0.85, 0, block);
+    const rows = Math.max(2, Math.floor(tower.h / 1.4));
+    for (let row = 0; row < rows; row += 1) {
+      solid(new THREE.BoxGeometry(tower.w * 0.62, 0.28, 0.06), tower.glass, 0, 0.9 + row * 1.25, tower.d * 0.5 + 0.02, block);
+    }
+    block.position.set(tower.x, 0, tower.z);
+    city.add(block);
+    boxes.push({
+      minX: tower.x - tower.w / 2,
+      maxX: tower.x + tower.w / 2,
+      minZ: tower.z - tower.d / 2,
+      maxZ: tower.z + tower.d / 2,
+    });
+  }
+  const shop = new THREE.Group();
+  solid(new THREE.BoxGeometry(4.2, 2.6, 2.8), "#f7f7f5", 0, 1.3, 0, shop);
+  solid(new THREE.BoxGeometry(4.5, 0.16, 3.1), "#2a3138", 0, 2.68, 0, shop);
+  solid(new THREE.BoxGeometry(3.2, 1.6, 0.08), "#b9e3f5", 0, 1.25, 1.42, shop);
+  solid(new THREE.BoxGeometry(1.6, 0.28, 0.08), "#2ec8e6", 0, 2.25, 1.46, shop);
+  shop.position.set(STALL_AT.x, 0, STALL_AT.z);
+  city.add(shop);
+  boxes.push({ minX: STALL_AT.x - 2.1, maxX: STALL_AT.x + 2.1, minZ: STALL_AT.z - 1.4, maxZ: STALL_AT.z + 1.35 });
+  for (let i = 0; i < 8; i += 1) {
+    const lamp = new THREE.Group();
+    solid(new THREE.CylinderGeometry(0.06, 0.08, 2.4, 5), "#2a3138", 0, 1.2, 0, lamp);
+    solid(new THREE.BoxGeometry(0.7, 0.08, 0.28), "#fff4c8", 0.2, 2.35, 0, lamp);
+    lamp.position.set(8 + i * 4.6, 0, 3.7);
+    city.add(lamp);
+  }
+  const parked = [
+    { x: 14.5, z: 6.8, color: "#e25b4a" },
+    { x: 24.2, z: 3.9, color: "#f2c14e" },
+    { x: 33.8, z: 6.9, color: "#2ec8e6" },
+  ];
+  for (const spot of parked) {
+    const parkedCar = buildCar(solid);
+    parkedCar.position.set(spot.x, 0, spot.z);
+    parkedCar.rotation.y = Math.PI / 2;
+    const body = parkedCar.children[0] as THREE.Mesh;
+    (body.material as THREE.MeshLambertMaterial).color.set(spot.color);
+    city.add(parkedCar);
+  }
+  scenePeople(solid, city);
+  return city;
+}
+
+function scenePeople(
+  solid: (geo: THREE.BufferGeometry, color: number | string, x: number, y: number, z: number, parent?: THREE.Object3D) => THREE.Mesh,
+  city: THREE.Group,
+) {
+  const people = [
+    { x: 18.6, z: 3.6, shirt: "#ff8a3d" },
+    { x: 23.4, z: 3.5, shirt: "#3f8d46" },
+    { x: 31.2, z: 7.6, shirt: "#243a66" },
+  ];
+  for (const person of people) {
+    const group = new THREE.Group();
+    solid(new THREE.BoxGeometry(0.34, 0.5, 0.22), person.shirt, 0, 0.7, 0, group);
+    solid(new THREE.SphereGeometry(0.15, 7, 5), "#f3d2b3", 0, 1.08, 0, group);
+    group.position.set(person.x, 0, person.z);
+    city.add(group);
+  }
 }
 
 function business(
