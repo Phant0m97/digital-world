@@ -52,20 +52,13 @@ function Desk() {
             {hud.coins} coins · {"★".repeat(hud.stars)}
             {"☆".repeat(5 - hud.stars)} · {hud.rooms} rooms
           </p>
-          <p>{hud.done ? "The hotel is loved." : "WASD walks. Space cleans, checks in, and serves."}</p>
+          <p>{hud.done ? "The hotel is loved." : "WASD walks. Space at the desk gives a room."}</p>
           <p className="mt-1">{hud.note}</p>
         </div>
       </div>
       {hud.prompt ? (
         <div className="absolute top-16 left-1/2 -translate-x-1/2 rounded-full border-2 border-ink bg-[#f3f0e8] px-4 py-2 text-sm font-bold text-ink">
           {hud.prompt}
-        </div>
-      ) : null}
-      {hud.cleaning > 0 ? (
-        <div className="absolute bottom-24 left-1/2 w-56 -translate-x-1/2">
-          <div className="h-4 overflow-hidden rounded-full border-2 border-ink bg-[#f3f0e8]">
-            <div className="h-full bg-[#3ecf8e]" style={{ width: `${Math.round(hud.cleaning * 100)}%` }} />
-          </div>
         </div>
       ) : null}
       <div className="absolute inset-x-0 bottom-3 flex flex-wrap gap-2 px-3">
