@@ -353,12 +353,44 @@ function draw(
   }
   for (const building of buildings) {
     if (building.x > x + range + 200 || building.y > y + range + 200 || building.x + building.w < x - range - 200 || building.y + building.h < y - range - 200) continue;
+    const index = buildings.indexOf(building);
     ctx.fillStyle = "#d9c7a4";
     ctx.fillRect(building.x, building.y, building.w, building.h);
-    ctx.fillStyle = "#1c2126";
-    ctx.fillRect(building.x + 8, building.y + 8, building.w - 16, 6);
-    ctx.fillStyle = "#8fd4ff";
-    for (let wx = building.x + 16; wx < building.x + building.w - 18; wx += 22) ctx.fillRect(wx, building.y + 22, 10, 8);
+    ctx.fillStyle = "#c4b08a";
+    for (let row = building.y + 14; row < building.y + building.h - 8; row += 16) {
+      ctx.fillRect(building.x + 4, row, building.w - 8, 3);
+    }
+    ctx.fillStyle = "#8b5a32";
+    ctx.fillRect(building.x + building.w / 2 - 11, building.y + building.h - 26, 22, 26);
+    ctx.fillStyle = "#5a3b28";
+    ctx.fillRect(building.x + building.w / 2 - 2, building.y + building.h - 14, 3, 3);
+    const time = performance.now() / 1000;
+    for (let wx = building.x + 16; wx < building.x + building.w - 18; wx += 22) {
+      const lit = Math.sin(time * 0.85 + index * 1.7 + wx * 0.01) > 0.35;
+      ctx.fillStyle = "#1c2126";
+      ctx.fillRect(wx - 2, building.y + 20, 14, 12);
+      ctx.fillStyle = lit ? "#ffe27a" : "#6aa8c4";
+      ctx.fillRect(wx, building.y + 22, 10, 8);
+      if (lit) {
+        ctx.fillStyle = "rgba(255, 214, 120, 0.28)";
+        ctx.beginPath();
+        ctx.arc(wx + 5, building.y + 26, 16, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    const lampOn = Math.sin(time * 1.4 + index) > 0.15;
+    if (lampOn) {
+      ctx.fillStyle = "#2a3138";
+      ctx.fillRect(building.x - 6, building.y + 8, 4, 18);
+      ctx.fillStyle = "#fff6ea";
+      ctx.beginPath();
+      ctx.arc(building.x - 4, building.y + 6, 5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "rgba(255, 236, 180, 0.22)";
+      ctx.beginPath();
+      ctx.arc(building.x - 4, building.y + 6, 18, 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
   for (const remote of remotes.values()) {
     person(ctx, remote.x, remote.y, remote.aim, "#ff8a3d", remote.name);

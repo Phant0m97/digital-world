@@ -19,6 +19,7 @@ const empty: HotelHud = {
   buildCost: 120,
   upgradeCost: 110,
   cleaning: 0,
+  prompt: "",
 };
 
 function HotelPage() {
@@ -55,6 +56,11 @@ function Desk() {
           <p className="mt-1">{hud.note}</p>
         </div>
       </div>
+      {hud.prompt ? (
+        <div className="absolute top-16 left-1/2 -translate-x-1/2 rounded-full border-2 border-ink bg-[#f3f0e8] px-4 py-2 text-sm font-bold text-ink">
+          {hud.prompt}
+        </div>
+      ) : null}
       {hud.cleaning > 0 ? (
         <div className="absolute bottom-24 left-1/2 w-56 -translate-x-1/2">
           <div className="h-4 overflow-hidden rounded-full border-2 border-ink bg-[#f3f0e8]">
