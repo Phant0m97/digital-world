@@ -22,15 +22,23 @@ export type BreachHud = {
 type GunId = "pistol" | "rifle" | "bolt" | "buck";
 type Phase = BreachHud["phase"];
 type Box = { minX: number; maxX: number; minY: number; maxY: number; minZ: number; maxZ: number };
+type Role = "long" | "tun" | "cat" | "holdA" | "holdB" | "mid";
+type Spot = [number, number];
 type Actor = {
   team: 0 | 1;
+  role: Role;
   x: number;
-  y: number;
   z: number;
   yaw: number;
   hp: number;
   mag: number;
   cool: number;
+  reload: number;
+  route: Spot[];
+  cursor: number;
+  stuck: number;
+  lastX: number;
+  lastZ: number;
   mesh: THREE.Group;
   alive: boolean;
 };
@@ -43,73 +51,199 @@ const GUNS: Record<GunId, { name: string; damage: number; mag: number; reserve: 
 };
 
 const SITES = [
-  { x: -11, z: -9 },
-  { x: 11, z: -9 },
+  { x: -17, z: -10, name: "A" },
+  { x: 17, z: -10, name: "B" },
 ];
+
+const NODES: Record<string, Spot> = {
+  tspawn: [0, 20],
+  tmid: [0, 13],
+  midsouth: [0, 4],
+  midnorth: [0, -2],
+  cttop: [0, -8],
+  ctgate: [0, -12.6],
+  ctspawn: [1, -16],
+  longt: [-20, 18],
+  longm: [-20, 9],
+  longa: [-20, 0],
+  asite: [-17, -10],
+  cat: [-12, -4],
+  act: [-13, -13],
+  tunnelt: [16, 18],
+  tunnelm: [16, 9],
+  tunnelb: [17, 0],
+  bsite: [17, -10],
+  bct: [12, -14],
+};
+
+const LINKS: [string, string][] = [
+  ["tspawn", "tmid"],
+  ["tspawn", "longt"],
+  ["tspawn", "tunnelt"],
+  ["tmid", "midsouth"],
+  ["midsouth", "midnorth"],
+  ["midnorth", "cttop"],
+  ["midnorth", "cat"],
+  ["cttop", "ctspawn"],
+  ["cttop", "ctgate"],
+  ["ctgate", "bct"],
+  ["cttop", "act"],
+  ["longt", "longm"],
+  ["longm", "longa"],
+  ["longa", "asite"],
+  ["cat", "asite"],
+  ["act", "asite"],
+  ["tunnelt", "tunnelm"],
+  ["tunnelm", "tunnelb"],
+  ["tunnelb", "bsite"],
+  ["bct", "bsite"],
+];
+
+const ROUTES: Record<Role, Spot[]> = {
+  long: [NODES.longt!, NODES.longm!, NODES.longa!, NODES.asite!],
+  tun: [NODES.tunnelt!, NODES.tunnelm!, NODES.tunnelb!, NODES.bsite!],
+  cat: [NODES.tmid!, NODES.midsouth!, NODES.midnorth!, NODES.cat!, NODES.asite!],
+  holdA: [NODES.ctgate!, NODES.act!, NODES.asite!],
+  holdB: [NODES.ctgate!, NODES.bct!, NODES.bsite!],
+  mid: [NODES.ctgate!, NODES.cttop!, NODES.midnorth!, NODES.midsouth!],
+};
 
 export function mountBreach(canvas: HTMLCanvasElement, onHud: (hud: BreachHud) => void) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
   renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color("#9bb0c0");
-  scene.fog = new THREE.Fog("#9bb0c0", 18, 48);
-  const camera = new THREE.PerspectiveCamera(72, 1, 0.08, 80);
+  scene.background = new THREE.Color("#87c4ea");
+  scene.fog = new THREE.Fog("#c5d6e4", 26, 68);
+  const camera = new THREE.PerspectiveCamera(72, 1, 0.08, 90);
   scene.add(camera);
-  scene.add(new THREE.HemisphereLight("#d7e4ee", "#6d6248", 0.85));
-  const sun = new THREE.DirectionalLight("#fff2d2", 1.15);
-  sun.position.set(8, 18, 6);
+  scene.add(new THREE.HemisphereLight("#f4efe4", "#8a7048", 0.72));
+  const sun = new THREE.DirectionalLight("#fff1d2", 1.35);
+  sun.position.set(16, 28, 10);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(2048, 2048);
+  sun.shadow.camera.near = 4;
+  sun.shadow.camera.far = 70;
+  sun.shadow.camera.left = -32;
+  sun.shadow.camera.right = 32;
+  sun.shadow.camera.top = 32;
+  sun.shadow.camera.bottom = -32;
+  sun.shadow.bias = -0.0006;
   scene.add(sun);
 
-  const mat = (color: string) => new THREE.MeshLambertMaterial({ color });
+  const materials = new Map<string, THREE.MeshLambertMaterial>();
+  const mat = (color: string) => {
+    let material = materials.get(color);
+    if (!material) {
+      material = new THREE.MeshLambertMaterial({ color });
+      materials.set(color, material);
+    }
+    return material;
+  };
   const boxes: Box[] = [];
   function block(w: number, h: number, d: number, color: string, x: number, y: number, z: number, solid = true) {
     const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(color));
     mesh.position.set(x, y, z);
-    mesh.castShadow = false;
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
     scene.add(mesh);
     if (solid) boxes.push({ minX: x - w / 2, maxX: x + w / 2, minY: y - h / 2, maxY: y + h / 2, minZ: z - d / 2, maxZ: z + d / 2 });
     return mesh;
   }
 
-  const floor = new THREE.Mesh(new THREE.PlaneGeometry(46, 46), mat("#8b9096"));
-  floor.rotation.x = -Math.PI / 2;
-  scene.add(floor);
-  block(46, 3.2, 0.4, "#6e747c", 0, 1.6, -20);
-  block(46, 3.2, 0.4, "#6e747c", 0, 1.6, 20);
-  block(0.4, 3.2, 40, "#6e747c", -20, 1.6, 0);
-  block(0.4, 3.2, 40, "#6e747c", 20, 1.6, 0);
-  block(8, 3.2, 0.4, "#7c838b", -6, 1.6, -2);
-  block(8, 3.2, 0.4, "#7c838b", 6, 1.6, 2);
-  block(1.6, 1.1, 1.6, "#c4a06a", -3, 0.55, 4);
-  block(1.6, 1.1, 1.6, "#b48a52", 3.2, 0.55, 6);
-  block(2.2, 1.3, 1.2, "#c4a06a", 0, 0.65, -4);
-  block(1.2, 1.6, 1.2, "#a87840", -7, 0.8, 8);
-  block(1.4, 0.9, 2.4, "#c4a06a", 8, 0.45, -1);
-  for (const site of SITES) {
-    const ring = new THREE.Mesh(new THREE.RingGeometry(1.3, 1.7, 20), mat("#e2c14e"));
-    ring.rotation.x = -Math.PI / 2;
-    ring.position.set(site.x, 0.04, site.z);
-    scene.add(ring);
+  const sand = new THREE.Mesh(new THREE.PlaneGeometry(70, 64), mat("#c4a36a"));
+  sand.rotation.x = -Math.PI / 2;
+  sand.position.y = -0.02;
+  sand.receiveShadow = true;
+  scene.add(sand);
+  const concrete = new THREE.Mesh(new THREE.PlaneGeometry(52, 44), mat("#d5cbbd"));
+  concrete.rotation.x = -Math.PI / 2;
+  concrete.position.set(0, 0, 1);
+  concrete.receiveShadow = true;
+  scene.add(concrete);
+
+  block(52, 4.2, 0.7, "#cbbba8", 0, 2.1, -20.5);
+  block(52, 4.2, 0.7, "#cbbba8", 0, 2.1, 23.5);
+  block(0.7, 4.2, 44, "#d9cfc2", -25.3, 2.1, 1.5);
+  block(0.7, 4.2, 44, "#d9cfc2", 25.3, 2.1, 1.5);
+  block(0.55, 4, 16, "#c8b8a4", -15.4, 2, 7);
+  block(0.55, 4, 2.6, "#c8b8a4", -9.2, 2, -16.8);
+  block(0.55, 4, 4, "#c8b8a4", -9.2, 2, -8);
+  block(8, 2.6, 0.45, "#b7a794", -12, 1.3, 0.2);
+  block(0.5, 4, 12, "#d2c4b0", -5.6, 2, 8);
+  block(0.5, 4, 12, "#d2c4b0", 5.6, 2, 8);
+  block(3.6, 4, 0.45, "#6b4328", -3.4, 2, 1);
+  block(3.6, 4, 0.45, "#6b4328", 3.4, 2, 1);
+  block(0.5, 4, 16, "#c8b8a4", 12.2, 2, 10);
+  block(3.6, 4, 0.5, "#b7a794", 14.2, 2, -2);
+  block(6, 4, 0.5, "#b7a794", 21.2, 2, -2);
+  block(4, 4, 0.5, "#d2c4b0", -3.2, 2, -11);
+  block(4.4, 4, 0.5, "#d2c4b0", 3.6, 2, -11);
+  block(52, 0.35, 1.4, "#b7a28c", 0, 4.15, -20.2, false);
+  block(1.4, 0.35, 44, "#b7a28c", -25, 4.15, 1.5, false);
+  block(1.4, 0.35, 44, "#b7a28c", 25, 4.15, 1.5, false);
+
+  function crate(x: number, z: number, tall = false) {
+    const h = tall ? 1.25 : 0.9;
+    block(1.15, h, 1.15, "#a56b3c", x, h / 2, z);
+    block(1.2, 0.08, 0.12, "#6b4328", x, h * 0.45, z + 0.58, false);
+    block(1.2, 0.08, 0.12, "#6b4328", x, h * 0.7, z + 0.58, false);
   }
-  const bombMesh = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.22, 0.55), mat("#e25b4a"));
+  function barrel(x: number, z: number) {
+    const mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.34, 0.85, 8), mat("#5c6a62"));
+    mesh.position.set(x, 0.42, z);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    scene.add(mesh);
+    boxes.push({ minX: x - 0.34, maxX: x + 0.34, minY: 0, maxY: 0.85, minZ: z - 0.34, maxZ: z + 0.34 });
+  }
+  crate(-22.4, 11, true);
+  crate(-13.2, -16);
+  crate(-21.2, -7, true);
+  crate(21.4, 10);
+  crate(14.2, -15.2);
+  crate(21.2, -7);
+  crate(-3.5, 9, true);
+  crate(3.5, 7);
+  barrel(-18.4, -14.2);
+  barrel(19.4, -14.4);
+  barrel(6.4, -16.6);
+  block(1.3, 2.2, 0.12, "#8d6744", -0.9, 1.1, 1.28, false);
+  block(1.3, 2.2, 0.12, "#8d6744", 0.9, 1.1, 0.72, false);
+
+  for (const site of SITES) {
+    const ring = new THREE.Mesh(new THREE.RingGeometry(1.5, 1.95, 24), mat("#e2c14e"));
+    ring.rotation.x = -Math.PI / 2;
+    ring.position.set(site.x, 0.05, site.z);
+    scene.add(ring);
+    block(0.7, 0.7, 0.12, "#e2c14e", site.x, 1.6, site.z - 2.4, false);
+  }
+  const bombMesh = new THREE.Group();
+  bombMesh.add(new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.24, 0.62), mat("#e25b4a")));
+  bombMesh.add(Object.assign(new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.08, 0.12), mat("#f2c14e")), { position: new THREE.Vector3(0, 0.16, 0.1) }));
   bombMesh.visible = false;
   scene.add(bombMesh);
 
   const gun = new THREE.Group();
-  const body = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.1, 0.46), mat("#2a3138"));
-  body.position.set(0, 0, -0.1);
-  const magMesh = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.14, 0.08), mat("#1c2126"));
-  magMesh.position.set(0, -0.1, 0.02);
-  gun.add(body, magMesh);
-  gun.position.set(0.26, -0.24, -0.45);
+  const gunBody = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.09, 0.62), mat("#2a3138"));
+  gunBody.position.set(0, 0.02, -0.16);
+  const hand = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.1, 0.12), mat("#3a4148"));
+  hand.position.set(0, -0.04, 0.08);
+  const clip = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.16, 0.07), mat("#1c2126"));
+  clip.position.set(0, -0.1, 0.02);
+  const stock = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.08, 0.18), mat("#5c4030"));
+  stock.position.set(0, 0.01, 0.22);
+  gun.add(gunBody, hand, clip, stock);
+  gun.position.set(0.28, -0.26, -0.42);
   camera.add(gun);
 
   const keys = new Set<string>();
-  let yaw = Math.PI;
+  let yaw = 0;
   let pitch = 0;
   let x = 0;
   let y = 0;
-  let z = 14;
+  let z = 20;
   let vy = 0;
   let hp = 100;
   let armor = 0;
@@ -132,7 +266,8 @@ export function mountBreach(canvas: HTMLCanvasElement, onHud: (hud: BreachHud) =
   let planted = false;
   let bombX = 0;
   let bombZ = 0;
-  let note = "Buy, then plant the case. First to 7.";
+  let routedBomb = false;
+  let note = "Long is left. Mid is the doors. Tunnels are right.";
   let prompt = "";
   let hudKey = "";
   let locked = false;
@@ -140,50 +275,122 @@ export function mountBreach(canvas: HTMLCanvasElement, onHud: (hud: BreachHud) =
 
   function figure(color: string) {
     const group = new THREE.Group();
-    const torso = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.62, 0.28), mat(color));
-    torso.position.y = 1.15;
-    const head = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.28, 0.28), mat("#e6c2a2"));
-    head.position.y = 1.64;
-    const legs = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.55, 0.24), mat("#2a3138"));
-    legs.position.y = 0.45;
-    group.add(torso, head, legs);
+    const legs = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.58, 0.24), mat("#2c3138"));
+    legs.position.y = 0.29;
+    const torso = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.58, 0.3), mat(color));
+    torso.position.y = 1.05;
+    torso.castShadow = true;
+    const vest = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.36, 0.12), mat("#23282e"));
+    vest.position.set(0, 1.08, 0.16);
+    const head = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.24, 0.26), mat("#e6c2a2"));
+    head.position.y = 1.58;
+    const helm = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.12, 0.3), mat(color));
+    helm.position.y = 1.74;
+    const rifle = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 0.55), mat("#1c2126"));
+    rifle.position.set(0.18, 0.95, 0.28);
+    group.add(legs, torso, vest, head, helm, rifle);
     scene.add(group);
     return group;
+  }
+
+  function nearestNode(px: number, pz: number) {
+    let best = "tspawn";
+    let score = Infinity;
+    for (const [id, spot] of Object.entries(NODES)) {
+      const dist = Math.hypot(spot[0] - px, spot[1] - pz);
+      if (dist < score) {
+        score = dist;
+        best = id;
+      }
+    }
+    return best;
+  }
+
+  function routeNodes(fromId: string, toId: string) {
+    const queue = [fromId];
+    const prev = new Map<string, string | null>([[fromId, null]]);
+    while (queue.length) {
+      const id = queue.shift()!;
+      if (id === toId) break;
+      for (const [a, b] of LINKS) {
+        const next = a === id ? b : b === id ? a : "";
+        if (!next || prev.has(next)) continue;
+        prev.set(next, id);
+        queue.push(next);
+      }
+    }
+    const spots: Spot[] = [];
+    if (!prev.has(toId)) return spots;
+    let cursor: string | null = toId;
+    const chain: string[] = [];
+    while (cursor) {
+      chain.push(cursor);
+      cursor = prev.get(cursor) ?? null;
+    }
+    chain.reverse();
+    for (const id of chain) spots.push(NODES[id]!);
+    return spots;
   }
 
   function spawnBots() {
     for (const bot of bots) scene.remove(bot.mesh);
     bots.length = 0;
-    const spots = [
-      { team: 0 as const, x: -2, z: 14 },
-      { team: 0 as const, x: 2, z: 13 },
-      { team: 1 as const, x: -2, z: -15 },
-      { team: 1 as const, x: 2, z: -14 },
+    const attackRoles: Role[] = ["long", "tun", "cat"];
+    const holdRoles: Role[] = ["holdA", "holdB", "mid"];
+    const attackCount = playerTeam === 0 ? 2 : 3;
+    const holdCount = playerTeam === 1 ? 2 : 3;
+    const attackSpots: Spot[] = [
+      [-3, 21],
+      [3.2, 21],
+      [0, 22.2],
     ];
-    for (const spot of spots) {
-      bots.push({
-        team: spot.team,
-        x: spot.x,
-        y: 0,
-        z: spot.z,
-        yaw: spot.team === 0 ? Math.PI : 0,
-        hp: 100,
-        mag: 30,
-        cool: 0.4,
-        mesh: figure(spot.team === 0 ? "#e27a3a" : "#3a7ad4"),
-        alive: true,
-      });
+    const holdSpots: Spot[] = [
+      [-2.4, -17],
+      [4, -16.4],
+      [1, -18.4],
+    ];
+    for (let index = 0; index < attackCount; index += 1) {
+      const role = attackRoles[index]!;
+      const spot = attackSpots[index]!;
+      bots.push(makeBot(0, role, spot[0], spot[1], "#e07a32"));
     }
+    for (let index = 0; index < holdCount; index += 1) {
+      const role = holdRoles[index]!;
+      const spot = holdSpots[index]!;
+      bots.push(makeBot(1, role, spot[0], spot[1], "#2f6fbe"));
+    }
+  }
+
+  function makeBot(team: 0 | 1, role: Role, sx: number, sz: number, color: string): Actor {
+    return {
+      team,
+      role,
+      x: sx,
+      z: sz,
+      yaw: team === 0 ? 0 : Math.PI,
+      hp: 100,
+      mag: 30,
+      cool: 0.3 + Math.random() * 0.4,
+      reload: 0,
+      route: [...ROUTES[role]],
+      cursor: 0,
+      stuck: 0,
+      lastX: sx,
+      lastZ: sz,
+      mesh: figure(color),
+      alive: true,
+    };
   }
 
   function resetRound(nextPhase: Phase) {
     playerTeam = round % 2 === 0 ? 1 : 0;
     const attack = playerTeam === 0;
-    x = attack ? 0 : 0;
-    z = attack ? 14 : -15;
+    x = attack ? 0 : 1;
+    z = attack ? 20 : -16;
     y = 0;
     vy = 0;
-    yaw = attack ? Math.PI : 0;
+    yaw = attack ? 0 : Math.PI;
+    pitch = 0;
     hp = 100;
     mag = GUNS[gunId].mag;
     reserve = GUNS[gunId].reserve;
@@ -192,16 +399,17 @@ export function mountBreach(canvas: HTMLCanvasElement, onHud: (hud: BreachHud) =
     plant = 0;
     defuse = 0;
     planted = false;
+    routedBomb = false;
     carrier = attack;
     bombMesh.visible = false;
     spawnBots();
     phase = nextPhase;
-    timer = nextPhase === "buy" ? 12 : 100;
+    timer = nextPhase === "buy" ? 12 : 115;
   }
 
   function blocked(px: number, pz: number) {
-    const r = 0.36;
-    return boxes.some((box) => px + r > box.minX && px - r < box.maxX && 0.2 < box.maxY && 1.5 > box.minY && pz + r > box.minZ && pz - r < box.maxZ);
+    const r = 0.34;
+    return boxes.some((box) => px + r > box.minX && px - r < box.maxX && 0.2 < box.maxY && 1.45 > box.minY && pz + r > box.minZ && pz - r < box.maxZ);
   }
 
   function rayBox(ox: number, oy: number, oz: number, dx: number, dy: number, dz: number, box: Box, max: number) {
@@ -240,55 +448,70 @@ export function mountBreach(canvas: HTMLCanvasElement, onHud: (hud: BreachHud) =
     return best;
   }
 
-  function damageActor(team: 0 | 1, amount: number, tx: number, ty: number, tz: number) {
-    if (team !== playerTeam && hp > 0) {
-      const dist = Math.hypot(tx - x, ty - 1.2, tz - z);
-      if (dist < 0.55) {
-        const soaked = Math.min(armor, amount * 0.5);
-        armor -= soaked;
-        hp = Math.max(0, hp - (amount - soaked));
-        return true;
+  function raySphere(ox: number, oy: number, oz: number, dx: number, dy: number, dz: number, cx: number, cy: number, cz: number, radius: number) {
+    const lx = cx - ox;
+    const ly = cy - oy;
+    const lz = cz - oz;
+    const t = lx * dx + ly * dy + lz * dz;
+    if (t < 0) return -1;
+    const miss = (ox + dx * t - cx) ** 2 + (oy + dy * t - cy) ** 2 + (oz + dz * t - cz) ** 2;
+    if (miss > radius * radius) return -1;
+    return t - Math.sqrt(radius * radius - miss);
+  }
+
+  function hurtPlayer(amount: number) {
+    const soaked = Math.min(armor, amount * 0.5);
+    armor -= soaked;
+    hp = Math.max(0, hp - (amount - soaked));
+    if (hp <= 0 && carrier && !planted) carrier = false;
+  }
+
+  function fire(team: 0 | 1, ox: number, oy: number, oz: number, dx: number, dy: number, dz: number, spec: (typeof GUNS)[GunId]) {
+    const len = Math.hypot(dx, dy, dz) || 1;
+    for (let pellet = 0; pellet < spec.pellets; pellet += 1) {
+      const sx = dx / len + (Math.random() - 0.5) * spec.spread;
+      const sy = dy / len + (Math.random() - 0.5) * spec.spread;
+      const sz = dz / len + (Math.random() - 0.5) * spec.spread;
+      const nlen = Math.hypot(sx, sy, sz) || 1;
+      const ndx = sx / nlen;
+      const ndy = sy / nlen;
+      const ndz = sz / nlen;
+      let best = wallDistance(ox, oy, oz, ndx, ndy, ndz, 48);
+      let kind: "player" | number = -1;
+      if (team !== playerTeam && hp > 0) {
+        const hit = raySphere(ox, oy, oz, ndx, ndy, ndz, x, y + 1.15, z, 0.42);
+        if (hit >= 0 && hit < best) {
+          best = hit;
+          kind = "player";
+        }
       }
-    }
-    for (const bot of bots) {
-      if (!bot.alive || bot.team === team) continue;
-      if (Math.hypot(tx - bot.x, ty - 1.2, tz - bot.z) < 0.5) {
-        bot.hp -= amount;
+      bots.forEach((bot, index) => {
+        if (!bot.alive || bot.team === team) return;
+        const hit = raySphere(ox, oy, oz, ndx, ndy, ndz, bot.x, 1.15, bot.z, 0.42);
+        if (hit >= 0 && hit < best) {
+          best = hit;
+          kind = index;
+        }
+      });
+      if (kind === "player") hurtPlayer(spec.damage);
+      else if (kind >= 0) {
+        const bot = bots[kind]!;
+        bot.hp -= spec.damage;
         if (bot.hp <= 0) {
           bot.alive = false;
           bot.mesh.visible = false;
           if (team === playerTeam) money += 300;
         }
-        return true;
       }
-    }
-    return false;
-  }
-
-  function fire(team: 0 | 1, ox: number, oy: number, oz: number, dx: number, dy: number, dz: number, spec: (typeof GUNS)[GunId]) {
-    for (let pellet = 0; pellet < spec.pellets; pellet += 1) {
-      const sx = dx + (Math.random() - 0.5) * spec.spread;
-      const sy = dy + (Math.random() - 0.5) * spec.spread;
-      const sz = dz + (Math.random() - 0.5) * spec.spread;
-      const len = Math.hypot(sx, sy, sz) || 1;
-      const ndx = sx / len;
-      const ndy = sy / len;
-      const ndz = sz / len;
-      const reach = wallDistance(ox, oy, oz, ndx, ndy, ndz, 40);
-      const tx = ox + ndx * Math.max(0, reach - 0.05);
-      const ty = oy + ndy * Math.max(0, reach - 0.05);
-      const tz = oz + ndz * Math.max(0, reach - 0.05);
-      damageActor(team, spec.damage, tx, ty, tz);
     }
   }
 
   function onSite(px: number, pz: number) {
-    return SITES.some((site) => Math.hypot(px - site.x, pz - site.z) < 2.1);
+    return SITES.some((site) => Math.hypot(px - site.x, pz - site.z) < 2.6);
   }
 
   function living(team: 0 | 1) {
-    const botsAlive = bots.filter((bot) => bot.alive && bot.team === team).length;
-    return botsAlive + (playerTeam === team && hp > 0 ? 1 : 0);
+    return bots.filter((bot) => bot.alive && bot.team === team).length + (playerTeam === team && hp > 0 ? 1 : 0);
   }
 
   function finish(attackWins: boolean, why: string) {
@@ -309,7 +532,7 @@ export function mountBreach(canvas: HTMLCanvasElement, onHud: (hud: BreachHud) =
 
   function hud() {
     const spec = GUNS[gunId];
-    const bomb = planted ? "Planted" : carrier && playerTeam === 0 ? "You carry it" : playerTeam === 0 ? "A teammate carries it" : planted ? "Planted" : "Not planted";
+    const bomb = planted ? "Planted" : carrier && playerTeam === 0 ? "You carry it" : playerTeam === 0 ? "A teammate carries it" : "Not planted";
     const key = `${hp}|${armor}|${money}|${mag}|${gunId}|${phase}|${Math.ceil(timer)}|${prompt}|${note}|${locked}|${attackScore}|${holdScore}|${bomb}`;
     if (key === hudKey) return;
     hudKey = key;
@@ -364,7 +587,7 @@ export function mountBreach(canvas: HTMLCanvasElement, onHud: (hud: BreachHud) =
     money = 800;
     gunId = "pistol";
     armor = 0;
-    note = "New match.";
+    note = "New match. Long left, mid doors, tunnels right.";
     resetRound("buy");
     hud();
   }
@@ -378,64 +601,111 @@ export function mountBreach(canvas: HTMLCanvasElement, onHud: (hud: BreachHud) =
     camera.getWorldDirection(dir);
     fire(playerTeam, camera.position.x, camera.position.y, camera.position.z, dir.x, dir.y, dir.z, spec);
     pitch += 0.012;
-    gun.position.z = -0.32;
-    if (mag === 0) reload = 1.5;
+    gun.position.z = -0.28;
+    if (mag === 0 && reserve > 0) reload = 1.5;
   }
 
-  function stepBot(bot: Actor, dt: number, planter: boolean, holder: boolean) {
+  function moveToward(bot: Actor, tx: number, tz: number, dt: number) {
+    const dx = tx - bot.x;
+    const dz = tz - bot.z;
+    const dist = Math.hypot(dx, dz);
+    if (dist < 0.45) return true;
+    const step = Math.min(4.5 * dt, dist);
+    const ux = dx / dist;
+    const uz = dz / dist;
+    const nx = bot.x + ux * step;
+    const nz = bot.z + uz * step;
+    if (!blocked(nx, nz)) {
+      bot.x = nx;
+      bot.z = nz;
+    } else if (!blocked(nx, bot.z)) bot.x = nx;
+    else if (!blocked(bot.x, nz)) bot.z = nz;
+    else {
+      const side = bot.stuck > 0.25 ? 1 : -1;
+      const sx = -uz * side;
+      const sz = ux * side;
+      if (!blocked(bot.x + sx * 0.8, bot.z + sz * 0.8)) {
+        bot.x += sx * step;
+        bot.z += sz * step;
+      }
+    }
+    bot.yaw = Math.atan2(dx, dz);
+    return false;
+  }
+
+  function retargetBomb() {
+    const goal = Math.hypot(bombX - SITES[0]!.x, bombZ - SITES[0]!.z) < Math.hypot(bombX - SITES[1]!.x, bombZ - SITES[1]!.z) ? "asite" : "bsite";
+    for (const bot of bots) {
+      if (!bot.alive) continue;
+      const from = nearestNode(bot.x, bot.z);
+      bot.route = [...routeNodes(from, goal), [bombX, bombZ]];
+      bot.cursor = 0;
+    }
+  }
+
+  function stepBot(bot: Actor, dt: number, planter: boolean, defuser: boolean) {
     if (!bot.alive || phase !== "live") return;
     bot.cool = Math.max(0, bot.cool - dt);
+    const wasReload = bot.reload;
+    bot.reload = Math.max(0, bot.reload - dt);
+    if (wasReload > 0 && bot.reload === 0) bot.mag = 30;
+    if (bot.mag <= 0 && bot.reload === 0) bot.reload = 1.4;
     const foes = [
-      ...(playerTeam !== bot.team && hp > 0 ? [{ x, z, team: playerTeam }] : []),
-      ...bots.filter((other) => other.alive && other.team !== bot.team).map((other) => ({ x: other.x, z: other.z, team: other.team })),
+      ...(playerTeam !== bot.team && hp > 0 ? [{ x, y: y + 1.15, z }] : []),
+      ...bots.filter((other) => other.alive && other.team !== bot.team).map((other) => ({ x: other.x, y: 1.15, z: other.z })),
     ];
-    let seen: { x: number; z: number } | null = null;
-    let best = 26;
+    let seen: { x: number; y: number; z: number } | null = null;
+    let best = 28;
     for (const foe of foes) {
-      const dist = Math.hypot(foe.x - bot.x, foe.z - bot.z);
-      if (dist > best) continue;
       const dx = foe.x - bot.x;
+      const dy = foe.y - 1.4;
       const dz = foe.z - bot.z;
-      const len = dist || 1;
-      const clear = wallDistance(bot.x, 1.4, bot.z, dx / len, 0, dz / len, dist);
-      if (clear > dist - 0.4) {
+      const dist = Math.hypot(dx, dz);
+      if (dist > best) continue;
+      const len = Math.hypot(dx, dy, dz) || 1;
+      const clear = wallDistance(bot.x, 1.4, bot.z, dx / len, dy / len, dz / len, dist);
+      if (clear > dist - 0.35) {
         seen = foe;
         best = dist;
       }
     }
-    let tx = bot.team === 0 ? SITES[0]!.x : 0;
-    let tz = bot.team === 0 ? SITES[0]!.z : 14;
-    if (bot.team === 1 && planted) {
-      tx = bombX;
-      tz = bombZ;
-    } else if (bot.team === 0 && !planted) {
-      const site = SITES[round % 2]!;
-      tx = site.x;
-      tz = site.z;
-    } else if (seen) {
-      tx = seen.x;
-      tz = seen.z;
+    if (seen && bot.cool <= 0 && bot.mag > 0 && bot.reload <= 0) {
+      const dx = seen.x - bot.x;
+      const dy = seen.y - 1.4;
+      const dz = seen.z - bot.z;
+      fire(bot.team, bot.x, 1.4, bot.z, dx, dy, dz, { ...GUNS.rifle, spread: 0.045 });
+      bot.cool = best < 8 ? 0.18 : 0.32;
+      bot.mag -= 1;
+      bot.yaw = Math.atan2(dx, dz);
     }
-    if (seen && bot.cool <= 0 && bot.mag > 0) {
+    const fighting = seen !== null && best < 14;
+    if (!fighting) {
+      const point = bot.route[Math.min(bot.cursor, bot.route.length - 1)];
+      if (point) {
+        const arrived = moveToward(bot, point[0], point[1], dt);
+        if (arrived && bot.cursor < bot.route.length - 1) bot.cursor += 1;
+      }
+    } else if (seen) {
+      const side = Math.sin(performance.now() / 280 + bot.x) * 2.2 * dt;
       const dx = seen.x - bot.x;
       const dz = seen.z - bot.z;
       const len = Math.hypot(dx, dz) || 1;
-      fire(bot.team, bot.x, 1.4, bot.z, dx / len, -0.04, dz / len, GUNS.rifle);
-      bot.cool = 0.28;
-      bot.mag -= 1;
+      const sx = bot.x + (-dz / len) * side;
+      const sz = bot.z + (dx / len) * side;
+      if (!blocked(sx, sz)) {
+        bot.x = sx;
+        bot.z = sz;
+      }
     }
-    const dx = tx - bot.x;
-    const dz = tz - bot.z;
-    const dist = Math.hypot(dx, dz);
-    if (!seen && dist > 1.2) {
-      const step = Math.min(3.1 * dt, dist);
-      const nx = bot.x + (dx / dist) * step;
-      const nz = bot.z + (dz / dist) * step;
-      if (!blocked(nx, bot.z)) bot.x = nx;
-      if (!blocked(bot.x, nz)) bot.z = nz;
-      bot.yaw = Math.atan2(dx, dz);
-    } else if (seen) bot.yaw = Math.atan2(seen.x - bot.x, seen.z - bot.z);
-    if (planter && bot.team === 0 && !planted && !carrier && onSite(bot.x, bot.z)) {
+    if (Math.hypot(bot.x - bot.lastX, bot.z - bot.lastZ) < 0.02) bot.stuck += dt;
+    else bot.stuck = 0;
+    bot.lastX = bot.x;
+    bot.lastZ = bot.z;
+    if (bot.stuck > 0.8) {
+      bot.stuck = 0;
+      if (bot.cursor < bot.route.length - 1) bot.cursor += 1;
+    }
+    if (planter && !planted && !carrier && onSite(bot.x, bot.z)) {
       plant += dt;
       if (plant >= 2.4) {
         planted = true;
@@ -448,7 +718,7 @@ export function mountBreach(canvas: HTMLCanvasElement, onHud: (hud: BreachHud) =
         note = "The case is planted.";
       }
     }
-    if (holder && planted && Math.hypot(bot.x - bombX, bot.z - bombZ) < 1.8 && (playerTeam !== 1 || hp <= 0)) {
+    if (defuser && planted && Math.hypot(bot.x - bombX, bot.z - bombZ) < 1.9) {
       defuse += dt;
       if (defuse >= 5) finish(false, "The case is defused.");
     }
@@ -468,14 +738,14 @@ export function mountBreach(canvas: HTMLCanvasElement, onHud: (hud: BreachHud) =
       mag += take;
       reserve -= take;
     }
-    gun.position.z += (-0.45 - gun.position.z) * Math.min(1, dt * 10);
+    gun.position.z += (-0.42 - gun.position.z) * Math.min(1, dt * 10);
     if (phase === "buy" || phase === "end") {
       timer -= dt;
       if (timer <= 0) {
         if (phase === "buy") {
           phase = "live";
-          timer = 100;
-          note = playerTeam === 0 ? "Plant on a gold ring. Hold F." : "Stop the plant. Hold F on the case.";
+          timer = 115;
+          note = playerTeam === 0 ? "Plant on a gold ring. Hold F." : "Hold the sites. Defuse with F.";
         } else {
           round += 1;
           resetRound("buy");
@@ -486,13 +756,13 @@ export function mountBreach(canvas: HTMLCanvasElement, onHud: (hud: BreachHud) =
       if (hp > 0) {
         const forward = (keys.has("KeyW") || keys.has("ArrowUp") ? 1 : 0) - (keys.has("KeyS") || keys.has("ArrowDown") ? 1 : 0);
         const strafe = (keys.has("KeyD") || keys.has("ArrowRight") ? 1 : 0) - (keys.has("KeyA") || keys.has("ArrowLeft") ? 1 : 0);
-        const speed = 4.6;
+        const speed = 4.7;
         const nx = x + (-Math.sin(yaw) * forward + Math.cos(yaw) * strafe) * speed * dt;
         const nz = z + (-Math.cos(yaw) * forward - Math.sin(yaw) * strafe) * speed * dt;
         if (!blocked(nx, z)) x = nx;
         if (!blocked(x, nz)) z = nz;
-        x = Math.max(-19, Math.min(19, x));
-        z = Math.max(-19, Math.min(19, z));
+        x = Math.max(-24.4, Math.min(24.4, x));
+        z = Math.max(-19.6, Math.min(22.6, z));
         vy -= 22 * dt;
         y += vy * dt;
         if (y <= 0) {
@@ -503,10 +773,19 @@ export function mountBreach(canvas: HTMLCanvasElement, onHud: (hud: BreachHud) =
         if (keys.has("KeyR") && reserve > 0 && mag < GUNS[gunId].mag && reload === 0) reload = 1.45;
         if (trigger && GUNS[gunId].auto) shootPlayer();
       }
-      if (reload <= 0 && mag === 0 && reserve > 0 && keys.has("KeyR") === false && cool <= 0) reload = 1.45;
-      const planter = bots.find((bot) => bot.alive && bot.team === 0);
-      const holder = bots.find((bot) => bot.alive && bot.team === 1);
-      for (const bot of bots) stepBot(bot, dt, bot === planter, bot === holder);
+      if (planted && !routedBomb) {
+        routedBomb = true;
+        retargetBomb();
+      }
+      const wantA = round % 2 === 0;
+      const planter =
+        bots.find((bot) => bot.alive && bot.team === 0 && (wantA ? bot.role === "long" || bot.role === "cat" : bot.role === "tun")) ??
+        bots.find((bot) => bot.alive && bot.team === 0);
+      const holders = bots.filter((bot) => bot.alive && bot.team === 1);
+      holders.sort((a, b) => Math.hypot(a.x - bombX, a.z - bombZ) - Math.hypot(b.x - bombX, b.z - bombZ));
+      const playerDefusing = playerTeam === 1 && hp > 0 && planted && Math.hypot(x - bombX, z - bombZ) < 1.9;
+      const defuser = planted && !playerDefusing ? holders[0] : undefined;
+      for (const bot of bots) stepBot(bot, dt, bot === planter, bot === defuser);
       prompt = "";
       if (playerTeam === 0 && carrier && !planted && onSite(x, z) && hp > 0) {
         prompt = "Hold F to plant";
@@ -525,7 +804,7 @@ export function mountBreach(canvas: HTMLCanvasElement, onHud: (hud: BreachHud) =
           }
         } else plant = 0;
       }
-      if (playerTeam === 1 && planted && hp > 0 && Math.hypot(x - bombX, z - bombZ) < 1.8) {
+      if (playerTeam === 1 && planted && hp > 0 && Math.hypot(x - bombX, z - bombZ) < 1.9) {
         prompt = "Hold F to defuse";
         if (keys.has("KeyF")) {
           defuse += dt;
@@ -565,7 +844,6 @@ export function mountBreach(canvas: HTMLCanvasElement, onHud: (hud: BreachHud) =
     if (event.type === "keydown") {
       keys.add(event.code);
       if (["Space", "KeyR", "KeyF"].includes(event.code)) event.preventDefault();
-      if (event.code === "KeyF" || event.code === "KeyR") keys.add(event.code);
     } else keys.delete(event.code);
   }
   function onMouse(event: MouseEvent) {
