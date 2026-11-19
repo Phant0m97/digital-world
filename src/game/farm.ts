@@ -223,7 +223,7 @@ export function mountFarm(canvas: HTMLCanvasElement, onHud: (hud: FarmHud) => vo
   ground.rotation.x = -Math.PI / 2;
   ground.castShadow = false;
   solid(new THREE.CircleGeometry(12, 10), "#7cb84a", 1.2, 0.012, 1.2).rotation.x = -Math.PI / 2;
-  const lane = solid(new THREE.PlaneGeometry(2.4, 18), "#c4a06a", 1.2, 0.02, 10);
+  const lane = solid(new THREE.PlaneGeometry(2.2, 14), "#c4a06a", HOUSE.x, 0.03, HOUSE.z + 8);
   lane.rotation.x = -Math.PI / 2;
 
   const hx = HOUSE.x;
@@ -232,6 +232,16 @@ export function mountFarm(canvas: HTMLCanvasElement, onHud: (hud: FarmHud) => vo
   scene.add(homestead);
   const walls = new THREE.Group();
   homestead.add(walls);
+  homestead.add(lane);
+  const mound = (x: number, z: number, r: number, color: string) => {
+    const hill = solid(new THREE.SphereGeometry(r, 12, 8), color, x, -r * 0.22, z, homestead);
+    hill.scale.y = 0.48;
+  };
+  mound(-16, 1, 6, "#7cbc4e");
+  mound(-6, -14, 7, "#69a83c");
+  mound(12, -8, 6, "#86c255");
+  mound(-15, 10, 6, "#5e9836");
+  mound(0, 14, 5, "#78b44a");
   const plaster = "#f6efe4";
   const ink = "#23282e";
   const glass = "#b9e3f5";
@@ -333,11 +343,11 @@ export function mountFarm(canvas: HTMLCanvasElement, onHud: (hud: FarmHud) => vo
   outsideBoxes.push({ minX: 8.2, maxX: 9.5, minZ: -14, maxZ: 13 });
   const city = buildCity(solid, outsideBoxes);
   scene.add(city);
-  const shopDoor = solid(new THREE.PlaneGeometry(0.9, 1.7), "#1c2126", STALL_AT.x, 0.95, STALL_AT.z + 1.46);
+  const shopDoor = solid(new THREE.PlaneGeometry(0.9, 1.7), "#1c2126", STALL_AT.x, 0.95, STALL_AT.z + 1.46, city);
   shopDoor.castShadow = false;
-  const hallDoor = solid(new THREE.PlaneGeometry(0.9, 1.7), "#1c2126", 16.5, 0.95, -3.52);
+  const hallDoor = solid(new THREE.PlaneGeometry(0.9, 1.7), "#1c2126", 16.5, 0.95, -3.52, city);
   hallDoor.castShadow = false;
-  const officeDoor = solid(new THREE.PlaneGeometry(0.9, 1.7), "#1c2126", 18.2, 0.95, 7.62);
+  const officeDoor = solid(new THREE.PlaneGeometry(0.9, 1.7), "#1c2126", 18.2, 0.95, 7.62, city);
   officeDoor.rotation.y = Math.PI;
   officeDoor.castShadow = false;
 
@@ -755,9 +765,14 @@ export function mountFarm(canvas: HTMLCanvasElement, onHud: (hud: FarmHud) => vo
         farmer.position.x = Math.max(spot.x - 2.2, Math.min(spot.x + 2.2, farmer.position.x));
         farmer.position.z = Math.max(spot.z - 1.7, Math.min(spot.z + 2.5, farmer.position.z));
       } else {
-        farmer.position.x = Math.max(-15, Math.min(46, farmer.position.x));
+        const onFarm = farmer.position.x < 10;
+        farmer.position.x = Math.max(onFarm ? -15 : 11, Math.min(onFarm ? 7.6 : 46, farmer.position.x));
         farmer.position.z = Math.max(-14, Math.min(13, farmer.position.z));
+        if (onFarm && farmer.position.x > 7.6) farmer.position.x = 7.6;
       }
+      const away = !room && farmer.position.x > 10;
+      const parked = carOwned && away ? CITY_PARK : CAR_PARK;
+      car.position.set(parked.x, 0, parked.z);
       if (forward || strafe || move.x || move.z) farmer.rotation.y = Math.atan2(vx, vz);
       doorLock = Math.max(0, doorLock - dt);
       if (doorLock <= 0 && !room) {
@@ -831,9 +846,10 @@ export function mountFarm(canvas: HTMLCanvasElement, onHud: (hud: FarmHud) => vo
     sunTarget.position.set(farmer.position.x, 0, farmer.position.z);
     const dayness = Math.max(0, Math.sin(sunAngle));
     const inCity = !room && farmer.position.x > 10;
-    sun.intensity = 0.25 + dayness * 1.45;
-    scene.background = new THREE.Color(dayness > 0.15 ? "#9fd0ea" : "#1c2740");
-    scene.fog = new THREE.Fog(dayness > 0.15 ? "#b7d7ea" : "#1c2740", inCity ? 8 : 24, inCity ? 20 : 62);
+    city.visible = inCity;
+    sun.intensity = 0.35 + dayness * 1.25;
+    scene.background = new THREE.Color(dayness > 0.15 ? "#7ec8ea" : "#1c2740");
+    scene.fog = new THREE.Fog(dayness > 0.15 ? "#c5e6f6" : "#1c2740", inCity ? 12 : 48, inCity ? 32 : 90);
     homestead.visible = !inCity;
     if (!room && farmer.position.x > 7.5) {
       const next = carOwned ? "The woods are too thick. Use the car." : "The road is closed. Buy the car to reach the city.";
@@ -866,10 +882,10 @@ export function mountFarm(canvas: HTMLCanvasElement, onHud: (hud: FarmHud) => vo
       camera.position.lerp(new THREE.Vector3(camX, 1.65, camZ), 0.18);
       camera.lookAt(lookAt.x, 1.05, lookAt.z);
     } else {
-      const camX = lookAt.x - Math.sin(yaw) * 7.2;
-      const camZ = lookAt.z - Math.cos(yaw) * 7.2;
-      camera.position.lerp(new THREE.Vector3(camX, 5.2, camZ), 0.12);
-      camera.lookAt(lookAt.x, 1, lookAt.z);
+      const camX = lookAt.x - Math.sin(yaw) * 8.6;
+      const camZ = lookAt.z - Math.cos(yaw) * 8.6;
+      camera.position.lerp(new THREE.Vector3(camX, 3.8, camZ), 0.12);
+      camera.lookAt(lookAt.x, 1.25, lookAt.z);
     }
     renderer.render(scene, camera);
     saveTimer += dt;

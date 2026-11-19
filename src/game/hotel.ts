@@ -77,8 +77,8 @@ export function mountHotel(canvas: HTMLCanvasElement, onHud: (hud: HotelHud) => 
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color("#f3d7b0");
-  const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 80);
+  scene.background = new THREE.Color("#f6e2c4");
+  const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 80);
   camera.position.set(0, 11, 5.2);
   camera.lookAt(0, 0, -2);
   scene.add(new THREE.HemisphereLight("#fff6e4", "#8a9a62", 0.95));
@@ -107,18 +107,18 @@ export function mountHotel(canvas: HTMLCanvasElement, onHud: (hud: HotelHud) => 
   lawn.position.y = -0.04;
   lawn.receiveShadow = true;
   scene.add(lawn);
-  box(12.6, 0.08, 15.5, "#e7d3ae", 0, 0.02, 1.7, scene);
-  box(1.7, 0.03, 13.4, "#6a4ea8", 0, 0.08, 1.8, scene);
-  box(12.9, 0.16, 0.22, "#6b4328", 0, 1.28, 9.9, scene);
-  box(0.22, 1.2, 16.2, "#6b4328", -6.7, 1.22, 1.7, scene);
-  box(0.22, 1.2, 16.2, "#6b4328", 6.7, 1.22, 1.7, scene);
-  box(2.4, 0.7, 0.7, "#c47a3a", 0, 0.4, -3.5, scene);
-  box(0.7, 0.28, 0.45, "#2a3138", -0.4, 0.86, -3.45, scene);
-  box(0.35, 0.08, 0.28, "#8fd4ff", -0.4, 1.02, -3.45, scene);
+  box(12.4, 0.08, 15.2, "#e8d2a4", 0, 0.02, 1.7, scene);
+  box(2.05, 0.04, 12.6, "#6a46c4", 0, 0.09, 1.7, scene);
+  box(12.7, 0.18, 0.28, "#5a3824", 0, 1.32, 9.9, scene);
+  box(0.28, 1.25, 16.1, "#5a3824", -6.7, 1.2, 1.7, scene);
+  box(0.28, 1.25, 16.1, "#5a3824", 6.7, 1.2, 1.7, scene);
+  box(3.4, 0.85, 0.9, "#c4894a", 0, 0.48, -3.5, scene);
+  box(1.2, 0.32, 0.08, "#f7f1e6", 0, 1.08, -3.12, scene);
+  box(0.55, 0.22, 0.08, "#2a3138", -0.7, 0.98, -3.08, scene);
   const machine = new THREE.Group();
   machine.position.set(2.15, 0, -3.45);
-  box(0.7, 0.95, 0.5, "#2a3138", 0, 0.55, 0, machine);
-  box(0.5, 0.55, 0.08, "#d7dbe3", 0, 0.62, 0.26, machine);
+  box(0.72, 1.05, 0.48, "#1a1d22", 0, 0.58, 0, machine);
+  box(0.46, 0.62, 0.06, "#d7dbe3", 0, 0.62, 0.24, machine);
   box(0.18, 0.28, 0.12, "#49b6ff", 0.18, 1.05, 0, machine);
   box(0.22, 0.08, 0.22, "#fffaf3", -0.12, 0.42, 0.28, machine);
   box(0.1, 0.08, 0.04, "#3ecf8e", -0.16, 0.78, 0.28, machine);
@@ -567,8 +567,8 @@ export function mountHotel(canvas: HTMLCanvasElement, onHud: (hud: HotelHud) => 
     }
     if (maid) stepActor(maidMesh, dt);
     const look = bell.position;
-    camera.position.lerp(new THREE.Vector3(look.x, 10.5, look.z + 7.6), 0.12);
-    camera.lookAt(look.x, 0, look.z);
+    camera.position.lerp(new THREE.Vector3(look.x, 6.2, look.z + 5.8), 0.12);
+    camera.lookAt(look.x, 0.7, look.z);
     heldCup.visible = holding === "coffee";
     heldTowel.visible = holding === "towel";
     rebuildRooms();
@@ -584,7 +584,7 @@ export function mountHotel(canvas: HTMLCanvasElement, onHud: (hud: HotelHud) => 
 
   function guestSolid(px: number, pz: number) {
     if (walled(px, pz, rooms)) return true;
-    if (hitBox(px, pz, 0, -3.5, 1.2, 0.45)) return true;
+    if (hitBox(px, pz, 0, -3.5, 1.75, 0.55)) return true;
     if (hitBox(px, pz, 2.15, -3.45, 0.4, 0.3)) return true;
     if (hitBox(px, pz, -2.2, -3.4, 0.4, 0.28)) return true;
     for (let index = 0; index < SLOTS.length; index += 1) {
