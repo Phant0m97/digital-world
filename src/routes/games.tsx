@@ -9,6 +9,8 @@ const GAMES = [
   { to: "/sketch", title: "Sketch", image: "games/sketch-stick.jpg" },
   { to: "/farm", title: "Acre", image: "games/acre.jpg" },
   { to: "/ruins", title: "Ruins", image: "games/ruins.jpg" },
+  { to: "/harbor", title: "Harbor", image: "games/harbor.jpg" },
+  { to: "/foundry", title: "Foundry", image: "games/foundry.jpg" },
 ] as const;
 
 function GamesPage() {

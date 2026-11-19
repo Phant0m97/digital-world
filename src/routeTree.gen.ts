@@ -12,7 +12,9 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ChatRouteImport } from './routes/chat'
 import { Route as FarmRouteImport } from './routes/farm'
+import { Route as FoundryRouteImport } from './routes/foundry'
 import { Route as GamesRouteImport } from './routes/games'
+import { Route as HarborRouteImport } from './routes/harbor'
 import { Route as PaintballRouteImport } from './routes/paintball'
 import { Route as PlayRouteImport } from './routes/play'
 import { Route as RuinsRouteImport } from './routes/ruins'
@@ -33,9 +35,19 @@ const FarmRoute = FarmRouteImport.update({
   path: '/farm',
   getParentRoute: () => rootRouteImport,
 } as any)
+const FoundryRoute = FoundryRouteImport.update({
+  id: '/foundry',
+  path: '/foundry',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const GamesRoute = GamesRouteImport.update({
   id: '/games',
   path: '/games',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HarborRoute = HarborRouteImport.update({
+  id: '/harbor',
+  path: '/harbor',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PaintballRoute = PaintballRouteImport.update({
@@ -63,7 +75,9 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/chat': typeof ChatRoute
   '/farm': typeof FarmRoute
+  '/foundry': typeof FoundryRoute
   '/games': typeof GamesRoute
+  '/harbor': typeof HarborRoute
   '/paintball': typeof PaintballRoute
   '/play': typeof PlayRoute
   '/ruins': typeof RuinsRoute
@@ -73,7 +87,9 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/chat': typeof ChatRoute
   '/farm': typeof FarmRoute
+  '/foundry': typeof FoundryRoute
   '/games': typeof GamesRoute
+  '/harbor': typeof HarborRoute
   '/paintball': typeof PaintballRoute
   '/play': typeof PlayRoute
   '/ruins': typeof RuinsRoute
@@ -84,7 +100,9 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/chat': typeof ChatRoute
   '/farm': typeof FarmRoute
+  '/foundry': typeof FoundryRoute
   '/games': typeof GamesRoute
+  '/harbor': typeof HarborRoute
   '/paintball': typeof PaintballRoute
   '/play': typeof PlayRoute
   '/ruins': typeof RuinsRoute
@@ -96,7 +114,9 @@ export interface FileRouteTypes {
     | '/'
     | '/chat'
     | '/farm'
+    | '/foundry'
     | '/games'
+    | '/harbor'
     | '/paintball'
     | '/play'
     | '/ruins'
@@ -106,7 +126,9 @@ export interface FileRouteTypes {
     | '/'
     | '/chat'
     | '/farm'
+    | '/foundry'
     | '/games'
+    | '/harbor'
     | '/paintball'
     | '/play'
     | '/ruins'
@@ -116,7 +138,9 @@ export interface FileRouteTypes {
     | '/'
     | '/chat'
     | '/farm'
+    | '/foundry'
     | '/games'
+    | '/harbor'
     | '/paintball'
     | '/play'
     | '/ruins'
@@ -127,7 +151,9 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ChatRoute: typeof ChatRoute
   FarmRoute: typeof FarmRoute
+  FoundryRoute: typeof FoundryRoute
   GamesRoute: typeof GamesRoute
+  HarborRoute: typeof HarborRoute
   PaintballRoute: typeof PaintballRoute
   PlayRoute: typeof PlayRoute
   RuinsRoute: typeof RuinsRoute
@@ -157,11 +183,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FarmRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/foundry': {
+      id: '/foundry'
+      path: '/foundry'
+      fullPath: '/foundry'
+      preLoaderRoute: typeof FoundryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/games': {
       id: '/games'
       path: '/games'
       fullPath: '/games'
       preLoaderRoute: typeof GamesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/harbor': {
+      id: '/harbor'
+      path: '/harbor'
+      fullPath: '/harbor'
+      preLoaderRoute: typeof HarborRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/paintball': {
@@ -199,7 +239,9 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ChatRoute: ChatRoute,
   FarmRoute: FarmRoute,
+  FoundryRoute: FoundryRoute,
   GamesRoute: GamesRoute,
+  HarborRoute: HarborRoute,
   PaintballRoute: PaintballRoute,
   PlayRoute: PlayRoute,
   RuinsRoute: RuinsRoute,

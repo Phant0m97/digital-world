@@ -12,6 +12,7 @@ const empty: FarmHud = {
   note: "Loading the field…",
   day: 1,
   seasonDone: false,
+  inside: false,
 };
 
 function FarmPage() {
@@ -54,7 +55,7 @@ function Field() {
           Games
         </Link>
         <div className="rounded-2xl border-2 border-ink bg-[#f3f0e8] px-3 py-2 text-right text-xs text-ink">
-          <p>Day {hud.day} · {hud.coins} coins</p>
+          <p>Day {hud.day} · {hud.coins} coins{hud.inside ? " · Inside" : ""}</p>
           <p>{hud.seasonDone ? "Season won. Keep farming." : "Earn 200 to finish the season."}</p>
           <p className="mt-1">{hud.note}</p>
         </div>
