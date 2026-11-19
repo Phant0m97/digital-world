@@ -39,7 +39,7 @@ function Desk() {
   }, []);
 
   return (
-    <div className="relative h-[calc(100dvh-4.25rem)] bg-[#c4b396]">
+    <div className="relative h-[calc(100dvh-4.25rem)] bg-[#8fd4ff]">
       <canvas ref={canvasRef} className="h-full w-full" />
       <div className="pointer-events-none absolute top-3 right-3 left-3 flex justify-between gap-3">
         <Link to="/games" className="pointer-events-auto rounded-full bg-[#f3f0e8] px-4 py-2 text-sm text-ink">
