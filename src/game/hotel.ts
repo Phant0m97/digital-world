@@ -607,6 +607,18 @@ export function mountHotel(canvas: HTMLCanvasElement, onHud: (hud: HotelHud) => 
     return guests.find((entry) => entry.phase === "queue");
   }
 
+  function stoodIn() {
+    let found = -1;
+    SLOTS.forEach((slot, index) => {
+      if (Math.abs(bell.position.x - slot.x) < 1.35 && Math.abs(bell.position.z - slot.z) < 1.35) found = index;
+    });
+    return found;
+  }
+
+  function roomPrice() {
+    return 120 + rooms.filter((room) => room.built).length * 90;
+  }
+
   function spacePrompt() {
     if (playerClean >= 0) return "";
     const guest = [...guests].reverse().find((entry) => entry.phase !== "queue" && Math.hypot(entry.x - bell.position.x, entry.z - bell.position.z) < 1.25);
@@ -616,6 +628,9 @@ export function mountHotel(canvas: HTMLCanvasElement, onHud: (hud: HotelHud) => 
     if (nearDesk() && frontGuest()) return "Click Space to give a room";
     if (nearMachine() && holding !== "coffee") return "Click Space to pour coffee";
     if (nearCloset() && holding !== "towel") return "Click Space to take a towel";
+    const here = stoodIn();
+    if (here >= 0 && !rooms[here]!.built) return `Pay ${roomPrice()} To Buy the room`;
+    if (here >= 0 && rooms[here]!.built && !rooms[here]!.dirty && rooms[here]!.level < 3) return `Pay 110 To Upgrade the Room`;
     const dirty = rooms.some((room, index) => room.built && room.dirty && Math.hypot(bell.position.x - doorAt(index).x, bell.position.z - doorAt(index).z) < 1.45);
     if (dirty) return "Click Space to clean";
     return "";
@@ -659,6 +674,28 @@ export function mountHotel(canvas: HTMLCanvasElement, onHud: (hud: HotelHud) => 
     if (nearCloset()) {
       holding = "towel";
       note = "You are holding a towel.";
+      hud();
+      return;
+    }
+    const here = stoodIn();
+    if (here >= 0 && !rooms[here]!.built) {
+      const cost = roomPrice();
+      if (coins < cost) note = `A new room costs ${cost}.`;
+      else {
+        coins -= cost;
+        rooms[here] = { built: true, dirty: false, level: 1, cleaning: 0 };
+        note = "New room ready.";
+      }
+      hud();
+      return;
+    }
+    if (here >= 0 && rooms[here]!.built && !rooms[here]!.dirty && rooms[here]!.level < 3) {
+      if (coins < 110) note = "An upgrade costs 110.";
+      else {
+        coins -= 110;
+        rooms[here]!.level += 1;
+        note = rooms[here]!.level === 2 ? "Better beds." : "Suite linens.";
+      }
       hud();
       return;
     }
