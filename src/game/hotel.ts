@@ -46,14 +46,14 @@ const SLOTS = [
   { x: 3.85, z: 7.95 },
 ];
 const LOOKS = [
-  { floor: "#f07ab4", blanket: "#ff4f9a", rug: "#6dffb0" },
-  { floor: "#6a78ff", blanket: "#d7b4ff", rug: "#ffe27a" },
-  { floor: "#8a5cff", blanket: "#ff7ac8", rug: "#9ef3c8" },
-  { floor: "#3ecf8e", blanket: "#6a5cff", rug: "#ffd0ea" },
-  { floor: "#ffb703", blanket: "#5b4cdb", rug: "#fff6ea" },
-  { floor: "#49b6ff", blanket: "#ff5d8f", rug: "#ffe27a" },
+  { floor: "#f4dfc7", blanket: "#e98f77", rug: "#f5c66f" },
+  { floor: "#e6e0d6", blanket: "#80b7aa", rug: "#d7a8a0" },
+  { floor: "#f0dfcf", blanket: "#76a9cf", rug: "#e9be73" },
+  { floor: "#e9e4d9", blanket: "#91b47b", rug: "#d79b83" },
+  { floor: "#f0ddc7", blanket: "#c88194", rug: "#e7bd70" },
+  { floor: "#e6e4da", blanket: "#6fa99d", rug: "#d99b7b" },
 ];
-const SHIRTS = ["#3d7cff", "#ff8a3d", "#3fbf7a", "#f2c14e", "#ff5d8f", "#7a5cff", "#2ec8e6"];
+const SHIRTS = ["#3d7cff", "#ff8a3d", "#3fbf7a", "#f2c14e", "#ff5d8f", "#7a5cff", "#d9a45b"];
 
 export function mountHotel(canvas: HTMLCanvasElement, onHud: (hud: HotelHud) => void) {
   const save = load();
@@ -77,12 +77,12 @@ export function mountHotel(canvas: HTMLCanvasElement, onHud: (hud: HotelHud) => 
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color("#f6e2c4");
+  scene.background = new THREE.Color("#f6e7d1");
   const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 80);
-  camera.position.set(0, 11, 5.2);
+  camera.position.set(0, 11.5, 5.6);
   camera.lookAt(0, 0, -2);
-  scene.add(new THREE.HemisphereLight("#fff6e4", "#8a9a62", 0.95));
-  const sun = new THREE.DirectionalLight("#ffe0b0", 1.15);
+  scene.add(new THREE.HemisphereLight("#fff8eb", "#9b8866", 1.18));
+  const sun = new THREE.DirectionalLight("#ffe8c8", 1.35);
   sun.position.set(6, 14, 4);
   sun.castShadow = true;
   sun.shadow.mapSize.set(1024, 1024);
@@ -107,40 +107,40 @@ export function mountHotel(canvas: HTMLCanvasElement, onHud: (hud: HotelHud) => 
   lawn.position.y = -0.04;
   lawn.receiveShadow = true;
   scene.add(lawn);
-  box(12.4, 0.08, 15.2, "#e8d2a4", 0, 0.02, 1.7, scene);
-  box(2.05, 0.04, 12.6, "#6a46c4", 0, 0.09, 1.7, scene);
+  box(12.4, 0.08, 15.2, "#f2dfc4", 0, 0.02, 1.7, scene);
+  box(2.45, 0.05, 12.6, "#c65b72", 0, 0.09, 1.7, scene);
   box(12.7, 0.18, 0.28, "#5a3824", 0, 1.32, 9.9, scene);
   box(0.28, 1.25, 16.1, "#5a3824", -6.7, 1.2, 1.7, scene);
   box(0.28, 1.25, 16.1, "#5a3824", 6.7, 1.2, 1.7, scene);
-  box(3.4, 0.85, 0.9, "#c4894a", 0, 0.48, -3.5, scene);
-  box(1.2, 0.32, 0.08, "#f7f1e6", 0, 1.08, -3.12, scene);
-  box(0.55, 0.22, 0.08, "#2a3138", -0.7, 0.98, -3.08, scene);
+  box(3.4, 0.68, 0.84, "#398f83", 0, 0.46, -3.5, scene);
+  box(3.58, 0.13, 1.02, "#f0d7ac", 0, 0.86, -3.5, scene);
+  box(3.48, 0.11, 0.9, "#2d756e", 0, 0.53, -3.5, scene);
   const machine = new THREE.Group();
   machine.position.set(2.15, 0, -3.45);
-  box(0.72, 1.05, 0.48, "#1a1d22", 0, 0.58, 0, machine);
-  box(0.46, 0.62, 0.06, "#d7dbe3", 0, 0.62, 0.24, machine);
-  box(0.18, 0.28, 0.12, "#49b6ff", 0.18, 1.05, 0, machine);
-  box(0.22, 0.08, 0.22, "#fffaf3", -0.12, 0.42, 0.28, machine);
+  box(0.72, 1.05, 0.48, "#28665e", 0, 0.58, 0, machine);
+  box(0.46, 0.62, 0.06, "#f6ead8", 0, 0.62, 0.24, machine);
+  box(0.18, 0.28, 0.12, "#d99b69", 0.18, 1.05, 0, machine);
+  box(0.22, 0.08, 0.22, "#fff8ed", -0.12, 0.42, 0.28, machine);
   box(0.1, 0.08, 0.04, "#3ecf8e", -0.16, 0.78, 0.28, machine);
   box(0.1, 0.08, 0.04, "#e25b4a", 0, 0.78, 0.28, machine);
   scene.add(machine);
   const closet = new THREE.Group();
   closet.position.set(-2.2, 0, -3.4);
-  box(0.7, 1.15, 0.42, "#c47a3a", 0, 0.62, 0, closet);
-  box(0.5, 0.7, 0.06, "#f7f7f5", 0, 0.7, 0.2, closet);
-  box(0.42, 0.08, 0.08, "#fffaf3", 0, 0.95, 0.22, closet);
+  box(0.7, 1.15, 0.42, "#aa7450", 0, 0.62, 0, closet);
+  box(0.5, 0.7, 0.06, "#efe1ce", 0, 0.7, 0.2, closet);
+  box(0.42, 0.08, 0.08, "#fff8ed", 0, 0.95, 0.22, closet);
   box(0.42, 0.08, 0.08, "#e7e2d8", 0, 0.78, 0.22, closet);
-  box(0.42, 0.08, 0.08, "#fffaf3", 0, 0.61, 0.22, closet);
+  box(0.42, 0.08, 0.08, "#fff8ed", 0, 0.61, 0.22, closet);
   scene.add(closet);
-  const wallH = 1.35;
-  box(0.28, wallH, 16.7, "#fff4ea", -6.7, wallH / 2, 1.7, scene);
-  box(0.28, wallH, 16.7, "#fff4ea", 6.7, wallH / 2, 1.7, scene);
-  box(13.9, wallH, 0.28, "#fff4ea", 0, wallH / 2, 9.9, scene);
-  box(5.5, wallH, 0.28, "#fff4ea", -3.9, wallH / 2, -6.45, scene);
-  box(5.5, wallH, 0.28, "#fff4ea", 3.9, wallH / 2, -6.45, scene);
-  box(0.22, wallH, 0.28, "#c47a3a", -1.15, wallH / 2, -6.45, scene);
-  box(0.22, wallH, 0.28, "#c47a3a", 1.15, wallH / 2, -6.45, scene);
-  const bell = figure("#e23b4a", "#2a3138", "bell", mat);
+  const wallH = 1.55;
+  box(0.28, wallH, 16.7, "#f3e4d2", -6.7, wallH / 2, 1.7, scene);
+  box(0.28, wallH, 16.7, "#f3e4d2", 6.7, wallH / 2, 1.7, scene);
+  box(13.9, wallH, 0.28, "#f3e4d2", 0, wallH / 2, 9.9, scene);
+  box(5.5, wallH, 0.28, "#f3e4d2", -3.9, wallH / 2, -6.45, scene);
+  box(5.5, wallH, 0.28, "#f3e4d2", 3.9, wallH / 2, -6.45, scene);
+  box(0.22, wallH, 0.28, "#b58a5b", -1.15, wallH / 2, -6.45, scene);
+  box(0.22, wallH, 0.28, "#b58a5b", 1.15, wallH / 2, -6.45, scene);
+  buildHotelDecor(scene); const bell = figure("#398f83", "#705345", "bell", mat);
   bell.position.set(0, 0, -2.15);
   scene.add(bell);
   const cleanBar = new THREE.Group();
@@ -149,16 +149,16 @@ export function mountHotel(canvas: HTMLCanvasElement, onHud: (hud: HotelHud) => 
   const cleanFill = box(0.74, 0.06, 0.05, "#3ecf8e", 0, 1.7, 0.04, cleanBar);
   cleanBack.visible = false;
   cleanFill.visible = false;
-  const maidMesh = figure("#2a3138", "#f7f7f5", "maid", mat);
+  const maidMesh = figure("#f4ead8", "#74604d", "maid", mat);
   maidMesh.visible = maid;
   maidMesh.position.set(2.4, 0, -5.1);
   scene.add(maidMesh);
   const maidWay: { x: number; z: number }[] = [];
-  const cookMesh = figure("#fff6ea", "#e23b4a", "cook", mat);
+  const cookMesh = figure("#f6ead8", "#b85b58", "cook", mat);
   cookMesh.visible = cook;
   cookMesh.position.set(2.9, 0, -2.5);
   scene.add(cookMesh);
-  const clerkMesh = figure("#e23b4a", "#1c2126", "bell", mat);
+  const clerkMesh = figure("#398f83", "#705345", "bell", mat);
   clerkMesh.visible = clerk;
   clerkMesh.position.set(0.85, 0, -3.15);
   scene.add(clerkMesh);
@@ -187,10 +187,10 @@ export function mountHotel(canvas: HTMLCanvasElement, onHud: (hud: HotelHud) => 
       const look = LOOKS[index]!;
       const side = slot.x < 0 ? 1 : -1;
       if (!room.built) {
-        box(2.7, 0.08, 2.7, "#c4a574", 0, 0.06, 0, group);
+        box(2.7, 0.08, 2.7, "#d8c7aa", 0, 0.06, 0, group);
         box(0.55, 0.1, 0.1, "#fff6ea", 0, 0.55, 0, group);
         box(0.1, 0.55, 0.1, "#fff6ea", 0, 0.55, 0, group);
-        const pad = box(2.7, 0.05, 2.7, "#c4a574", 0, 0.08, 0, group);
+        const pad = box(2.7, 0.05, 2.7, "#d8c7aa", 0, 0.08, 0, group);
         pad.userData = { kind: "room", index };
         roomFloors.push(pad);
         return;
@@ -199,16 +199,16 @@ export function mountHotel(canvas: HTMLCanvasElement, onHud: (hud: HotelHud) => 
       floor.userData = { kind: "room", index };
       roomFloors.push(floor);
       const wallH = 0.9;
-      box(3.15, wallH, 0.16, "#f4efe6", 0, wallH / 2, 1.42, group);
-      box(3.15, wallH, 0.16, "#f4efe6", 0, wallH / 2, -1.42, group);
-      box(0.16, wallH, 3.0, "#6b4328", -side * 1.42, wallH / 2, 0, group);
-      box(0.16, wallH, 0.72, "#f4efe6", side * 1.42, wallH / 2, -1.08, group);
-      box(0.16, wallH, 0.72, "#f4efe6", side * 1.42, wallH / 2, 1.08, group);
-      box(0.36, 0.28, 0.05, "#9fd8ff", -side * 1.28, 0.52, 0.1, group);
+      box(3.15, wallH, 0.16, "#f2e9dd", 0, wallH / 2, 1.42, group);
+      box(3.15, wallH, 0.16, "#f2e9dd", 0, wallH / 2, -1.42, group);
+      box(0.16, wallH, 3.0, "#856345", -side * 1.42, wallH / 2, 0, group);
+      box(0.16, wallH, 0.72, "#f2e9dd", side * 1.42, wallH / 2, -1.08, group);
+      box(0.16, wallH, 0.72, "#f2e9dd", side * 1.42, wallH / 2, 1.08, group);
+      box(0.36, 0.28, 0.05, "#9ecbc1", -side * 1.28, 0.52, 0.1, group);
       box(0.95, 0.2, 0.5, "#8b5a32", -side * 0.35, 0.18, -0.28, group);
       box(0.82, 0.1, 0.4, room.dirty ? "#e7d3c4" : look.blanket, -side * 0.35, 0.3, -0.28, group);
-      box(0.24, 0.08, 0.18, "#fffaf3", -side * 0.12, 0.38, -0.28, group);
-      box(0.26, 0.28, 0.26, "#6b4328", -side * 0.85, 0.18, 0.35, group);
+      box(0.24, 0.08, 0.18, "#fff8ed", -side * 0.12, 0.38, -0.28, group);
+      box(0.26, 0.28, 0.26, "#856345", -side * 0.85, 0.18, 0.35, group);
       box(0.06, 0.16, 0.06, "#f2c14e", -side * 0.85, 0.38, 0.35, group);
       if (room.level >= 2) {
         const rug = box(0.7, 0.04, 0.48, look.rug, side * 0.15, 0.12, 0.15, group);
@@ -766,7 +766,7 @@ export function mountHotel(canvas: HTMLCanvasElement, onHud: (hud: HotelHud) => 
   window.addEventListener("keydown", onKey);
   window.addEventListener("keyup", onKey);
   rebuildRooms();
-  camera.position.set(bell.position.x, 10.5, bell.position.z + 7.6);
+  camera.position.set(bell.position.x, 11.2, bell.position.z + 8.0);
   camera.lookAt(bell.position.x, 0, bell.position.z);
   hud();
   raf = requestAnimationFrame(frame);
@@ -818,7 +818,7 @@ function bubbleSprite(kind: "coffee" | "towel") {
   canvas.height = 140;
   const g = canvas.getContext("2d");
   if (!g) return new THREE.Sprite();
-  g.fillStyle = "#fffaf3";
+  g.fillStyle = "#fff8ed";
   g.beginPath();
   g.moveTo(28, 14);
   g.arcTo(136, 14, 136, 92, 20);
@@ -840,7 +840,7 @@ function bubbleSprite(kind: "coffee" | "towel") {
     g.beginPath();
     g.ellipse(75, 46, 13, 7, 0, 0, Math.PI * 2);
     g.fill();
-    g.strokeStyle = "#c47a3a";
+    g.strokeStyle = "#b58a5b";
     g.lineWidth = 4;
     g.beginPath();
     g.arc(94, 50, 9, -1, 1);
@@ -926,14 +926,14 @@ function figure(shirt: string, pants: string, kind: "guest" | "bell" | "maid" | 
   head.castShadow = true;
   group.add(body, legs, head);
   if (kind === "bell") {
-    const hat = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.16, 10), mat("#e23b4a"));
+    const hat = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.16, 10), mat("#bd6d63"));
     hat.position.y = 1.24;
     const band = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.05, 10), mat("#f2c14e"));
     band.position.y = 1.18;
     group.add(hat, band);
   }
   if (kind === "cook") {
-    const hat = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.14, 0.22, 10), mat("#fffaf3"));
+    const hat = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.14, 0.22, 10), mat("#fff8ed"));
     hat.position.y = 1.26;
     group.add(hat);
   }
@@ -941,13 +941,13 @@ function figure(shirt: string, pants: string, kind: "guest" | "bell" | "maid" | 
   meal.name = "meal";
   meal.position.set(0.28, 1.35, 0);
   meal.visible = false;
-  const plate = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.04, 10), mat("#fffaf3"));
+  const plate = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.04, 10), mat("#fff8ed"));
   const food = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 6), mat("#e25b4a"));
   food.position.y = 0.08;
   meal.add(plate, food);
   const towel = bubbleSprite("towel");
   const coffee = bubbleSprite("coffee");
-  const bar = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.06, 0.06), mat("#2ec8e6"));
+  const bar = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.06, 0.06), mat("#d9a45b"));
   bar.name = "bar";
   bar.position.y = 1.4;
   bar.visible = false;
@@ -970,5 +970,68 @@ function load() {
     };
   } catch {
     return base;
+  }
+}
+
+
+function buildHotelDecor(scene: THREE.Scene) {
+  const mat = (color: string) => new THREE.MeshLambertMaterial({ color });
+  const box = (w: number, h: number, d: number, color: string, x: number, y: number, z: number) => {
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(color));
+    mesh.position.set(x, y, z);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    scene.add(mesh);
+    return mesh;
+  };
+
+  // Add a welcoming sign and warm artwork to the lobby wall.
+  box(3.55, 0.92, 0.18, "#b58a5b", 0, 1.03, -6.2);
+  box(3.38, 0.76, 0.1, "#f8ead6", 0, 1.03, -6.08);
+  const signCanvas = document.createElement("canvas");
+  signCanvas.width = 900;
+  signCanvas.height = 220;
+  const sign = signCanvas.getContext("2d");
+  if (sign) {
+    sign.fillStyle = "#f8ead6";
+    sign.fillRect(0, 0, 900, 220);
+    sign.textAlign = "center";
+    sign.fillStyle = "#347d73";
+    sign.font = "bold 96px Georgia, serif";
+    sign.fillText("HAPPY HOTEL", 450, 112);
+    sign.fillStyle = "#c56b72";
+    sign.font = "bold 28px Arial, sans-serif";
+    sign.fillText("A WARM WELCOME, EVERY TIME", 450, 172);
+    const map = new THREE.CanvasTexture(signCanvas);
+    map.colorSpace = THREE.SRGBColorSpace;
+    const face = new THREE.Mesh(new THREE.PlaneGeometry(3.12, 0.58), new THREE.MeshBasicMaterial({ map }));
+    face.position.set(0, 1.03, -6.02);
+    scene.add(face);
+  }
+
+  for (const side of [-1, 1]) {
+    const x = side * 4.72;
+    box(1.24, 0.76, 0.14, "#b58a5b", x, 1.08, -6.2);
+    box(1.08, 0.6, 0.08, "#d8e9df", x, 1.08, -6.1);
+    const sun = new THREE.Mesh(new THREE.CircleGeometry(0.16, 20), mat("#e9b96f"));
+    sun.position.set(x + side * 0.2, 1.17, -6.04);
+    scene.add(sun);
+
+    box(1.8, 0.08, 1.1, "#e7cda8", x, 0.1, -2.92);
+    box(1.5, 0.34, 0.68, "#c56b72", x, 0.34, -2.92);
+    box(1.5, 0.52, 0.2, "#df9885", x, 0.72, -3.15);
+    box(0.18, 0.55, 0.72, "#b98259", x - 0.78, 0.49, -2.92);
+    box(0.18, 0.55, 0.72, "#b98259", x + 0.78, 0.49, -2.92);
+
+    const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.3, 0.4, 12), mat("#c67c61"));
+    pot.position.set(side * 5.7, 0.22, 0.05);
+    scene.add(pot);
+    for (const [dx, dy, dz] of [[0, 0.68, 0], [-0.25, 0.88, 0], [0.22, 0.96, 0.02], [0, 1.12, -0.04]]) {
+      const leaf = new THREE.Mesh(new THREE.SphereGeometry(0.23, 10, 8), mat("#6c9b72"));
+      leaf.scale.set(0.72, 1.25, 0.72);
+      leaf.position.set(side * 5.7 + dx, dy, 0.05 + dz);
+      leaf.castShadow = true;
+      scene.add(leaf);
+    }
   }
 }
