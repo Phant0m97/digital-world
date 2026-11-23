@@ -39,7 +39,7 @@ export function EyeMark({ className }: { className?: string }) {
 export function Wordmark({ className }: { className?: string }) {
   return (
     <div className={className}>
-      <p className="font-display text-[0.72rem] tracking-[0.42em] text-cyan uppercase">Enter the yard</p>
+      
       <h1 className="glitch font-display text-5xl font-extrabold tracking-tight text-cream uppercase sm:text-7xl">
         DigitalWorld
       </h1>
