@@ -184,11 +184,11 @@ export function mountFarm(canvas: HTMLCanvasElement, onHud: (hud: FarmHud) => vo
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color("#8ec8ef");
-  scene.fog = new THREE.Fog("#b7d7ea", 34, 78);
+  scene.background = new THREE.Color("#8ecfff");
+  scene.fog = new THREE.Fog("#c6e4f2", 62, 145);
   const camera = new THREE.PerspectiveCamera(48, 1, 0.1, 120);
-  const hemi = new THREE.HemisphereLight("#fff6df", "#3e6a34", 0.72);
-  const sun = new THREE.DirectionalLight("#ffe3a8", 1.55);
+  const hemi = new THREE.HemisphereLight("#fff8e7", "#52773d", 0.78);
+  const sun = new THREE.DirectionalLight("#fff0bd", 1.65);
   sun.position.set(10, 16, 8);
   sun.castShadow = true;
   sun.shadow.mapSize.set(1024, 1024);
@@ -219,12 +219,13 @@ export function mountFarm(canvas: HTMLCanvasElement, onHud: (hud: FarmHud) => vo
     return mesh;
   }
 
-  const ground = solid(new THREE.PlaneGeometry(96, 52), "#67a33a", 16, 0, 0);
+  const ground = solid(new THREE.PlaneGeometry(96, 52), "#79b844", 16, 0, 0);
   ground.rotation.x = -Math.PI / 2;
   ground.castShadow = false;
-  solid(new THREE.CircleGeometry(12, 10), "#7cb84a", 1.2, 0.012, 1.2).rotation.x = -Math.PI / 2;
+  solid(new THREE.CircleGeometry(12, 10), "#87c94e", 1.2, 0.012, 1.2).rotation.x = -Math.PI / 2;
   const lane = solid(new THREE.PlaneGeometry(2.2, 14), "#c4a06a", HOUSE.x, 0.03, HOUSE.z + 8);
   lane.rotation.x = -Math.PI / 2;
+  const landscape = buildFarmLandscape(scene, solid);
 
   const hx = HOUSE.x;
   const hz = HOUSE.z;
@@ -849,8 +850,8 @@ export function mountFarm(canvas: HTMLCanvasElement, onHud: (hud: FarmHud) => vo
     city.visible = inCity;
     sun.intensity = 0.35 + dayness * 1.25;
     scene.background = new THREE.Color(dayness > 0.15 ? "#7ec8ea" : "#1c2740");
-    scene.fog = new THREE.Fog(dayness > 0.15 ? "#c5e6f6" : "#1c2740", inCity ? 12 : 48, inCity ? 32 : 90);
-    homestead.visible = !inCity;
+    scene.fog = new THREE.Fog(dayness > 0.15 ? "#d3edf8" : "#1c2740", inCity ? 12 : 62, inCity ? 32 : 145);
+    homestead.visible = !inCity; landscape.visible = !inCity;
     if (!room && farmer.position.x > 7.5) {
       const next = carOwned ? "The woods are too thick. Use the car." : "The road is closed. Buy the car to reach the city.";
       if (note !== next) {
@@ -882,10 +883,10 @@ export function mountFarm(canvas: HTMLCanvasElement, onHud: (hud: FarmHud) => vo
       camera.position.lerp(new THREE.Vector3(camX, 1.65, camZ), 0.18);
       camera.lookAt(lookAt.x, 1.05, lookAt.z);
     } else {
-      const camX = lookAt.x - Math.sin(yaw) * 8.6;
-      const camZ = lookAt.z - Math.cos(yaw) * 8.6;
-      camera.position.lerp(new THREE.Vector3(camX, 3.8, camZ), 0.12);
-      camera.lookAt(lookAt.x, 1.25, lookAt.z);
+      const camX = lookAt.x - Math.sin(yaw) * 11.2;
+      const camZ = lookAt.z - Math.cos(yaw) * 11.2;
+      camera.position.lerp(new THREE.Vector3(camX, 7.2, camZ), 0.12);
+      camera.lookAt(lookAt.x, 0.9, lookAt.z);
     }
     renderer.render(scene, camera);
     saveTimer += dt;
@@ -1248,4 +1249,78 @@ function hatCrown(solid: (geo: THREE.BufferGeometry, color: number | string, x: 
   solid(new THREE.ConeGeometry(0.06, 0.14, 4), "#f2c14e", -0.12, 1.64, -0.06, group);
   solid(new THREE.ConeGeometry(0.06, 0.14, 4), "#f2c14e", 0.12, 1.64, -0.06, group);
   return group;
+}
+
+function buildFarmLandscape(
+  scene: THREE.Scene,
+  solid: (geo: THREE.BufferGeometry, color: number | string, x: number, y: number, z: number, parent?: THREE.Object3D) => THREE.Mesh,
+) {
+  const landscape = new THREE.Group();
+  scene.add(landscape);
+  const building = (x: number, z: number, wallColor: string, roofColor: string, width: number, depth: number) => {
+    const home = new THREE.Group();
+    solid(new THREE.BoxGeometry(width, 1.8, depth), wallColor, 0, 0.9, 0, home);
+    solid(gable(width + 0.55, depth + 0.45, 1.25), roofColor, 0, 2.1, 0, home);
+    solid(new THREE.BoxGeometry(0.78, 1.18, 0.08), "#7e4b32", 0, 0.59, depth / 2 + 0.055, home);
+    for (const wx of [-width * 0.3, width * 0.3]) {
+      solid(new THREE.BoxGeometry(0.52, 0.48, 0.07), "#9edff2", wx, 1.15, depth / 2 + 0.06, home);
+      solid(new THREE.BoxGeometry(0.62, 0.07, 0.12), "#fff1d8", wx, 0.88, depth / 2 + 0.08, home);
+    }
+    home.position.set(x, 0, z);
+    landscape.add(home);
+  };
+
+  // Farm buildings carry the view beyond the playable plots.
+  building(-3.3, 16.8, "#f7edda", "#b9573f", 4.1, 3.2);
+  building(4.5, 16.1, "#c85e48", "#70433e", 4.6, 3.8);
+  solid(new THREE.CylinderGeometry(0.68, 0.76, 2.9, 8), "#eee6d2", 7.3, 1.45, 16.4, landscape);
+  solid(new THREE.ConeGeometry(0.78, 0.72, 8), "#ae5142", 7.3, 3.2, 16.4, landscape);
+
+  // Rolling hills and snow-tipped peaks echo the thumbnail backdrop.
+  for (const hill of [
+    { x: -18, z: 20, r: 9, color: "#83bd55" },
+    { x: -4, z: 22, r: 10, color: "#72ad49" },
+    { x: 12, z: 21, r: 9, color: "#8cc45a" },
+    { x: 25, z: 20, r: 11, color: "#73ae4c" },
+  ]) {
+    const mound = solid(new THREE.SphereGeometry(hill.r, 9, 6), hill.color, hill.x, -2.1, hill.z, landscape);
+    mound.scale.y = 0.62;
+  }
+  const peaks = [
+    { x: -22, r: 7.4, h: 13, color: "#7898aa" },
+    { x: -11, r: 8.8, h: 17, color: "#8daab8" },
+    { x: 1.5, r: 9.4, h: 18, color: "#7897a8" },
+    { x: 14, r: 8, h: 15, color: "#94adbb" },
+    { x: 27, r: 9.5, h: 17, color: "#7793a3" },
+  ];
+  for (const peak of peaks) {
+    const z = 29;
+    solid(new THREE.ConeGeometry(peak.r, peak.h, 6), peak.color, peak.x, peak.h / 2 - 0.6, z, landscape);
+    solid(new THREE.ConeGeometry(peak.r * 0.38, peak.h * 0.34, 6), "#f3f5eb", peak.x, peak.h * 0.79, z + 0.02, landscape);
+  }
+
+  // Short fence rails frame the field without crossing the farmhouse path.
+  for (let x = -15; x <= 14; x += 2.2) {
+    if (Math.abs(x + 6.4) < 2.7) continue;
+    solid(new THREE.BoxGeometry(0.12, 0.8, 0.12), "#8b6744", x, 0.4, 12.9, landscape);
+  }
+  for (const z of [12.62, 13.02]) {
+    const rail = solid(new THREE.BoxGeometry(28.8, 0.1, 0.1), "#d4b27d", -0.5, z === 12.62 ? 0.34 : 0.62, z, landscape);
+    rail.castShadow = false;
+  }
+
+  const mill = new THREE.Group();
+  solid(new THREE.CylinderGeometry(0.38, 0.58, 3.2, 6), "#f3ead6", 0, 1.6, 0, mill);
+  solid(new THREE.ConeGeometry(0.62, 0.72, 6), "#b85742", 0, 3.55, 0, mill);
+  const rotor = new THREE.Group();
+  rotor.position.set(0, 2.8, 0.4);
+  for (let i = 0; i < 4; i += 1) {
+    const blade = solid(new THREE.BoxGeometry(0.22, 1.55, 0.08), "#f4f0e5", 0, 0.92, 0, rotor);
+    blade.rotation.z = (Math.PI / 2) * i;
+  }
+  solid(new THREE.SphereGeometry(0.2, 7, 5), "#d1a45f", 0, 0, 0.06, rotor);
+  mill.add(rotor);
+  mill.position.set(-12.2, 0, 17.1);
+  landscape.add(mill);
+  return landscape;
 }
